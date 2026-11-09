@@ -71,7 +71,7 @@ export function parseRevolutStatement(fileName: string, items: PdfTextItem[]): {
     row.details = [fx, ref].filter(Boolean).join(' · ') || undefined;
     if (extra.some((l) => /^Card:/.test(l))) row.kind = 'card';
     else if (/^(Transfer|Payment from|To pocket|From pocket|Exchanged|Top-up|Revpoints|Deposit|Withdrawal)/i.test(row.label ?? '')) row.kind = 'internal';
-    else if (/^(To|From) [A-Z]/.test(to ?? '')) row.kind = 'transfer';
+    else if (/^(To|From):\s*[A-Z]/.test(to ?? '')) row.kind = 'transfer';
     else row.kind = 'other';
     if (row.label && row.label.toLowerCase() === row.merchant.toLowerCase()) delete row.label;
     rows.push(row);

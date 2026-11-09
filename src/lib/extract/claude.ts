@@ -24,7 +24,10 @@ const Verdicts = z.object({
     }),
   ),
 });
-export class ClaudeError extends Error {}
+export class ClaudeError extends Error {
+  /** Answers from batches that finished before this one failed. Already paid for, so the caller can still show them. */
+  partial?: Map<string, Verdict>;
+}
 
 export async function askClaude(
   apiKey: string,
@@ -33,6 +36,7 @@ export async function askClaude(
 ): Promise<Map<string, Verdict>> {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 1 });
   const out = new Map<string, Verdict>();
+  try {
   for (let start = 0; start < items.length; start += BATCH) {
     const batch = items.slice(start, start + BATCH);
     const ids = new Map(batch.map((c, i) => [`r${start + i + 1}`, c.row.id]));
@@ -63,6 +67,10 @@ export async function askClaude(
       if (rowId) out.set(rowId, v);
     }
     onProgress?.(Math.min(start + BATCH, items.length), items.length);
+  }
+  } catch (e) {
+    if (e instanceof ClaudeError && out.size > 0) e.partial = new Map(out);
+    throw e;
   }
   return out;
 }

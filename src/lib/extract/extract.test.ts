@@ -225,6 +225,63 @@ describe('asking Claude (no network in tests)', () => {
   });
 });
 
+describe('review fixes', () => {
+  const hdr = ['Date', 'Description', 'Amount'];
+  const sample = (extraCols: string[] = []) => [
+    [...hdr, ...extraCols],
+    ['2026-03-01', 'ANTHROPIC', '-10.00', ...extraCols.map(() => '100')],
+    ['2026-03-02', 'OPENAI', '-20.00', ...extraCols.map(() => '100')],
+    ['2026-03-03', 'ALBERT HEIJN', '-5.00', ...extraCols.map(() => '100')],
+    ...Array.from({ length: 7 }, (_, i) => [`2026-03-${String(4 + i).padStart(2, '0')}`, `INVOICE PAID ${i}`, '100.00', ...extraCols.map(() => '100')]),
+  ];
+
+  it('does not flip charges on an account with many incoming credits', () => {
+    const r = extractFromTables('acct.csv', [{ name: 'a', table: sample() }]);
+    expect(r.notes.join(' ')).toMatch(/negative amounts \(bank account\)/);
+    expect(r.rows.find((x) => x.merchant === 'ANTHROPIC')?.amountCents).toBe(1000);
+  });
+  it('treats a Balance column as a bank account', () => {
+    const r = extractFromTables('acct.csv', [{ name: 'a', table: sample(['Balance']) }]);
+    expect(r.rows.find((x) => x.merchant === 'OPENAI')?.amountCents).toBe(2000);
+  });
+  it('still reads a card statement whose charges are positive', () => {
+    const card = [hdr, ['2026-03-01', 'ANTHROPIC', '10.00'], ['2026-03-02', 'OPENAI', '20.00'], ['2026-03-03', 'ALBERT HEIJN', '5.00'], ['2026-03-04', 'BETALING BEDANKT', '-30.00']];
+    const r = extractFromTables('card.csv', [{ name: 'c', table: card }]);
+    expect(r.notes.join(' ')).toMatch(/positive amounts \(card statement\)/);
+    expect(r.rows.find((x) => x.merchant === 'ANTHROPIC')?.amountCents).toBe(1000);
+  });
+
+  it('only matches Descript and similar as whole words', () => {
+    expect(one(row('DESCRIPTION OF GOODS', 5)).decision).toBe('exclude');
+    expect(one(row('REPLICATED STORAGE LTD', 5)).decision).toBe('exclude');
+    expect(one(row('DESCRIPT', 12)).provider).toBe('Descript');
+    expect(one(row('LOVABLE.DEV', 20)).provider).toBe('Lovable');
+  });
+
+  it('reads Type values by their start, specific names first', () => {
+    expect(parseServiceType('Hosting plan')).toBe('hosting');
+    expect(parseServiceType('Domain plan')).toBe('domains');
+    expect(parseServiceType('Rapid hosting')).toBe('other');
+    expect(parseServiceType('Plan')).toBe('subscription');
+    const r = parseLedgerCsv('Merchant,Provider,Amount,Date,Type\r\nM,P,1.00,2026-01-01,Whatever\r\nM,P,2.00,2026-01-02,Other\r\n');
+    expect(r.rows.map((x) => x.type)).toEqual(['other', 'other']);
+    expect(r.warnings.join(' ')).toMatch(/"Whatever"/);
+    expect(r.warnings.join(' ')).not.toMatch(/"Other"/);
+  });
+
+  it('marks a Revolut payment to a person as a transfer', () => {
+    const items: PdfTextItem[] = [];
+    const line = (y: number, parts: [number, string][]) => parts.forEach(([x, str]) => items.push({ page: 1, x, y, str }));
+    line(800, [[40, 'EUR Statement'], [300, 'Revolut Bank UAB']]);
+    line(600, [[40, 'Account transactions from January 1, 2026 to March 31, 2026']]);
+    line(590, [[43, 'Date'], [125, 'Description'], [335, 'Money out'], [417, 'Money in'], [526, 'Balance']]);
+    line(580, [[43, 'Mar 2, 2026'], [125, 'John Smith'], [335, '€40.00'], [526, '€60.00']]);
+    line(570, [[125, 'To: John Smith']]);
+    const r = extractFromPdfItems('rev.pdf', items);
+    expect(r.rows[0].kind).toBe('transfer');
+  });
+});
+
 describe('ledger Type column', () => {
   it('reads, normalises and writes the optional Type column', () => {
     const r = parseLedgerCsv('Merchant,Provider,Amount,Date,Type\r\nM,P,1.00,2026-01-01,Usage / credits\r\nM,P,2.00,2026-01-02,\r\nM,P,3.00,2026-01-03,Subscription\r\n');

@@ -16,11 +16,12 @@ export function parseServiceType(raw: string): ServiceType | null {
   if (!v) return null;
   const hit = SERVICE_TYPES.find((t) => t === v || SERVICE_TYPE_LABELS[t].toLowerCase() === v);
   if (hit) return hit;
-  if (/^usage|credit|api/.test(v)) return 'usage';
-  if (/^sub|plan/.test(v)) return 'subscription';
+  // Anchored to the start, and the more specific names first, so "Hosting plan" is hosting, not a subscription.
   if (/^cert/.test(v)) return 'certification';
   if (/^domain/.test(v)) return 'domains';
-  if (/^host|infra/.test(v)) return 'hosting';
+  if (/^(host|infra)/.test(v)) return 'hosting';
+  if (/^(usage|credit|api)/.test(v)) return 'usage';
+  if (/^(sub|plan)/.test(v)) return 'subscription';
   return 'other';
 }
 
