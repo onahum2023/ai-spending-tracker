@@ -9,6 +9,10 @@ import type { LedgerRow } from './types';
  * the charge in this browser, and carried in an optional Tag column of the ledger CSV.
  * The quarter report lists charges as they were charged. The ledger has no VAT figures,
  * so amounts are never split into net and VAT.
+ *
+ * A tag rule ("tag new charges from this provider as Business") is applied when charges are
+ * imported, to charges that arrive without a tag. A tag in the file always wins, and charges
+ * already stored are never changed by a rule: tag those with the bulk tag control.
  */
 
 export const SUGGESTED_TAGS = ['Personal', 'Business'];
@@ -68,4 +72,42 @@ export function quarterReport<T extends LedgerRow>(rows: T[], quarter: string, t
   }
   const totals = [...by.values()].sort((a, b) => b.totalCents - a.totalCents || a.tag.localeCompare(b.tag));
   return { quarter, rows: inQ, totals, totalCents: inQ.reduce((a, r) => a + r.amountCents, 0) };
+}
+
+export interface TagRule {
+  provider: string;
+  tag: string;
+}
+
+/** Sets the rule for one provider, or with an empty tag or null removes it. */
+export function withTagRule(list: TagRule[], provider: string, tag: string | null): TagRule[] {
+  const rest = list.filter((r) => r.provider !== provider);
+  const clean = tag === null ? '' : cleanTag(tag);
+  return clean ? [...rest, { provider, tag: clean }] : rest;
+}
+
+/** Cleans anything read from storage. */
+export function normalizeTagRules(raw: unknown): TagRule[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Map<string, TagRule>();
+  for (const r of raw as Record<string, unknown>[]) {
+    if (typeof r?.provider !== 'string' || typeof r.tag !== 'string' || !r.provider) continue;
+    const tag = cleanTag(r.tag);
+    if (tag) out.set(r.provider, { provider: r.provider, tag });
+  }
+  return [...out.values()].sort((a, b) => a.provider.localeCompare(b.provider));
+}
+
+/** Gives rows that arrive without a tag the tag of their provider's rule. Rows with a tag are left alone. */
+export function applyTagRules<T extends LedgerRow>(rows: T[], rules: TagRule[]): { rows: T[]; tagged: number } {
+  if (rules.length === 0) return { rows, tagged: 0 };
+  const byProvider = new Map(rules.map((r) => [r.provider, r.tag]));
+  let tagged = 0;
+  const out = rows.map((r) => {
+    const tag = r.tag ? undefined : byProvider.get(r.provider);
+    if (!tag) return r;
+    tagged++;
+    return { ...r, tag };
+  });
+  return { rows: out, tagged };
 }

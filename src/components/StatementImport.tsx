@@ -24,7 +24,7 @@ function period(rows: StatementRow[]): string {
 }
 
 export function StatementImport({ onImported, intro }: { onImported?: () => void; intro?: ReactNode }) {
-  const { stored, reload } = useLedger();
+  const { stored, reload, tagRules } = useLedger();
   const [results, setResults] = useState<ReadResult[]>([]);
   const [items, setItems] = useState<Classified[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -131,12 +131,12 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
     setBusy('Saving…');
     try {
       const label = results.length === 1 ? results[0].fileName : `${results.length} statements`;
-      const res = await commitImport(label, ledgerRows, ledgerRows.length, 0);
+      const res = await commitImport(label, ledgerRows, ledgerRows.length, 0, tagRules);
       await reload();
       void navigator.storage?.persist?.().catch(() => false);
       setMessage({
         kind: 'ok',
-        text: `Added ${res.added} charge${res.added === 1 ? '' : 's'} to the ledger${res.skippedDuplicates ? `; ${res.skippedDuplicates} were already stored` : ''}.`,
+        text: `Added ${res.added} charge${res.added === 1 ? '' : 's'} to the ledger${res.skippedDuplicates ? `; ${res.skippedDuplicates} were already stored` : ''}${res.taggedByRule ? `; ${res.taggedByRule} tagged by your tag rules` : ''}.`,
       });
       setAllResults([]);
       setItems([]);

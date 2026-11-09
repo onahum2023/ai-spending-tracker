@@ -15,7 +15,7 @@ interface Preview {
 /** Pick or drop a CSV, review a validation + duplicate preview, then commit. */
 export function ImportPanel({ onImported, extraActions }: { onImported?: () => void; extraActions?: ReactNode }) {
   // Duplicates are checked against stored data only; demo rows are never stored.
-  const { stored, reload } = useLedger();
+  const { stored, reload, tagRules } = useLedger();
   const [drag, setDrag] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,6 +51,7 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
         preview.parse.rows,
         preview.parse.rowsInFile,
         preview.parse.errors.length,
+        tagRules,
       );
       await reload();
       // Ask the browser not to evict this site's storage under pressure (it may say no).
@@ -60,7 +61,9 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
         kind: 'ok',
         text:
           `Imported ${res.added} transaction${res.added === 1 ? '' : 's'} from ${preview.fileName}` +
-          (res.skippedDuplicates ? `; skipped ${res.skippedDuplicates} already stored.` : '.'),
+          (res.skippedDuplicates ? `; skipped ${res.skippedDuplicates} already stored` : '') +
+          (res.taggedByRule ? `; ${res.taggedByRule} tagged by your tag rules` : '') +
+          '.',
       });
       onImported?.();
     } catch (e) {

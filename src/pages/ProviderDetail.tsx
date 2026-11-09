@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { SingleSeriesMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
+import { TagRuleInput, TagSuggestions } from '../components/TagEditor';
 import { TreatAs } from '../components/TreatAs';
 import { Card, EmptyState, Kpi, StreamName } from '../components/ui';
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
@@ -11,7 +12,7 @@ import { href } from '../router';
 import { useLedger } from '../store';
 
 export function ProviderDetail({ provider }: { provider: string }) {
-  const { transactions, span, colors, period, providers, analysis, providerCategories, setProviderCategory } = useLedger();
+  const { transactions, span, colors, period, providers, analysis, providerCategories, setProviderCategory, tagRules } = useLedger();
   const ownCategory = providerCategories.find((c) => c.provider === provider)?.category ?? '';
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
   const patterns = useMemo(() => analysis.patterns.filter((p) => p.provider === provider), [analysis, provider]);
@@ -38,6 +39,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
 
   return (
     <div className="stack">
+      <TagSuggestions />
       <div className="grid kpis">
         <Kpi label="All-time spending" value={formatEUR(total)} sub={`#${rank} of ${providers.length} providers · ${Math.round((total / sumCents(transactions)) * 100)}% of all`} />
         <Kpi label={periodLabel(period)} value={formatEUR(sumCents(periodRows))} sub={`${periodRows.length} charge${periodRows.length === 1 ? '' : 's'} in selected period`} />
@@ -91,6 +93,8 @@ export function ProviderDetail({ provider }: { provider: string }) {
           title="Services"
           subtitle="Each merchant descriptor is a service, with its own charge type. A provider can have several, such as a plan and usage."
           actions={
+            <div className="row wrap" style={{ gap: 12 }}>
+            <TagRuleInput provider={provider} saved={tagRules.find((r) => r.provider === provider)?.tag ?? ''} />
             <label className="row small" style={{ gap: 6 }} title="Charts, budgets and overlap use this category for every charge from this provider. Totals never change.">
               <span className="secondary">Category</span>
               <select
@@ -105,6 +109,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
                 ))}
               </select>
             </label>
+            </div>
           }
         >
           <div className="table-wrap" style={{ maxHeight: 520, overflowY: 'auto' }}>

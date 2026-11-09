@@ -111,3 +111,38 @@ export function BulkTag({ rows }: { rows: Transaction[] }) {
     </div>
   );
 }
+
+/**
+ * "New charges from this provider get the tag ...". Applied when charges are imported, to charges
+ * that arrive without a tag; charges already stored are not changed. Empty removes the rule.
+ */
+export function TagRuleInput({ provider, saved }: { provider: string; saved: string }) {
+  const { setTagRule } = useLedger();
+  const [draft, setDraft] = useState(saved);
+  useEffect(() => setDraft(saved), [saved]);
+  const commit = () => {
+    const t = cleanTag(draft);
+    if (t === saved) return setDraft(saved);
+    void setTagRule(provider, t || null);
+  };
+  return (
+    <label
+      className="row small"
+      style={{ gap: 6 }}
+      title="Charges imported from now on that arrive without a tag get this one. A tag in the file wins, and charges already stored are not changed."
+    >
+      <span className="secondary">Tag new charges</span>
+      <input
+        className="input input-sm tag-input"
+        list={TAG_LIST_ID}
+        value={draft}
+        placeholder="e.g. Business"
+        maxLength={MAX_TAG_LENGTH}
+        aria-label={`Tag new charges from ${provider} as`}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+    </label>
+  );
+}

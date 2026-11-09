@@ -8,18 +8,18 @@ import { Card, ProviderLink } from './ui';
 
 /** Every correction the user made, with a way back to automatic. */
 export function OverridesCard() {
-  const { overrides, setOverride, transactions, chargeOverrides, setChargeOverride, labels, setLabel, providerCategories, setProviderCategory } = useLedger();
+  const { overrides, setOverride, transactions, chargeOverrides, setChargeOverride, labels, setLabel, providerCategories, setProviderCategory, tagRules, setTagRule } = useLedger();
   const byId = new Map(transactions.map((t) => [t.id, t]));
   // A correction for a charge that no longer exists has nothing to show or reset.
   const singles = chargeOverrides.flatMap((o) => {
     const tx = byId.get(o.id);
     return tx ? [{ ...o, tx }] : [];
   });
-  if (overrides.length === 0 && singles.length === 0 && labels.length === 0 && providerCategories.length === 0) return null;
+  if (overrides.length === 0 && singles.length === 0 && labels.length === 0 && providerCategories.length === 0 && tagRules.length === 0) return null;
   return (
     <Card
       title="Your corrections"
-      subtitle="Charge types you set yourself, for a whole stream or for a single charge, the names you gave streams, and categories you chose for providers. Reset puts it back. Charges and totals are never changed."
+      subtitle="Charge types you set yourself, for a whole stream or for a single charge, the names you gave streams, categories you chose for providers, and tag rules. Reset puts it back. Charges and totals are never changed."
     >
       <div className="table-wrap">
         <table className="table">
@@ -87,6 +87,24 @@ export function OverridesCard() {
                 <td className="amount">
                   <button className="btn btn-sm" onClick={() => void setProviderCategory(c.provider, null)}>
                     Reset to automatic
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {tagRules.map((r) => (
+              <tr key={`tag-${r.provider}`}>
+                <td>
+                  <ProviderLink provider={r.provider} />
+                  <div className="small muted merchant-line">Whole provider</div>
+                </td>
+                <td>
+                  <span className="chip">Tag new charges: {r.tag}</span>
+                  <div className="small muted">Applied on import to charges without a tag. Charges already stored are not changed.</div>
+                </td>
+                <td className="amount">{transactions.filter((t) => t.provider === r.provider).length}</td>
+                <td className="amount">
+                  <button className="btn btn-sm" onClick={() => void setTagRule(r.provider, null)}>
+                    Remove rule
                   </button>
                 </td>
               </tr>
