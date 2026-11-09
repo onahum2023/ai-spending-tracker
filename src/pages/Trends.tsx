@@ -12,7 +12,6 @@ import {
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal, yearOf } from '../lib/dates';
 import { formatEUR, formatSignedEUR, sumCents } from '../lib/money';
 import { fixedVariableChange, fixedVariableSentence } from '../lib/insights';
-import { detectRecurring } from '../lib/recurring';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 
@@ -292,8 +291,8 @@ function ConcentrationCard() {
 }
 
 function RecurringCard() {
-  const { transactions, span } = useLedger();
-  const patterns = useMemo(() => (span ? detectRecurring(transactions, span.lastDate) : []), [transactions, span]);
+  const { analysis } = useLedger();
+  const patterns = analysis.patterns;
   return (
     <Card
       title="Recurring-looking patterns"

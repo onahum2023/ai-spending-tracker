@@ -5,17 +5,13 @@ import { Card, EmptyState, Kpi } from '../components/ui';
 import { filterPeriod, merchantBreakdown, periodLabel } from '../lib/analytics';
 import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
-import { detectRecurring } from '../lib/recurring';
 import { href } from '../router';
 import { useLedger } from '../store';
 
 export function ProviderDetail({ provider }: { provider: string }) {
-  const { transactions, span, colors, period, providers } = useLedger();
+  const { transactions, span, colors, period, providers, analysis } = useLedger();
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
-  const patterns = useMemo(
-    () => (span ? detectRecurring(rows, span.lastDate) : []),
-    [rows, span],
-  );
+  const patterns = useMemo(() => analysis.patterns.filter((p) => p.provider === provider), [analysis, provider]);
 
   if (!span) return null;
   if (rows.length === 0) {

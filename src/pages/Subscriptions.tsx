@@ -1,4 +1,6 @@
+import { OverridesCard } from '../components/OverridesCard';
 import { SignupsCard } from '../components/SignupsCard';
+import { TreatAs } from '../components/TreatAs';
 import { Card, Delta, EmptyState, Kpi, ProviderLink } from '../components/ui';
 import { CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort } from '../lib/dates';
@@ -72,6 +74,8 @@ export function Subscriptions() {
         </>
       )}
 
+      <OverridesCard />
+
       <SignupsCard />
     </div>
   );
@@ -103,6 +107,7 @@ function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
                     {s.notes.map((n) => (
                       <div key={n} className="small muted">{n}</div>
                     ))}
+                    <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} /></div>
                   </td>
                   <td className="hide-sm"><CategoryChip category={s.category} /></td>
                   <td className="amount">{formatEUR(s.monthlyCents)}</td>
@@ -237,7 +242,10 @@ function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
                 const lastLater = later[later.length - 1];
                 return (
                   <tr key={s.provider + s.pattern.firstDate}>
-                    <td><ProviderLink provider={s.provider} /></td>
+                    <td>
+                      <ProviderLink provider={s.provider} />
+                      <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} /></div>
+                    </td>
                     <td className="num nowrap">
                       {formatEUR(s.lastCents)}
                       <div className="small muted">{dateLabel(s.lastDate)}</div>

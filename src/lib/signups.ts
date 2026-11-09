@@ -26,6 +26,8 @@ export interface Signup {
   /** YYYY-MM-DD */
   date: string;
   kind: SignupKind;
+  /** Set when the user hid this entry. It stays stored, so importing the file again does not bring it back. */
+  hidden?: boolean;
 }
 
 /** Observation types in the evidence file that clearly mean "started using this service". */
@@ -108,6 +110,15 @@ export function mergeSignups(existing: Signup[], incoming: Signup[]): { merged: 
   return { merged: sortSignups([...existing, ...added]), added: added.length };
 }
 
+/** Hides (or with false, restores) one sign-up. */
+export function setSignupHidden(list: Signup[], target: Signup, hidden: boolean): Signup[] {
+  return list.map((s) => {
+    if (signupKey(s) !== signupKey(target)) return s;
+    const { hidden: _old, ...rest } = s;
+    return hidden ? { ...rest, hidden: true } : rest;
+  });
+}
+
 /** Cleans anything read from storage. */
 export function normalizeSignups(raw: unknown): Signup[] {
   if (!Array.isArray(raw)) return [];
@@ -116,7 +127,7 @@ export function normalizeSignups(raw: unknown): Signup[] {
     const provider = clip(r?.provider);
     const date = typeof r?.date === 'string' && isValidDate(r.date) ? r.date : null;
     if (!provider || !date || (r.kind !== 'signup' && r.kind !== 'trial')) continue;
-    out.push({ provider, service: clip(r.service)?.slice(0, MAX_TAG_LENGTH * 2) ?? null, date, kind: r.kind });
+    out.push({ provider, service: clip(r.service)?.slice(0, MAX_TAG_LENGTH * 2) ?? null, date, kind: r.kind, ...(r.hidden === true ? { hidden: true } : {}) });
   }
   return mergeSignups([], out).merged;
 }

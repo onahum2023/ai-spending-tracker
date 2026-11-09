@@ -6,8 +6,8 @@ import { useLedger } from '../store';
 import { Card, ProviderLink } from './ui';
 
 export function ForecastCard() {
-  const { transactions, today, span } = useLedger();
-  const f = useMemo(() => forecastCurrentMonth(transactions, today), [transactions, today]);
+  const { transactions, today, span, analysis } = useLedger();
+  const f = useMemo(() => forecastCurrentMonth(transactions, today, undefined, analysis.patterns), [transactions, today, analysis]);
 
   if (f.status === 'insufficient') {
     return (

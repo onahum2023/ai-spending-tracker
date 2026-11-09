@@ -149,7 +149,7 @@ export function DataPage() {
         >
           <p>
             This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}), their tags, your budgets,
-            your sign-ups and the import history from this browser. It can't be undone.
+            your sign-ups, your corrections and the import history from this browser. It can't be undone.
           </p>
           <button className="btn btn-sm" onClick={() => exportCsv(transactions)}>
             Export a backup first

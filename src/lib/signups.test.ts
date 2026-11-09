@@ -11,6 +11,7 @@ import {
   normalizeSignups,
   parseEvidence,
   providerKey,
+  setSignupHidden,
   summarizeOutcomes,
   type Signup,
 } from './signups';
@@ -99,6 +100,27 @@ describe('reading an email-evidence file', () => {
     ]);
     expect(cleaned).toEqual([{ provider: 'A', service: 'S', date: '2026-01-02', kind: 'trial' }]);
     expect(normalizeSignups('nope')).toEqual([]);
+  });
+});
+
+describe('hiding entries', () => {
+  const list = parseEvidence(evidence).signups;
+  const target = list.find((s) => s.provider === 'Beta Cloud')!;
+
+  it('hides and restores one entry, and keeps the flag through storage cleaning', () => {
+    const hidden = setSignupHidden(list, target, true);
+    expect(hidden.find((s) => s.provider === 'Beta Cloud')!.hidden).toBe(true);
+    expect(hidden.filter((s) => s.hidden)).toHaveLength(1);
+    expect(normalizeSignups(hidden).find((s) => s.provider === 'Beta Cloud')!.hidden).toBe(true);
+    const restored = setSignupHidden(hidden, target, false);
+    expect(restored.find((s) => s.provider === 'Beta Cloud')).not.toHaveProperty('hidden');
+  });
+
+  it('stays hidden when the same file is imported again', () => {
+    const hidden = setSignupHidden(list, target, true);
+    const again = mergeSignups(hidden, parseEvidence(evidence).signups);
+    expect(again.added).toBe(0);
+    expect(again.merged.find((s) => s.provider === 'Beta Cloud')!.hidden).toBe(true);
   });
 });
 

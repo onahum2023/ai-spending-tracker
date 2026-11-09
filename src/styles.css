@@ -381,3 +381,6 @@ details.explain li { margin: 3px 0; }
 .tag-input { width: 140px; }
 .tag-input::placeholder { color: var(--ink-3); }
 .bulk-tag { padding: 0 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+/* ---------- overrides ---------- */
+.treat-as { max-width: 170px; font-size: 12px; }

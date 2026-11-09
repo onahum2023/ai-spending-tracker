@@ -51,7 +51,13 @@ export type Forecast =
  * `span` defaults to the span of `rows`. Pass the whole ledger's span when forecasting a
  * subset (one category), so the history and freshness checks are about the data, not the subset.
  */
-export function forecastCurrentMonth(rows: LedgerRow[], today: string, span: DataSpan | null = dataSpan(rows)): Forecast {
+export function forecastCurrentMonth(
+  rows: LedgerRow[],
+  today: string,
+  span: DataSpan | null = dataSpan(rows),
+  /** Patterns to list as "usually charged later this month". Defaults to automatic detection on `rows`. */
+  patterns?: RecurringPattern[],
+): Forecast {
   // If the data runs past "today" (e.g. a clock mismatch), forecast from the latest record.
   const asOf = span && span.lastDate > today ? span.lastDate : today;
   const month = monthOf(asOf);
@@ -102,7 +108,7 @@ export function forecastCurrentMonth(rows: LedgerRow[], today: string, span: Dat
   const lowCents = monthOver ? 0 : Math.min(...remaining);
   const highCents = monthOver ? 0 : Math.max(...remaining);
 
-  const upcoming = detectRecurring(rows, span.lastDate).filter((p) => {
+  const upcoming = (patterns ?? detectRecurring(rows, span.lastDate)).filter((p) => {
     if (!p.active) return false;
     // Expected later this month: next expected date falls in this month after the as-of day.
     return monthOf(p.nextExpected) === month && p.nextExpected > asOf;
