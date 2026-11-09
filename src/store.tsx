@@ -84,6 +84,24 @@ const LedgerContext = createContext<Ledger | null>(null);
 
 // Remembers "I'm exploring the demo" across reloads. A per-viewer convenience only.
 function readDemoFlag(): boolean {
+  // The landing page links to "/app?demo=1": start the demo, then tidy the address.
+  // The demo lives in memory, so it starts even when storage is blocked (it just won't survive a reload).
+  let fromLink = false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('demo') === '1') {
+      fromLink = true;
+      params.delete('demo');
+      const rest = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+    }
+  } catch {
+    /* no address to read */
+  }
+  if (fromLink) {
+    writeDemoFlag(true);
+    return true;
+  }
   try {
     return localStorage.getItem(DEMO_FLAG) === '1';
   } catch {

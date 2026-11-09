@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. On first visit you'll see the welcome screen:
+Open http://localhost:5173 for the landing page, then **Explore demo data** or **Import your own data**, or go straight to the app at http://localhost:5173/app.html (on Vercel: `/app`). Old links such as `/#/subscriptions` still work: the landing page sends them to the app. On first visit the app shows the welcome screen:
 
 - **Explore demo data** generates invented data in memory (see [Demo mode](#demo-mode)). Nothing is saved.
 - **Bank or card statements**: drop the exports you already download from your bank or card; the app picks out the AI charges (see [Statement extractor](#statement-extractor)).
@@ -260,10 +260,21 @@ The **Data** page ends with an **About** card: the version from `package.json`, 
 
 All screenshots show the synthetic demo data.
 
+## Pages
+
+| Address | What | Source |
+|---|---|---|
+| `/` | Landing page: what it is, privacy up front, screenshots, FAQ. Static HTML, no scripts except a tiny redirect for old `/#/…` links. | `index.html`, `src/content/landing.ts` |
+| `/app` (`app.html`) | The tracker. `/app?demo=1` starts the demo. | `app.html`, `src/` |
+| `/privacy` (`privacy.html`) | The privacy statement (draft until reviewed). Static HTML. | `privacy.html`, `src/content/privacy.ts` |
+
+The landing page and the privacy page are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The landing page leaves out the canonical link and social image until a public address is known: set `SITE_URL` (or, on Vercel, the production domain is used) and rebuild.
+
 ## Project layout
 
 ```
 src/
+  content/        landing page and privacy statement text, with tests
   lib/            pure logic, no React
     money.ts        cents parsing/formatting
     dates.ts        YYYY-MM-DD / YYYY-MM helpers

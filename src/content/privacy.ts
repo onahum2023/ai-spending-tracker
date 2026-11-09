@@ -15,8 +15,8 @@
 
 export const PRIVACY_IS_DRAFT = true;
 export const PRIVACY_UPDATED = '2026-11-09';
-/** Where the page lives. A plain file path works in the dev server, the build and on Vercel (cleanUrls redirects it). */
-export const PRIVACY_PATH = 'privacy.html';
+/** Where the page lives. An absolute file path works from the landing page and the app, in the dev server, the build and on Vercel (cleanUrls redirects it). */
+export const PRIVACY_PATH = '/privacy.html';
 
 /** Filled in once decided (issue #17 and #19). The page shows these placeholders until then. */
 export const CONTROLLER = '[Controller name: to be decided]';

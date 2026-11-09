@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { renderLandingBody, renderLandingMeta } from './src/content/landing.ts';
 import { PRIVACY_IS_DRAFT, renderPrivacyBody } from './src/content/privacy.ts';
 import pkg from './package.json' with { type: 'json' };
 import vercel from './vercel.json' with { type: 'json' };
@@ -21,24 +22,40 @@ function buildCommit(): string {
 // `npm run preview` sends the same security headers as Vercel, so a local check is faithful.
 const deployHeaders = Object.fromEntries(vercel.headers[0].headers.map((h) => [h.key, h.value]));
 
-// Fills privacy.html from src/content/privacy.ts, so the statement lives in one file and the page needs no script.
-function privacyPage(): Plugin {
+// The public address, for canonical and social-card URLs (they must be absolute). Set SITE_URL, or on Vercel the
+// production domain is used. Empty until a domain exists: the page then leaves those tags out.
+function siteUrl(): string {
+  const explicit = process.env.SITE_URL;
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const url = explicit || (vercel ? `https://${vercel}` : '');
+  return url.replace(/\/+$/, '');
+}
+
+// Fills the static pages from src/content, so the wording lives in one place and the pages need no script.
+function staticPages(): Plugin {
   return {
-    name: 'privacy-page',
+    name: 'static-pages',
     transformIndexHtml: {
       order: 'pre',
       handler(html, ctx) {
-        if (!ctx.filename.endsWith('privacy.html')) return html;
-        return html
-          .replace('<!--PRIVACY_BODY-->', renderPrivacyBody())
-          .replace('<!--PRIVACY_ROBOTS-->', PRIVACY_IS_DRAFT ? '<meta name="robots" content="noindex" />' : '');
+        if (ctx.filename.endsWith('privacy.html')) {
+          return html
+            .replace('<!--PRIVACY_BODY-->', renderPrivacyBody())
+            .replace('<!--PRIVACY_ROBOTS-->', PRIVACY_IS_DRAFT ? '<meta name="robots" content="noindex" />' : '');
+        }
+        if (ctx.filename.endsWith('index.html')) {
+          return html
+            .replace('<!--LANDING_META-->', renderLandingMeta(siteUrl()))
+            .replace('<!--LANDING_BODY-->', renderLandingBody({ version: pkg.version, commit: buildCommit(), license: (pkg as { license?: string }).license ?? '' }));
+        }
+        return html;
       },
     },
   };
 }
 
 export default defineConfig({
-  plugins: [react(), privacyPage()],
+  plugins: [react(), staticPages()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_COMMIT__: JSON.stringify(buildCommit()),
@@ -50,8 +67,14 @@ export default defineConfig({
   // Recharts makes up most of the bundle; fine for a local app.
   build: {
     chunkSizeWarningLimit: 900,
-    // The app, plus the static privacy page (no scripts).
-    rollupOptions: { input: { main: resolve(import.meta.dirname, 'index.html'), privacy: resolve(import.meta.dirname, 'privacy.html') } },
+    // The landing page, the app and the static privacy page.
+    rollupOptions: {
+      input: {
+        landing: resolve(import.meta.dirname, 'index.html'),
+        app: resolve(import.meta.dirname, 'app.html'),
+        privacy: resolve(import.meta.dirname, 'privacy.html'),
+      },
+    },
   },
   preview: { port: 4173, headers: deployHeaders },
   test: {
