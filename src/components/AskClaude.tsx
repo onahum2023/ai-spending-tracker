@@ -29,6 +29,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
   /** Claude's answers, held here until the user confirms them. */
   const [proposed, setProposed] = useState<Map<string, Verdict> | null>(null);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
+  const [notice, setNotice] = useState<string | null>(null);
 
   const saveKey = (key: string, keep: boolean) => {
     try {
@@ -53,7 +54,16 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
       setProposed(verdicts);
       setAccepted(new Set(verdicts.keys()));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      const partial = (e as { partial?: Map<string, Verdict> }).partial;
+      if (partial && partial.size > 0) {
+        // Earlier batches finished and were paid for: still let the user review them.
+        setProposed(partial);
+        setAccepted(new Set(partial.keys()));
+        setNotice(`${message} These are the answers received before it failed; the other lines stay in review.`);
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(null);
     }
@@ -63,10 +73,12 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
     if (!proposed) return;
     onVerdicts(new Map([...proposed].filter(([id]) => accepted.has(id))));
     setProposed(null);
+    setNotice(null);
     setOpen(false);
   };
   const discard = () => {
     setProposed(null);
+    setNotice(null);
     setAccepted(new Set());
   };
 
@@ -75,6 +87,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
       <ClaudeResults
         items={items}
         proposed={proposed}
+        notice={notice}
         accepted={accepted}
         onToggle={(id) =>
           setAccepted((prev) => {
@@ -151,10 +164,11 @@ function outcomeOf(v: Verdict): Outcome {
 
 /** Step two: shows what Claude answered and applies only what the user confirms. */
 function ClaudeResults({
-  items, proposed, accepted, onToggle, onSetAll, onConfirm, onDiscard,
+  items, proposed, notice, accepted, onToggle, onSetAll, onConfirm, onDiscard,
 }: {
   items: Classified[];
   proposed: Map<string, Verdict>;
+  notice: string | null;
   accepted: Set<string>;
   onToggle: (rowId: string) => void;
   onSetAll: (on: boolean) => void;
@@ -180,6 +194,7 @@ function ClaudeResults({
           <button className="btn btn-sm btn-ghost" onClick={() => onSetAll(false)}>Select none</button>
         </div>
       </div>
+      {notice && <div className="notice notice-error">{notice}</div>}
       <p className="small secondary">
         Nothing has changed yet. Untick any answer you disagree with, then confirm. You can still change any line afterwards.
         {unanswered > 0 && <> Claude did not answer {unanswered} line{unanswered === 1 ? '' : 's'}; they stay in review.</>}

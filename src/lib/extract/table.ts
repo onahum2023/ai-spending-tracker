@@ -1,5 +1,6 @@
 import { detectDayOrder, oneLine, parseLooseAmount, parseLooseDate, type DayOrder } from './parse';
 import type { StatementRow } from './types';
+import { VENDORS } from './vendors';
 
 /*
  * Reads statement-like tables (Excel sheets or CSV) whose columns we find by name.
@@ -7,10 +8,11 @@ import type { StatementRow } from './types';
  */
 
 type Role =
-  | 'date' | 'merchant' | 'statementAs' | 'amount' | 'out' | 'in' | 'direction'
+  | 'balance' | 'date' | 'merchant' | 'statementAs' | 'amount' | 'out' | 'in' | 'direction'
   | 'details' | 'country' | 'category' | 'state' | 'type' | 'counterparty';
 
 const HEADERS: Record<Role, RegExp> = {
+  balance: /^(balance|saldo|saldo na mutatie|solde|kontostand|running balance)$/i,
   date: /^(datum|date|transaction date|transactiedatum|boekingsdatum|booking date|completed date|started date|value date|fecha|data|buchungsdatum|date de l'opération|date operation)$/i,
   merchant: /^(omschrijving|description|merchant|merchant name|naam ?\/ ?omschrijving|naam|name|payee|details|beschrijving|beschreibung|libellé|verwendungszweck|transaction description)$/i,
   statementAs: /^(vermeld op uw rekeningoverzicht als|appears on your statement as|wird auf ihrer abrechnung angezeigt als)$/i,
@@ -56,7 +58,18 @@ export type SignConvention = 'charges-positive' | 'charges-negative';
 
 const PAYMENT_RE = /\b(betaling|payment|thank you|bedankt|autopay|incasso|repayment|paiement|zahlung)\b/i;
 
-function detectSign(amounts: { cents: number; text: string }[]): SignConvention {
+/**
+ * Works out which sign means "money spent". In order of trust:
+ *  1. a Balance column means a bank account (charges negative);
+ *  2. lines from known AI vendors are charges, so their majority sign tells us;
+ *  3. negatives that read as card repayments, or a heavy majority of positives, mean a card statement.
+ * Counting positives alone is unreliable: an account with lots of incoming money looks like a card.
+ */
+function detectSign(amounts: { cents: number; text: string }[], hasBalance: boolean): SignConvention {
+  if (hasBalance) return 'charges-negative';
+  const known = amounts.filter((a) => a.cents !== 0 && VENDORS.some((v) => v.match.test(a.text.toUpperCase())));
+  const knownPos = known.filter((a) => a.cents > 0).length;
+  if (known.length > 0 && knownPos !== known.length - knownPos) return knownPos > known.length - knownPos ? 'charges-positive' : 'charges-negative';
   const pos = amounts.filter((a) => a.cents > 0).length;
   const neg = amounts.filter((a) => a.cents < 0);
   const negArePayments = neg.length > 0 && neg.filter((a) => PAYMENT_RE.test(a.text)).length >= neg.length / 2;
@@ -109,7 +122,7 @@ export function readTable(
     return { r, cents, merchant };
   });
 
-  const sign = opts.sign ?? (cols.direction !== undefined || cols.out !== undefined ? 'charges-negative' : detectSign(raw.filter((x) => x.cents !== null).map((x) => ({ cents: x.cents!, text: x.merchant }))));
+  const sign = opts.sign ?? (cols.direction !== undefined || cols.out !== undefined ? 'charges-negative' : detectSign(raw.filter((x) => x.cents !== null).map((x) => ({ cents: x.cents!, text: x.merchant })), cols.balance !== undefined));
   notes.push(sign === 'charges-positive' ? 'Charges are positive amounts (card statement).' : 'Charges are negative amounts (bank account).');
 
   const rows: StatementRow[] = [];

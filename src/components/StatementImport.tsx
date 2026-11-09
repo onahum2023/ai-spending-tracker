@@ -36,6 +36,15 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Mirrors of state that async work (reading several dropped files) must see fresh, not as captured at drop time.
+  const resultsRef = useRef<ReadResult[]>([]);
+  const infraRef = useRef(true);
+  const setAllResults = (next: ReadResult[]) => {
+    resultsRef.current = next;
+    setResults(next);
+  };
+  const okRows = (all: ReadResult[]) => mergeFiles(all.filter((r) => !r.error)).rows;
+
   const merged = useMemo(() => mergeFiles(results.filter((r) => !r.error)), [results]);
 
   /** Re-runs the rules but keeps decisions you (or Claude) made by hand. */
@@ -46,27 +55,28 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
 
   const addFiles = async (files: FileList | File[]) => {
     setMessage(null);
-    const list = [...files];
-    let next = [...results];
-    for (const f of list) {
+    const replaced = new Set<string>();
+    for (const f of [...files]) {
       setBusy(`Reading ${f.name}…`);
       const r = await readStatementFile(f);
-      next = [...next.filter((x) => x.fileName !== r.fileName), r];
+      replaced.add(r.fileName);
+      // Always build on the latest list, so two overlapping drops cannot overwrite each other.
+      setAllResults([...resultsRef.current.filter((x) => x.fileName !== r.fileName), r]);
     }
     setBusy(null);
-    setResults(next);
-    setItems((prev) => reclassify(mergeFiles(next.filter((r) => !r.error)).rows, includeInfra, prev));
+    // A re-dropped file gets new row ids: hand decisions made on its old rows no longer apply.
+    setItems((prev) => reclassify(okRows(resultsRef.current), infraRef.current, prev.filter((c) => !replaced.has(c.row.source))));
     setTab('include');
     setLimit(PAGE);
   };
 
   const removeFile = (name: string) => {
-    const next = results.filter((r) => r.fileName !== name);
-    setResults(next);
-    setItems((prev) => reclassify(mergeFiles(next.filter((r) => !r.error)).rows, includeInfra, prev.filter((c) => c.row.source !== name)));
+    setAllResults(resultsRef.current.filter((r) => r.fileName !== name));
+    setItems((prev) => reclassify(okRows(resultsRef.current), infraRef.current, prev.filter((c) => c.row.source !== name)));
   };
 
   const toggleInfra = (on: boolean) => {
+    infraRef.current = on;
     setIncludeInfra(on);
     setItems((prev) => reclassify(merged.rows, on, prev));
   };
@@ -128,7 +138,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
         kind: 'ok',
         text: `Added ${res.added} charge${res.added === 1 ? '' : 's'} to the ledger${res.skippedDuplicates ? `; ${res.skippedDuplicates} were already stored` : ''}.`,
       });
-      setResults([]);
+      setAllResults([]);
       setItems([]);
       onImported?.();
     } catch (e) {

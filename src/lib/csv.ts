@@ -56,6 +56,7 @@ export function parseLedgerCsv(text: string): ParseResult {
       `Expected the columns: ${REQUIRED_COLUMNS.join(', ')}. Found: ${header.join(', ') || '(nothing)'}.`;
     return result;
   }
+  const unknownTypes = new Set<string>();
   const typeIndex = header.findIndex((h) => h.toLowerCase() === TYPE_COLUMN.toLowerCase());
   const extra = header.filter(
     (h) => !REQUIRED_COLUMNS.some((c) => c.toLowerCase() === h.toLowerCase()) && h.toLowerCase() !== TYPE_COLUMN.toLowerCase(),
@@ -102,8 +103,14 @@ export function parseLedgerCsv(text: string): ParseResult {
       fail(problems.join('; ') + '.');
       continue;
     }
-    const type = typeIndex >= 0 ? parseServiceType(cells[typeIndex] ?? '') : null;
+    const typeRaw = typeIndex >= 0 ? (cells[typeIndex] ?? '').trim() : '';
+    const type = typeRaw ? parseServiceType(typeRaw) : null;
+    if (type === 'other' && !/^other$/i.test(typeRaw)) unknownTypes.add(typeRaw);
     result.rows.push({ merchant, provider, amountCents: amountCents!, date, sourceRow, ...(type ? { type } : {}) });
+  }
+  if (unknownTypes.size > 0) {
+    const list = [...unknownTypes].slice(0, 5).map((t) => `"${t}"`).join(', ');
+    result.warnings.push(`Type not recognised, stored as Other: ${list}${unknownTypes.size > 5 ? ', …' : ''}.`);
   }
   return result;
 }

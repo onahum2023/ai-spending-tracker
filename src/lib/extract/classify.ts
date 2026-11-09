@@ -1,6 +1,6 @@
 import { detectRecurring } from '../recurring';
 import type { ServiceType, StatementRow } from './types';
-import { AI_HINT, LOOKALIKES, VENDORS, type TypeRule } from './vendors';
+import { AI_HINT, LOOKALIKES, VENDORS } from './vendors';
 
 export type Decision = 'include' | 'review' | 'exclude';
 
@@ -32,7 +32,7 @@ function textOf(row: StatementRow): string {
  */
 export function classifyRows(rows: StatementRow[], opts: ClassifyOptions = {}): Classified[] {
   const includeInfra = opts.includeInfra ?? true;
-  const pending: { c: Classified; rule: TypeRule }[] = [];
+  const pending: Classified[] = [];
 
   const out = rows.map((row): Classified => {
     const text = textOf(row);
@@ -54,7 +54,7 @@ export function classifyRows(rows: StatementRow[], opts: ClassifyOptions = {}): 
         return { ...base, decision: 'include', provider: vendor.provider, type: service.type, group: vendor.group, reasons: [...reasons, `Type: ${service.why}`] };
       }
       const c: Classified = { ...base, decision: 'include', provider: vendor.provider, type: vendor.type === 'auto' ? null : vendor.type, group: vendor.group, reasons };
-      if (vendor.type === 'auto') pending.push({ c, rule: vendor.type });
+      if (vendor.type === 'auto') pending.push(c);
       return c;
     }
 
@@ -73,7 +73,7 @@ export function classifyRows(rows: StatementRow[], opts: ClassifyOptions = {}): 
 
   // Second pass: for vendors that sell both plans and top-ups, the charge pattern decides.
   const byProvider = new Map<string, Classified[]>();
-  for (const { c } of pending) byProvider.set(c.provider!, [...(byProvider.get(c.provider!) ?? []), c]);
+  for (const c of pending) byProvider.set(c.provider!, [...(byProvider.get(c.provider!) ?? []), c]);
   for (const list of byProvider.values()) {
     const ledgerish = list.map((c) => ({ merchant: c.row.merchant, provider: c.provider!, amountCents: c.row.amountCents, date: c.row.date, c }));
     const latest = ledgerish.reduce((a, r) => (r.date > a ? r.date : a), '0000-00-00');
