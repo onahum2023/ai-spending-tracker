@@ -6,7 +6,17 @@ import { parseLedgerCsv } from './csv';
 import { clearAll, closeDb, loadSetting, saveSetting } from './db';
 import { forecastCurrentMonth } from './forecast';
 import { analyze, YEARLY_GRACE_DAYS } from './insights';
-import { normalizeOverrides, overrideMap, overrideOf, streamSize, typeLabel, withOverride, type Override } from './overrides';
+import {
+  normalizeChargeOverrides,
+  normalizeOverrides,
+  overrideMap,
+  overrideOf,
+  streamSize,
+  typeLabel,
+  withChargeOverride,
+  withOverride,
+  type Override,
+} from './overrides';
 import { sumCents } from './money';
 import type { LedgerRow } from './types';
 
@@ -256,6 +266,58 @@ describe('yearly subscription (always set by the user)', () => {
   });
 });
 
+describe('a correction on a single charge', () => {
+  const sub = (id: number, date: string, cents = 2178): LedgerRow & { id: number } => ({ ...charge(date, cents), id });
+  const stream = { provider: 'Anthropic', merchant: 'ANTHROPIC* CLAUDE SUB' };
+
+  it('sets, replaces and removes one charge, and cleans what it reads back', () => {
+    let list = withChargeOverride([], 7, 'usage');
+    list = withChargeOverride(list, 9, 'other');
+    list = withChargeOverride(list, 7, 'monthly');
+    expect(list).toEqual([{ id: 9, kind: 'other' }, { id: 7, kind: 'monthly' }]);
+    expect(withChargeOverride(list, 9, null)).toEqual([{ id: 7, kind: 'monthly' }]);
+    expect(
+      normalizeChargeOverrides([{ id: 3, kind: 'usage' }, { id: 1.5, kind: 'usage' }, { id: 4, kind: 'nope' }, { id: '5', kind: 'usage' }, null, { id: 3, kind: 'other' }]),
+    ).toEqual([{ id: 3, kind: 'other' }]);
+    expect(normalizeChargeOverrides(undefined)).toEqual([]);
+  });
+
+  it('beats the type of its stream: one top-up is usage while the plan stays a subscription', () => {
+    const plan = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d, i) => sub(i + 1, d));
+    const topUp = sub(6, '2026-10-20', 2000);
+    const data = [...plan, topUp, later('2026-11-01')];
+    const a = analyze(data, '2026-11-02', [{ ...stream, kind: 'monthly' }], [{ id: 6, kind: 'usage' }]);
+    expect(a.typeOf(topUp)).toMatchObject({ kind: 'usage', source: 'you' });
+    expect(a.typeOf(plan[0])).toMatchObject({ kind: 'subscription' });
+    expect(a.fixed.has(topUp)).toBe(false);
+    expect(a.fixed.has(plan[4])).toBe(true);
+    // the run-rate follows the plan, not the top-up that came after it
+    expect(a.report.monthlyCents).toBe(2178);
+    expect(a.categoryOf(topUp)).toBe('api');
+  });
+
+  it('can make one charge a subscription while its stream is usage', () => {
+    const rowsU = [sub(1, '2026-09-06', 500), sub(2, '2026-10-06', 500), sub(3, '2026-10-20', 4000)];
+    const a = analyze([...rowsU, later('2026-11-01')], '2026-11-02', [{ ...stream, kind: 'usage' }], [{ id: 3, kind: 'monthly' }]);
+    expect(a.typeOf(rowsU[0]).kind).toBe('usage');
+    expect(a.typeOf(rowsU[2])).toMatchObject({ kind: 'subscription', cadence: 'monthly', source: 'you' });
+    expect(a.report.monthlyCents).toBe(4000);
+  });
+
+  it('keeps the rest of an automatic stream detected when one charge is taken out of it', () => {
+    const plan = ['2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d, i) => sub(i + 1, d));
+    const odd = sub(5, '2026-10-12', 900);
+    const a = analyze([...plan, odd, later('2026-10-20')], '2026-10-21', [], [{ id: 5, kind: 'other' }]);
+    expect(a.report.active.map((s) => s.monthlyCents)).toEqual([2178]);
+    expect(a.typeOf(odd)).toMatchObject({ kind: 'other', source: 'you' });
+  });
+
+  it('is ignored for rows without an id, and for ids that match nothing', () => {
+    const data = [charge('2026-10-06', 2178)];
+    expect(analyze(data, '2026-11-02', [], [{ id: 1, kind: 'usage' }]).typeOf(data[0]).source).not.toBe('you');
+  });
+});
+
 describe('storage', () => {
   beforeEach(async () => {
     await clearAll();
@@ -268,5 +330,13 @@ describe('storage', () => {
     expect(normalizeOverrides(await loadSetting('overrides'))).toEqual(list);
     await clearAll();
     expect(await loadSetting('overrides')).toBeUndefined();
+  });
+
+  it('keeps single-charge corrections across a reload and removes them with the rest of the local data', async () => {
+    await saveSetting('chargeOverrides', [{ id: 4, kind: 'usage' }]);
+    await closeDb();
+    expect(normalizeChargeOverrides(await loadSetting('chargeOverrides'))).toEqual([{ id: 4, kind: 'usage' }]);
+    await clearAll();
+    expect(await loadSetting('chargeOverrides')).toBeUndefined();
   });
 });

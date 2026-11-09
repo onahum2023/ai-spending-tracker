@@ -7,7 +7,16 @@ import { todayLocal } from './lib/dates';
 import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
 import { generateDemo } from './lib/demoData';
 import { analyze, type Analysis } from './lib/insights';
-import { normalizeOverrides, withOverride, type ChargeKind, type Override, type OverrideKind } from './lib/overrides';
+import {
+  normalizeChargeOverrides,
+  normalizeOverrides,
+  withChargeOverride,
+  withOverride,
+  type ChargeKind,
+  type ChargeOverride,
+  type Override,
+  type OverrideKind,
+} from './lib/overrides';
 import type { ImportRecord, Period, Transaction } from './lib/types';
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready' };
@@ -39,6 +48,10 @@ interface Ledger {
   overrides: Override[];
   /** Sets the treatment of one stream (provider + merchant descriptor), or with null puts it back to automatic. */
   setOverride: (provider: string, merchant: string, kind: OverrideKind | null) => Promise<void>;
+  /** Corrections to single charges, by charge id. They beat the correction on the charge's stream. */
+  chargeOverrides: ChargeOverride[];
+  /** Sets the type of one charge, or with null puts it back to following its stream. */
+  setChargeOverride: (id: number, kind: OverrideKind | null) => Promise<void>;
   budgets: Budgets;
   /** Saved in this browser; in demo mode kept in memory only. */
   setBudgets: (b: Budgets) => Promise<void>;
@@ -86,6 +99,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [demoTags, setDemoTags] = useState<Record<number, string>>({});
   const [storedOverrides, setStoredOverrides] = useState<Override[]>([]);
   const [demoOverrides, setDemoOverrides] = useState<Override[]>([]);
+  const [storedChargeOverrides, setStoredChargeOverrides] = useState<ChargeOverride[]>([]);
+  const [demoChargeOverrides, setDemoChargeOverrides] = useState<ChargeOverride[]>([]);
   const [demoOn, setDemoOn] = useState(readDemoFlag);
   const [period, setPeriodState] = useState<Period | null>(null);
   const scheme = useColorScheme();
@@ -93,11 +108,17 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const [data, budgets, overrides] = await Promise.all([loadAll(), loadSetting('budgets'), loadSetting('overrides')]);
+      const [data, budgets, overrides, chargeOverrides] = await Promise.all([
+        loadAll(),
+        loadSetting('budgets'),
+        loadSetting('overrides'),
+        loadSetting('chargeOverrides'),
+      ]);
       setStored(data.transactions);
       setImports(data.imports);
       setStoredBudgets(normalizeBudgets(budgets));
       setStoredOverrides(normalizeOverrides(overrides));
+      setStoredChargeOverrides(normalizeChargeOverrides(chargeOverrides));
       // Once the user has their own data, the demo is over.
       if (data.transactions.length > 0) {
         setDemoOn(false);
@@ -128,6 +149,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const transactions = mode === 'demo' ? demoRows : stored;
   const budgets = mode === 'demo' ? demoBudgets : storedBudgets;
   const overrides = mode === 'demo' ? demoOverrides : storedOverrides;
+  const chargeOverrides = mode === 'demo' ? demoChargeOverrides : storedChargeOverrides;
 
   const setOverride = useCallback(
     async (provider: string, merchant: string, kind: OverrideKind | null) => {
@@ -139,6 +161,15 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     [mode, overrides],
   );
 
+  const setChargeOverride = useCallback(
+    async (id: number, kind: OverrideKind | null) => {
+      const next = normalizeChargeOverrides(withChargeOverride(chargeOverrides, id, kind));
+      if (mode === 'demo') return setDemoChargeOverrides(next);
+      await saveSetting('chargeOverrides', next);
+      setStoredChargeOverrides(next);
+    },
+    [mode, chargeOverrides],
+  );
 
   const setBudgets = useCallback(
     async (b: Budgets) => {
@@ -179,6 +210,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
     setDemoOverrides([]);
+    setDemoChargeOverrides([]);
     setPeriodState(null);
     setDemoOn(true);
     writeDemoFlag(true);
@@ -187,13 +219,14 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
     setDemoOverrides([]);
+    setDemoChargeOverrides([]);
     setPeriodState(null);
     setDemoOn(false);
     writeDemoFlag(false);
   }, []);
 
   const span = useMemo(() => dataSpan(transactions), [transactions]);
-  const analysis = useMemo(() => analyze(transactions, today, overrides), [transactions, today, overrides]);
+  const analysis = useMemo(() => analyze(transactions, today, overrides, chargeOverrides), [transactions, today, overrides, chargeOverrides]);
   const providers = useMemo(() => summarizeProviders(transactions), [transactions]);
   const colors = useMemo(
     () => buildProviderColors(providers.map((p) => p.provider), scheme),
@@ -226,6 +259,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     analysis,
     overrides,
     setOverride,
+    chargeOverrides,
+    setChargeOverride,
     budgets,
     setBudgets,
     setTags,

@@ -94,7 +94,7 @@ export function TransactionTable({
                 )}
                 <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
                   {editableTags ? (
-                    <TreatAs provider={t.provider} merchant={t.merchant} />
+                    <TreatAs provider={t.provider} merchant={t.merchant} charge={t} />
                   ) : (
                     <span className="chip" title={WHY[analysis.typeOf(t).source]}>{typeText(t)}</span>
                   )}
