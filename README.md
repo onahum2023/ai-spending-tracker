@@ -2,7 +2,7 @@
 
 A local, single-user dashboard for understanding what you spend on AI products and services: how much, on which providers, and how it changes over time.
 
-It runs entirely in your browser. Data is stored in IndexedDB on your device. There is no backend, account, or network call beyond loading the app itself.
+Everything runs in your browser and your data is never uploaded, unless you choose to ask Claude about statement lines with your own Anthropic API key. Data is stored in IndexedDB on your device. There is no backend, account, cookie or analytics. See the [privacy statement](src/content/privacy.ts) (served as `/privacy.html`).
 
 ![Overview](docs/screenshots/01-overview-month.jpg)
 

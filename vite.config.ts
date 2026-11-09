@@ -1,6 +1,8 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { PRIVACY_IS_DRAFT, renderPrivacyBody } from './src/content/privacy.ts';
 import pkg from './package.json' with { type: 'json' };
 import vercel from './vercel.json' with { type: 'json' };
 
@@ -19,8 +21,24 @@ function buildCommit(): string {
 // `npm run preview` sends the same security headers as Vercel, so a local check is faithful.
 const deployHeaders = Object.fromEntries(vercel.headers[0].headers.map((h) => [h.key, h.value]));
 
+// Fills privacy.html from src/content/privacy.ts, so the statement lives in one file and the page needs no script.
+function privacyPage(): Plugin {
+  return {
+    name: 'privacy-page',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, ctx) {
+        if (!ctx.filename.endsWith('privacy.html')) return html;
+        return html
+          .replace('<!--PRIVACY_BODY-->', renderPrivacyBody())
+          .replace('<!--PRIVACY_ROBOTS-->', PRIVACY_IS_DRAFT ? '<meta name="robots" content="noindex" />' : '');
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), privacyPage()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_COMMIT__: JSON.stringify(buildCommit()),
@@ -30,7 +48,11 @@ export default defineConfig({
   },
   server: { port: 5173 },
   // Recharts makes up most of the bundle; fine for a local app.
-  build: { chunkSizeWarningLimit: 800 },
+  build: {
+    chunkSizeWarningLimit: 900,
+    // The app, plus the static privacy page (no scripts).
+    rollupOptions: { input: { main: resolve(import.meta.dirname, 'index.html'), privacy: resolve(import.meta.dirname, 'privacy.html') } },
+  },
   preview: { port: 4173, headers: deployHeaders },
   test: {
     environment: 'node',

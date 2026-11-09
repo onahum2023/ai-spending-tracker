@@ -1,4 +1,5 @@
 import { BUILD_INFO, THIRD_PARTY_NOTICES_URL } from '../buildInfo';
+import { PRIVACY_PATH } from '../content/privacy';
 import { dateLabel } from '../lib/dates';
 import { Card } from './ui';
 
@@ -21,6 +22,12 @@ export function AboutCard() {
             <dd>{license}</dd>
           </>
         )}
+        <dt className="muted">Privacy</dt>
+        <dd>
+          <a href={PRIVACY_PATH} style={{ textDecoration: 'underline' }}>
+            Privacy statement
+          </a>
+        </dd>
         <dt className="muted">Third-party software</dt>
         <dd>
           <a href={THIRD_PARTY_NOTICES_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>

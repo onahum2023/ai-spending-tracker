@@ -5,6 +5,7 @@ import { normalizeProviderCategories, withProviderCategory, type Category, type 
 import { buildProviderColors, categoryColor, typeColor, useColorScheme, type ProviderColors } from './lib/colors';
 import { todayLocal } from './lib/dates';
 import { normalizeTagRules, withTagRule, type TagRule } from './lib/tags';
+import { DEMO_FLAG } from './lib/localPrefs';
 import { normalizeLabels, withLabel, type Label } from './lib/labels';
 import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
 import { generateDemo } from './lib/demoData';
@@ -82,7 +83,6 @@ interface Ledger {
 const LedgerContext = createContext<Ledger | null>(null);
 
 // Remembers "I'm exploring the demo" across reloads. A per-viewer convenience only.
-const DEMO_FLAG = 'ai-spending-tracker.demo';
 function readDemoFlag(): boolean {
   try {
     return localStorage.getItem(DEMO_FLAG) === '1';
