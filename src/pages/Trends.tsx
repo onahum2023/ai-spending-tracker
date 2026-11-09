@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FixedVariableChart, MonthlyTrendChart, YearCompareChart } from '../components/charts';
+import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
 import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented } from '../components/ui';
 import {
   concentration,
@@ -11,7 +11,7 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal, yearOf } from '../lib/dates';
 import { formatEUR, formatSignedEUR, sumCents } from '../lib/money';
-import { fixedVariableChange, fixedVariableSentence } from '../lib/insights';
+import { typeChange, typeSentence } from '../lib/insights';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 
@@ -48,7 +48,7 @@ export function Trends() {
         </Card>
       </div>
 
-      <FixedVariable />
+      <SpendingTypes />
 
       <YearComparison />
 
@@ -72,27 +72,32 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
   );
 }
 
-function FixedVariable() {
+function SpendingTypes() {
   const { transactions, span, today, analysis } = useLedger();
   if (!span) return null;
   const L = lastCompleteMonth(span, today);
-  const c = fixedVariableChange(transactions, analysis.fixed, L);
-  const sentence = fixedVariableSentence(c);
-  const total = c.after.fixedCents + c.after.variableCents;
-  const share = total > 0 ? Math.round((c.after.fixedCents / total) * 100) : 0;
+  const c = typeChange(transactions, analysis.typeOf, L);
+  const sentence = typeSentence(c);
+  const total = c.after.subscriptionCents + c.after.usageCents + c.after.otherCents;
+  const share = (x: number) => (total > 0 ? Math.round((x / total) * 100) : 0);
+  const Row = ({ label, now, before }: { label: string; now: number; before: number }) => (
+    <Stat label={label} value={formatEUR(now)} sub={<>{share(now)}% of the last 3 months · <Delta before={before} after={now} /></>} />
+  );
   return (
     <div className="grid cols-2">
-      <Card title="Recurring vs usage" subtitle="Charges that repeat every month, against API top-ups, overages and one-off charges">
-        <FixedVariableChart rows={transactions} months={span.months} fixed={analysis.fixed} />
+      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither">
+        <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
       <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
         <div className="stack" style={{ gap: 14 }}>
-          <Stat label="Recurring charges" value={formatEUR(c.after.fixedCents)} sub={<>{share}% of the last 3 months · <Delta before={c.before.fixedCents} after={c.after.fixedCents} /></>} />
-          <Stat label="Usage and one-off charges" value={formatEUR(c.after.variableCents)} sub={<>{100 - share}% · <Delta before={c.before.variableCents} after={c.after.variableCents} /></>} />
+          <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
+          <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
+          <Row label="One-time / Other" now={c.after.otherCents} before={c.before.otherCents} />
           {sentence && <p className="small secondary">{sentence}</p>}
           <p className="small muted">
-            A charge counts as recurring once it has appeared three months in a row, so a tool started in the last two months shows as
-            usage until then.
+            The app guesses each charge's type. A charge is a subscription once it has appeared monthly for three months in a row, and usage
+            when the same descriptor is charged three or more times without that rhythm. Correct any of them with the Type control on the
+            Transactions or Subscriptions page.
           </p>
         </div>
       </Card>
@@ -319,7 +324,7 @@ function RecurringCard() {
                 <tr key={p.provider + p.firstDate}>
                   <td><ProviderLink provider={p.provider} /></td>
                   <td className="merchant hide-sm">{p.merchant}</td>
-                  <td className="nowrap">Monthly, ~{ordinal(p.typicalDay)}</td>
+                  <td className="nowrap">{p.cadence === 'yearly' ? 'Yearly (set by you)' : `Monthly, ~${ordinal(p.typicalDay)}`}</td>
                   <td className="amount">
                     {formatEUR(p.typicalCents)}
                     {p.minCents !== p.maxCents && <div className="small muted">{formatEUR(p.minCents)}–{formatEUR(p.maxCents)}</div>}

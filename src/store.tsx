@@ -2,13 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { dataSpan, summarizeProviders, type DataSpan, type ProviderSummary } from './lib/analytics';
 import { EMPTY_BUDGETS, normalizeBudgets, type Budgets } from './lib/budgets';
 import type { Category } from './lib/categories';
-import { buildProviderColors, categoryColor, useColorScheme, type ProviderColors } from './lib/colors';
+import { buildProviderColors, categoryColor, typeColor, useColorScheme, type ProviderColors } from './lib/colors';
 import { todayLocal } from './lib/dates';
 import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
 import { generateDemo } from './lib/demoData';
 import { analyze, type Analysis } from './lib/insights';
-import { normalizeOverrides, withOverride, type Override, type OverrideKind } from './lib/overrides';
-import { DEMO_SIGNUPS, normalizeSignups, type Signup } from './lib/signups';
+import { normalizeOverrides, withOverride, type ChargeKind, type Override, type OverrideKind } from './lib/overrides';
 import type { ImportRecord, Period, Transaction } from './lib/types';
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready' };
@@ -33,16 +32,13 @@ interface Ledger {
   providers: ProviderSummary[];
   colors: ProviderColors;
   categoryColors: (c: Category) => string;
+  typeColors: (k: ChargeKind) => string;
   /** Recurring patterns, subscriptions and categories, computed once for the displayed transactions. */
   analysis: Analysis<Transaction>;
   /** The user's corrections to automatic subscription detection, one per stream. */
   overrides: Override[];
   /** Sets the treatment of one stream (provider + merchant descriptor), or with null puts it back to automatic. */
   setOverride: (provider: string, merchant: string, kind: OverrideKind | null) => Promise<void>;
-  /** Sign-up and trial-start events from email. */
-  signups: Signup[];
-  /** Replaces the list. Saved in this browser; in demo mode kept in memory only. */
-  setSignups: (list: Signup[]) => Promise<void>;
   budgets: Budgets;
   /** Saved in this browser; in demo mode kept in memory only. */
   setBudgets: (b: Budgets) => Promise<void>;
@@ -90,8 +86,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [demoTags, setDemoTags] = useState<Record<number, string>>({});
   const [storedOverrides, setStoredOverrides] = useState<Override[]>([]);
   const [demoOverrides, setDemoOverrides] = useState<Override[]>([]);
-  const [storedSignups, setStoredSignups] = useState<Signup[]>([]);
-  const [demoSignups, setDemoSignups] = useState<Signup[]>(DEMO_SIGNUPS);
   const [demoOn, setDemoOn] = useState(readDemoFlag);
   const [period, setPeriodState] = useState<Period | null>(null);
   const scheme = useColorScheme();
@@ -99,16 +93,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const [data, budgets, signups, overrides] = await Promise.all([
-        loadAll(),
-        loadSetting('budgets'),
-        loadSetting('signups'),
-        loadSetting('overrides'),
-      ]);
+      const [data, budgets, overrides] = await Promise.all([loadAll(), loadSetting('budgets'), loadSetting('overrides')]);
       setStored(data.transactions);
       setImports(data.imports);
       setStoredBudgets(normalizeBudgets(budgets));
-      setStoredSignups(normalizeSignups(signups));
       setStoredOverrides(normalizeOverrides(overrides));
       // Once the user has their own data, the demo is over.
       if (data.transactions.length > 0) {
@@ -139,7 +127,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   );
   const transactions = mode === 'demo' ? demoRows : stored;
   const budgets = mode === 'demo' ? demoBudgets : storedBudgets;
-  const signups = mode === 'demo' ? demoSignups : storedSignups;
   const overrides = mode === 'demo' ? demoOverrides : storedOverrides;
 
   const setOverride = useCallback(
@@ -152,15 +139,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     [mode, overrides],
   );
 
-  const setSignups = useCallback(
-    async (list: Signup[]) => {
-      const clean = normalizeSignups(list);
-      if (mode === 'demo') return setDemoSignups(clean);
-      await saveSetting('signups', clean);
-      setStoredSignups(clean);
-    },
-    [mode],
-  );
 
   const setBudgets = useCallback(
     async (b: Budgets) => {
@@ -200,7 +178,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const startDemo = useCallback(() => {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
-    setDemoSignups(DEMO_SIGNUPS);
     setDemoOverrides([]);
     setPeriodState(null);
     setDemoOn(true);
@@ -209,7 +186,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const exitDemo = useCallback(() => {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
-    setDemoSignups(DEMO_SIGNUPS);
     setDemoOverrides([]);
     setPeriodState(null);
     setDemoOn(false);
@@ -246,11 +222,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     providers,
     colors,
     categoryColors: (c: Category) => categoryColor(c, scheme),
+    typeColors: (k: ChargeKind) => typeColor(k, scheme),
     analysis,
     overrides,
     setOverride,
-    signups,
-    setSignups,
     budgets,
     setBudgets,
     setTags,

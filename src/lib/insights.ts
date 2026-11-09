@@ -1,21 +1,35 @@
 import { dataSpan, type MonthlyStackRow } from './analytics';
 import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category } from './categories';
-import { addDays, addMonths, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
+import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
 import { STALE_AFTER_DAYS } from './forecast';
 import { formatEUR, medianCents } from './money';
-import { overrideMap, overrideOf, streamKey, type Override } from './overrides';
+import {
+  importedKind,
+  overrideMap,
+  overrideOf,
+  overrideToInfo,
+  streamKey,
+  type Cadence,
+  type ChargeKind,
+  type Override,
+  type TypeInfo,
+} from './overrides';
 import { detectRecurring, GRACE_DAYS, type RecurringPattern } from './recurring';
 import type { LedgerRow } from './types';
 
 /*
  * Insights from charge patterns
  * -----------------------------
- * A charge only has a merchant, provider, amount and date: no plan names, no usage
- * figures. Everything here is derived from the pattern of charges, so it is worded as
- * an observation ("went from X to Y", "no charges since"), never as a fact about a plan.
+ * A charge only has a merchant, provider, amount and date: no plan names, no usage figures.
+ * Everything here is derived from the pattern of charges, so it is worded as an
+ * observation ("went from X to Y", "no charges since"), never as a fact about a plan.
  *
- * "Recurring" means the existing recurring-looking pattern detection (monthly, similar
- * day, similar amount, 3+ months). Annual or irregular charges are not recurring here.
+ * Every charge gets one of three types (see overrides.ts): Subscription, Usage, or
+ * One-time / Other. The app guesses, you correct. Detection only recognises MONTHLY
+ * subscriptions (monthly, similar day, similar amount, 3+ months). A yearly subscription
+ * is always marked by you: its next renewal is estimated a year after the last charge, is
+ * labelled as an estimate until a real renewal has been seen, and is never reported as
+ * stopped just because the date passed.
  */
 
 /** A change of at least this fraction of the previous amount counts as a price change. */
@@ -25,16 +39,34 @@ const PRICE_STEP_MIN_CENTS = 100;
 export const UPCOMING_DAYS = 30;
 /** A plan switch: the new pattern starts within this many months of the old one's last charge. */
 const PLAN_SWITCH_MONTHS = 1;
+/** A yearly subscription whose renewal has not shown up is still counted this long past its estimated date. */
+export const YEARLY_GRACE_DAYS = 60;
+/** A descriptor charged this many times that is not a monthly subscription is read as usage. */
+export const USAGE_REPEATS = 3;
+
+export interface Renewal {
+  /** The date the next charge is expected (yearly subscriptions only). */
+  expected: string;
+  /** True once a renewal has actually been seen, so the cadence is observed, not assumed. */
+  confirmed: boolean;
+  /** The expected date has passed and the renewal has not shown up yet. */
+  overdue: boolean;
+}
 
 export interface Subscription<T extends LedgerRow = LedgerRow> {
   pattern: RecurringPattern<T>;
   provider: string;
   merchant: string;
   category: Category;
-  /** The most recent charge, the best guide to what is committed now. */
+  cadence: Cadence;
+  /** The most recent charge as billed: that is per month, or per year for a yearly subscription. */
+  billedCents: number;
+  /** Per month: the charge itself, or a twelfth of a yearly one. */
   monthlyCents: number;
   yearlyCents: number;
   lastDate: string;
+  /** Yearly subscriptions only. */
+  renewal: Renewal | null;
   /** Observations worth a second look: overlap, big price rises. */
   notes: string[];
 }
@@ -57,6 +89,11 @@ export interface UpcomingCharge {
   provider: string;
   merchant: string;
   cents: number;
+  cadence: Cadence;
+  /** The date is an estimate (a yearly renewal not yet seen). */
+  estimated: boolean;
+  /** The expected date has passed without the charge showing up. */
+  overdue: boolean;
 }
 
 export interface StoppedSubscription<T extends LedgerRow = LedgerRow> {
@@ -64,6 +101,7 @@ export interface StoppedSubscription<T extends LedgerRow = LedgerRow> {
   provider: string;
   merchant: string;
   category: Category;
+  cadence: Cadence;
   lastCents: number;
   lastDate: string;
   monthsSince: number;
@@ -95,8 +133,12 @@ export interface SubscriptionReport<T extends LedgerRow = LedgerRow> {
 
 export interface Analysis<T extends LedgerRow = LedgerRow> {
   patterns: RecurringPattern<T>[];
-  /** Charges counted as fixed: part of a recurring pattern, or marked as a subscription. */
+  /** Charges whose type is Subscription. */
   fixed: Set<T>;
+  /** The type of one charge, and how it was decided. */
+  typeOf: (row: T) => TypeInfo;
+  /** The type of a stream (provider + descriptor), judged by its most recent charge. Null if there is no such stream. */
+  streamInfo: (provider: string, merchant: string) => TypeInfo | null;
   categoryOf: (row: T) => Category;
   report: SubscriptionReport<T>;
 }
@@ -138,14 +180,15 @@ function stepChanges<T extends LedgerRow>(p: RecurringPattern<T>): PriceChange[]
   return out;
 }
 
-/** Finds, for each pattern, the pattern of the same provider that it directly replaced. */
+/** Finds, for each pattern, the monthly pattern of the same provider that it directly replaced. */
 function planSwitches<T extends LedgerRow>(
   patterns: RecurringPattern<T>[],
 ): { change: PriceChange | null; from: RecurringPattern<T>; to: RecurringPattern<T> }[] {
+  const monthly = patterns.filter((p) => p.cadence !== 'yearly');
   const out: { change: PriceChange | null; from: RecurringPattern<T>; to: RecurringPattern<T> }[] = [];
-  for (const to of patterns) {
+  for (const to of monthly) {
     let from: RecurringPattern<T> | null = null;
-    for (const cand of patterns) {
+    for (const cand of monthly) {
       if (cand === to || cand.provider !== to.provider) continue;
       if (cand.lastDate >= to.firstDate) continue;
       const gap = monthDiff(monthOf(cand.lastDate), monthOf(to.firstDate));
@@ -190,13 +233,14 @@ function describeOverlap(category: Category, members: { provider: string; monthl
   return `${members.length} ${nouns.many}: ${members.map((m) => m.provider).join(', ')} · ${formatEUR(combined)}/month combined`;
 }
 
-/** A stream the user marked as a monthly subscription: every charge counts, whatever their spacing. */
-function forcedPattern<T extends LedgerRow>(charges: T[], latestDate: string): RecurringPattern<T> | null {
+/** A stream the user marked as a subscription: every charge counts, whatever their spacing. */
+function forcedPattern<T extends LedgerRow>(charges: T[], cadence: Cadence, latestDate: string): RecurringPattern<T> | null {
   const cs = charges.filter((c) => c.amountCents > 0).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   if (cs.length === 0) return null;
   const last = lastOf(cs);
   const amounts = cs.map((c) => c.amountCents);
-  const nextExpected = addOneMonthToDate(last.date);
+  const yearly = cadence === 'yearly';
+  const nextExpected = yearly ? addMonthsToDate(last.date, 12) : addOneMonthToDate(last.date);
   return {
     provider: last.provider,
     merchant: last.merchant,
@@ -209,15 +253,17 @@ function forcedPattern<T extends LedgerRow>(charges: T[], latestDate: string): R
     firstDate: cs[0].date,
     lastDate: last.date,
     nextExpected,
-    active: addDays(nextExpected, GRACE_DAYS) >= latestDate,
+    active: addDays(nextExpected, yearly ? YEARLY_GRACE_DAYS : GRACE_DAYS) >= latestDate,
     forced: true,
+    ...(yearly ? { cadence: 'yearly' as const } : {}),
   };
 }
 
 /**
  * Runs pattern detection once and derives everything the Subscriptions view needs.
- * `overrides` are the user's corrections: streams marked usage or ignore are left out of
- * detection, and streams marked as a subscription become one whether or not detection agrees.
+ * `overrides` are the user's corrections: a stream set to usage or one-time / other is left
+ * out of detection, and a stream set to monthly or yearly becomes a subscription whether
+ * or not detection agrees.
  */
 export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides: Override[] = []): Analysis<T> {
   const span = dataSpan(rows);
@@ -225,14 +271,23 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   const asOf = latestDate > today ? latestDate : today;
   const ov = overrideMap(overrides);
 
-  const forcedStreams = new Map<string, T[]>();
+  const forcedStreams = new Map<string, { cadence: Cadence; charges: T[] }>();
   const auto: T[] = [];
+  const counts = new Map<string, number>();
   for (const r of rows) {
+    const key = streamKey(r.provider, r.merchant);
+    if (r.amountCents > 0) counts.set(key, (counts.get(key) ?? 0) + 1);
     const kind = overrideOf(ov, r);
     if (!kind) auto.push(r);
-    else if (kind === 'subscription') forcedStreams.set(streamKey(r.provider, r.merchant), [...(forcedStreams.get(streamKey(r.provider, r.merchant)) ?? []), r]);
+    else if (kind === 'monthly' || kind === 'yearly') {
+      const f = forcedStreams.get(key) ?? { cadence: kind === 'yearly' ? ('yearly' as const) : ('monthly' as const), charges: [] };
+      f.charges.push(r);
+      forcedStreams.set(key, f);
+    }
   }
-  const forced = [...forcedStreams.values()].map((cs) => forcedPattern(cs, latestDate)).filter((p): p is RecurringPattern<T> => p !== null);
+  const forced = [...forcedStreams.values()]
+    .map((f) => forcedPattern(f.charges, f.cadence, latestDate))
+    .filter((p): p is RecurringPattern<T> => p !== null);
   const patterns = span
     ? [...detectRecurring(auto, latestDate), ...forced].sort(
         (a, b) =>
@@ -242,15 +297,44 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
       )
     : [];
 
+  // ---- the type of every charge
+  const inPattern = new Set<T>();
+  for (const p of patterns) if (!p.forced) for (const c of p.charges) inPattern.add(c);
+  const typeOf = (row: T): TypeInfo => {
+    const o = overrideOf(ov, row);
+    if (o) return overrideToInfo(o);
+    if (inPattern.has(row)) return { kind: 'subscription', cadence: 'monthly', source: 'pattern' };
+    const imported = importedKind(row.type);
+    if (imported) return { kind: imported, source: 'import' };
+    if (row.amountCents <= 0) return { kind: 'other', source: 'single' };
+    return (counts.get(streamKey(row.provider, row.merchant)) ?? 0) >= USAGE_REPEATS
+      ? { kind: 'usage', source: 'repeats' }
+      : { kind: 'other', source: 'single' };
+  };
+  const newest = new Map<string, T>();
+  for (const r of rows) {
+    const k = streamKey(r.provider, r.merchant);
+    const prev = newest.get(k);
+    if (!prev || r.date >= prev.date) newest.set(k, r);
+  }
+  const streamInfo = (provider: string, merchant: string): TypeInfo | null => {
+    const r = newest.get(streamKey(provider, merchant));
+    return r ? typeOf(r) : null;
+  };
+
   const fixed = new Set<T>();
-  for (const p of patterns) for (const c of p.charges) fixed.add(c);
-  for (const r of rows) if (r.type === 'subscription' && !overrideOf(ov, r)) fixed.add(r);
+  for (const r of rows) if (typeOf(r).kind === 'subscription') fixed.add(r);
+
   const category = (row: T) => {
-    const kind = overrideOf(ov, row);
-    // The user's word beats the charge's own Type: a stream they call usage is API-style usage.
-    if (kind === 'usage') return categoryOf({ ...row, type: 'usage' }, false);
-    if (kind === 'subscription') return categoryOf({ ...row, type: 'subscription' }, true);
-    return categoryOf(row, fixed.has(row));
+    const info = typeOf(row);
+    if (info.source === 'you') {
+      // The user's word beats the charge's own Type: a stream they call usage is API-style usage.
+      if (info.kind === 'subscription') return categoryOf({ ...row, type: 'subscription' }, true);
+      if (info.kind === 'usage') return categoryOf({ ...row, type: 'usage' }, false);
+      const keep = row.type === 'subscription' || row.type === 'usage' ? undefined : row.type;
+      return categoryOf({ ...row, type: keep }, false);
+    }
+    return categoryOf(row, info.kind === 'subscription');
   };
 
   const switches = planSwitches(patterns);
@@ -265,14 +349,20 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
     .filter((p) => p.active)
     .map((p) => {
       const last = lastOf(p.charges);
+      const yearly = p.cadence === 'yearly';
       return {
         pattern: p,
         provider: p.provider,
         merchant: p.merchant,
         category: category(last),
-        monthlyCents: last.amountCents,
-        yearlyCents: last.amountCents * 12,
+        cadence: yearly ? ('yearly' as const) : ('monthly' as const),
+        billedCents: last.amountCents,
+        monthlyCents: yearly ? Math.round(last.amountCents / 12) : last.amountCents,
+        yearlyCents: yearly ? last.amountCents : last.amountCents * 12,
         lastDate: last.date,
+        renewal: yearly
+          ? { expected: p.nextExpected, confirmed: p.charges.length >= 2, overdue: p.nextExpected < asOf }
+          : null,
         notes: [],
       };
     })
@@ -294,7 +384,7 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
 
   // ---- notes on active subscriptions
   for (const s of active) {
-    if (s.pattern.forced) s.notes.push('You marked this as a monthly subscription');
+    if (s.pattern.forced) s.notes.push(`You marked this as a ${s.cadence} subscription`);
     const group = overlaps.find((o) => o.category === s.category);
     if (group) {
       const others = group.members.filter((m) => m.provider !== s.provider).map((m) => m.provider);
@@ -311,12 +401,18 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   const horizon = addDays(asOf, UPCOMING_DAYS);
   const upcoming: UpcomingCharge[] = dataFresh
     ? active
-        .map((s) => ({
-          date: nextOccurrence(s.pattern.nextExpected, asOf),
-          provider: s.provider,
-          merchant: s.merchant,
-          cents: s.monthlyCents,
-        }))
+        .map((s): UpcomingCharge => {
+          const yearly = s.cadence === 'yearly';
+          return {
+            date: yearly ? s.renewal!.expected : nextOccurrence(s.pattern.nextExpected, asOf),
+            provider: s.provider,
+            merchant: s.merchant,
+            cents: s.billedCents,
+            cadence: s.cadence,
+            estimated: yearly && !s.renewal!.confirmed,
+            overdue: yearly && s.renewal!.overdue,
+          };
+        })
         .filter((u) => u.date <= horizon)
         .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : b.cents - a.cents))
     : [];
@@ -332,6 +428,7 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
         provider: p.provider,
         merchant: p.merchant,
         category: category(last),
+        cadence: p.cadence === 'yearly' ? ('yearly' as const) : ('monthly' as const),
         lastCents: last.amountCents,
         lastDate: last.date,
         monthsSince: Math.max(0, monthDiff(monthOf(last.date), monthOf(latestDate))),
@@ -344,6 +441,8 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   return {
     patterns,
     fixed,
+    typeOf,
+    streamInfo,
     categoryOf: category,
     report: {
       asOf,
@@ -351,7 +450,7 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
       dataFresh,
       active,
       monthlyCents,
-      yearlyCents: monthlyCents * 12,
+      yearlyCents: active.reduce((a, s) => a + s.yearlyCents, 0),
       upcoming,
       upcomingCents: upcoming.reduce((a, u) => a + u.cents, 0),
       priceChanges,
@@ -361,80 +460,80 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   };
 }
 
-// ---------- fixed vs variable ----------
+// ---------- subscription, usage and one-time over time ----------
 
-export interface FixedVariableMonth {
+export interface TypeMonth {
   month: string;
-  fixedCents: number;
-  variableCents: number;
+  subscriptionCents: number;
+  usageCents: number;
+  otherCents: number;
 }
 
-export function fixedVariableByMonth<T extends LedgerRow>(rows: T[], months: string[], fixed: Set<T>): FixedVariableMonth[] {
-  const by = new Map<string, FixedVariableMonth>(months.map((m) => [m, { month: m, fixedCents: 0, variableCents: 0 }]));
+const BUCKET: Record<ChargeKind, 'subscriptionCents' | 'usageCents' | 'otherCents'> = {
+  subscription: 'subscriptionCents',
+  usage: 'usageCents',
+  other: 'otherCents',
+};
+
+export function typeByMonth<T extends LedgerRow>(rows: T[], months: string[], typeOf: (row: T) => TypeInfo): TypeMonth[] {
+  const by = new Map<string, TypeMonth>(months.map((m) => [m, { month: m, subscriptionCents: 0, usageCents: 0, otherCents: 0 }]));
   for (const r of rows) {
     const row = by.get(monthOf(r.date));
-    if (!row) continue;
-    if (fixed.has(r)) row.fixedCents += r.amountCents;
-    else row.variableCents += r.amountCents;
+    if (row) row[BUCKET[typeOf(r).kind]] += r.amountCents;
   }
   return months.map((m) => by.get(m)!);
 }
 
-export interface FixedVariableChange {
+export interface TypeTotals {
+  subscriptionCents: number;
+  usageCents: number;
+  otherCents: number;
+  /** Providers with subscription charges. */
+  tools: number;
+}
+
+export interface TypeChange {
   beforeFrom: string;
   beforeTo: string;
   afterFrom: string;
   afterTo: string;
-  before: { fixedCents: number; variableCents: number; tools: number };
-  after: { fixedCents: number; variableCents: number; tools: number };
+  before: TypeTotals;
+  after: TypeTotals;
 }
 
-/** Last 3 complete months against the 3 before, split into recurring and everything else. */
-export function fixedVariableChange<T extends LedgerRow>(
-  rows: T[],
-  fixed: Set<T>,
-  lastCompleteMonth: string,
-): FixedVariableChange {
+/** Last 3 complete months against the 3 before, split by charge type. */
+export function typeChange<T extends LedgerRow>(rows: T[], typeOf: (row: T) => TypeInfo, lastCompleteMonth: string): TypeChange {
   const afterFrom = addMonths(lastCompleteMonth, -2);
   const beforeTo = addMonths(lastCompleteMonth, -3);
   const beforeFrom = addMonths(lastCompleteMonth, -5);
-  const sum = (from: string, to: string) => {
-    let fixedCents = 0;
-    let variableCents = 0;
+  const sum = (from: string, to: string): TypeTotals => {
+    const t: TypeTotals = { subscriptionCents: 0, usageCents: 0, otherCents: 0, tools: 0 };
     const tools = new Set<string>();
     for (const r of rows) {
       const m = monthOf(r.date);
       if (m < from || m > to) continue;
-      if (fixed.has(r)) {
-        fixedCents += r.amountCents;
-        tools.add(r.provider);
-      } else variableCents += r.amountCents;
+      const kind = typeOf(r).kind;
+      t[BUCKET[kind]] += r.amountCents;
+      if (kind === 'subscription') tools.add(r.provider);
     }
-    return { fixedCents, variableCents, tools: tools.size };
+    t.tools = tools.size;
+    return t;
   };
-  return {
-    beforeFrom,
-    beforeTo,
-    afterFrom,
-    afterTo: lastCompleteMonth,
-    before: sum(beforeFrom, beforeTo),
-    after: sum(afterFrom, lastCompleteMonth),
-  };
+  return { beforeFrom, beforeTo, afterFrom, afterTo: lastCompleteMonth, before: sum(beforeFrom, beforeTo), after: sum(afterFrom, lastCompleteMonth) };
 }
 
-/** One plain sentence answering "more tools or more usage?". Null when nothing changed to speak of. */
-export function fixedVariableSentence(c: FixedVariableChange): string | null {
-  const dFixed = c.after.fixedCents - c.before.fixedCents;
-  const dVar = c.after.variableCents - c.before.variableCents;
-  const total = dFixed + dVar;
-  if (total === 0 && dFixed === 0) return null;
+/** One plain sentence answering "more tools or more usage?". Null when nothing changed. */
+export function typeSentence(c: TypeChange): string | null {
+  const dSub = c.after.subscriptionCents - c.before.subscriptionCents;
+  const dUsage = c.after.usageCents - c.before.usageCents;
+  const dOther = c.after.otherCents - c.before.otherCents;
+  const total = dSub + dUsage + dOther;
+  if (dSub === 0 && dUsage === 0 && dOther === 0) return null;
   const range = `${monthShort(c.afterFrom)}–${monthShort(c.afterTo)} vs ${monthShort(c.beforeFrom)}–${monthShort(c.beforeTo)}`;
   const signed = (n: number) => `${n >= 0 ? '+' : '−'}${formatEUR(Math.abs(n))}`;
   const toolsDelta = c.after.tools - c.before.tools;
-  const tools =
-    toolsDelta === 0 ? '' : ` (${toolsDelta > 0 ? '+' : '−'}${Math.abs(toolsDelta)} provider${Math.abs(toolsDelta) === 1 ? '' : 's'} with recurring charges)`;
-  const lead = total >= 0 ? 'Spending rose' : 'Spending fell';
-  return `${lead} ${signed(total)} (${range}): recurring charges ${signed(dFixed)}${tools}, other charges ${signed(dVar)}.`;
+  const tools = toolsDelta === 0 ? '' : ` (${toolsDelta > 0 ? '+' : '−'}${Math.abs(toolsDelta)} provider${Math.abs(toolsDelta) === 1 ? '' : 's'} with subscriptions)`;
+  return `${total >= 0 ? 'Spending rose' : 'Spending fell'} ${signed(total)} (${range}): subscriptions ${signed(dSub)}${tools}, usage ${signed(dUsage)}, one-time ${signed(dOther)}.`;
 }
 
 // ---------- categories over time ----------

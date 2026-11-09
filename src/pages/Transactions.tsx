@@ -3,7 +3,7 @@ import { BulkTag, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
 import { Card, SearchInput, type SortDir } from '../components/ui';
 import { daysInMonth } from '../lib/dates';
-import { SERVICE_TYPE_LABELS, SERVICE_TYPES } from '../lib/extract/types';
+import { KIND_LABELS, type ChargeKind } from '../lib/overrides';
 import { centsToPlain, formatEUR, sumCents } from '../lib/money';
 import { tagsInUse, UNTAGGED } from '../lib/tags';
 import { href, navigate, type Route } from '../router';
@@ -11,7 +11,7 @@ import { useLedger } from '../store';
 
 /** Filters live in the URL so provider pages and the overview can deep-link here. */
 export function Transactions({ route }: { route: Route }) {
-  const { transactions, providers, span, period } = useLedger();
+  const { transactions, providers, span, period, analysis } = useLedger();
   const q = route.query.get('q') ?? '';
   const provider = route.query.get('provider') ?? '';
   const type = route.query.get('type') ?? '';
@@ -30,7 +30,7 @@ export function Transactions({ route }: { route: Route }) {
     const needle = q.trim().toLowerCase();
     return transactions.filter((t) => {
       if (provider && t.provider !== provider) return false;
-      if (type && (t.type ?? '') !== type) return false;
+      if (type && analysis.typeOf(t).kind !== type) return false;
       if (tag && (tag === UNTAGGED ? t.tag : t.tag !== tag)) return false;
       if (from && t.date < from) return false;
       if (to && t.date > to) return false;
@@ -40,11 +40,11 @@ export function Transactions({ route }: { route: Route }) {
       }
       return true;
     });
-  }, [transactions, q, provider, type, tag, from, to]);
+  }, [transactions, analysis, q, provider, type, tag, from, to]);
 
   const anyFilter = q || provider || type || tag || from || to;
   const tags = useMemo(() => tagsInUse(transactions), [transactions]);
-  const types = SERVICE_TYPES.filter((ty) => transactions.some((t) => t.type === ty));
+  const types: ChargeKind[] = ['subscription', 'usage', 'other'];
 
   const usePeriod = () => {
     if (period.kind === 'all') return update({ from: '', to: '' });
@@ -65,14 +65,12 @@ export function Transactions({ route }: { route: Route }) {
               <option key={p.provider} value={p.provider}>{p.provider}</option>
             ))}
           </select>
-          {types.length > 0 && (
-            <select className="select" aria-label="Type" value={type} onChange={(e) => update({ type: e.target.value })}>
-              <option value="">All types</option>
-              {types.map((ty) => (
-                <option key={ty} value={ty}>{SERVICE_TYPE_LABELS[ty]}</option>
-              ))}
-            </select>
-          )}
+          <select className="select" aria-label="Type" value={type} onChange={(e) => update({ type: e.target.value })}>
+            <option value="">All types</option>
+            {types.map((ty) => (
+              <option key={ty} value={ty}>{KIND_LABELS[ty]}</option>
+            ))}
+          </select>
           {(tags.length > 0 || tag) && (
             <select className="select" aria-label="Tag" value={tag} onChange={(e) => update({ tag: e.target.value })}>
               <option value="">All tags</option>

@@ -9,8 +9,9 @@ import { clearAll, closeDb, commitImport, loadAll, loadSetting, saveSetting, set
 import { VENDORS } from './extract/vendors';
 import {
   analyze,
-  fixedVariableByMonth,
-  fixedVariableChange,
+  typeByMonth,
+  typeChange,
+  typeSentence,
   monthlyByCategory,
 } from './insights';
 import { dataSpan } from './analytics';
@@ -170,30 +171,54 @@ describe('subscription detection edge cases', () => {
   });
 });
 
-describe('fixed vs variable', () => {
+describe('subscription, usage and one-time', () => {
   const a = analyze(rows, TODAY);
   const span = dataSpan(rows)!;
 
-  it('splits every charge into fixed or variable without losing any money', () => {
-    const series = fixedVariableByMonth(rows, span.months, a.fixed);
-    const fixed = series.reduce((s, m) => s + m.fixedCents, 0);
-    const variable = series.reduce((s, m) => s + m.variableCents, 0);
-    expect(fixed + variable).toBe(rows.reduce((s, r) => s + r.amountCents, 0));
-    expect(fixed).toBeGreaterThan(0);
-    expect(variable).toBeGreaterThan(0);
+  it('splits every charge into one of three types without losing any money', () => {
+    const series = typeByMonth(rows, span.months, a.typeOf);
+    const sub = series.reduce((s, m) => s + m.subscriptionCents, 0);
+    const usage = series.reduce((s, m) => s + m.usageCents, 0);
+    const other = series.reduce((s, m) => s + m.otherCents, 0);
+    expect(sub + usage + other).toBe(rows.reduce((s, r) => s + r.amountCents, 0));
+    expect(sub).toBeGreaterThan(0);
+    expect(usage).toBeGreaterThan(0);
+    expect(other).toBeGreaterThan(0);
   });
 
-  it('counts a charge marked as a subscription as fixed', () => {
+  it('reads repeated charges that are not monthly as usage, and one-off charges as one-time', () => {
+    const t = (provider: string, merchant: RegExp) => a.typeOf(rows.find((r) => r.provider === provider && merchant.test(r.merchant))!);
+    expect(t('Anthropic', /^Anthropic$/)).toMatchObject({ kind: 'usage', source: 'repeats' });
+    expect(t('OpenAI', /SUBSCR/)).toMatchObject({ kind: 'subscription', cadence: 'monthly', source: 'pattern' });
+    // A one-off annual charge: a single charge under its descriptor
+    expect(t('Gamma', /^Gamma$/)).toMatchObject({ kind: 'other', source: 'single' });
+  });
+
+  it('follows a Type column: subscription and usage as given, the finer types as one-time / other', () => {
+    const row = (type: LedgerRow['type']) => charge('Acme', 'ACME', '2026-05-01', 999, { type });
+    for (const [type, kind] of [['subscription', 'subscription'], ['usage', 'usage'], ['domains', 'other'], ['hosting', 'other'], ['certification', 'other'], ['other', 'other']] as const) {
+      const r = row(type);
+      expect(analyze([r], '2026-05-02').typeOf(r)).toMatchObject({ kind, source: 'import' });
+    }
+  });
+
+  it('counts a charge typed as a subscription in the fixed set', () => {
     const one = [charge('Acme', 'ACME', '2026-05-01', 999, { type: 'subscription' })];
     expect(analyze(one, '2026-05-02').fixed.size).toBe(1);
   });
 
-  it('compares the last 3 complete months with the 3 before', () => {
-    const c = fixedVariableChange(rows, a.fixed, '2026-10');
+  it('treats a refund as one-time / other', () => {
+    const r = charge('Acme', 'ACME', '2026-05-01', -500);
+    expect(analyze([r], '2026-05-02').typeOf(r).kind).toBe('other');
+  });
+
+  it('compares the last 3 complete months with the 3 before, by type', () => {
+    const c = typeChange(rows, a.typeOf, '2026-10');
     expect([c.afterFrom, c.afterTo, c.beforeFrom, c.beforeTo]).toEqual(['2026-08', '2026-10', '2026-05', '2026-07']);
-    const total = (x: { fixedCents: number; variableCents: number }) => x.fixedCents + x.variableCents;
+    const total = (x: { subscriptionCents: number; usageCents: number; otherCents: number }) => x.subscriptionCents + x.usageCents + x.otherCents;
     expect(total(c.after)).toBe(47635 + 48170 + 53429);
     expect(total(c.before)).toBe(45430 + 52534 + 51373);
+    expect(typeSentence(c)).toMatch(/^Spending (rose|fell) .*subscriptions .*usage .*one-time /);
   });
 });
 

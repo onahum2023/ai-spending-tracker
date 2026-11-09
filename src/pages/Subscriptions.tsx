@@ -1,5 +1,4 @@
 import { OverridesCard } from '../components/OverridesCard';
-import { SignupsCard } from '../components/SignupsCard';
 import { TreatAs } from '../components/TreatAs';
 import { Card, Delta, EmptyState, Kpi, ProviderLink } from '../components/ui';
 import { CATEGORY_LABELS, type Category } from '../lib/categories';
@@ -47,8 +46,9 @@ export function Subscriptions() {
       </div>
 
       <p className="small muted">
-        These are observations from charge patterns (the same provider on a similar day and amount for 3+ months in a row), not
-        confirmed subscriptions. A charge has no plan name, so plan changes are inferred. Annual and one-off charges are not included.
+        Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
+        so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
+        be told from a one-off charge: set its Type to "Subscription · yearly" yourself.
       </p>
 
       {r.active.length === 0 && r.stopped.length === 0 ? (
@@ -76,14 +76,13 @@ export function Subscriptions() {
 
       <OverridesCard />
 
-      <SignupsCard />
     </div>
   );
 }
 
 function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
   return (
-    <Card title="Active recurring charges" subtitle="The amount is the latest charge, which is what you are committed to now">
+    <Card title="Active recurring charges" subtitle="Based on the latest charge, which is what you are committed to now. A yearly one counts as a twelfth per month.">
       {subs.length === 0 ? (
         <EmptyState>Nothing is currently recurring.</EmptyState>
       ) : (
@@ -93,7 +92,7 @@ function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
               <tr>
                 <th>Provider</th>
                 <th className="hide-sm">Category</th>
-                <th className="amount">Monthly</th>
+                <th className="amount">Per month</th>
                 <th className="amount">Per year</th>
                 <th className="hide-sm">Since</th>
               </tr>
@@ -104,13 +103,23 @@ function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
                   <td>
                     <ProviderLink provider={s.provider} />
                     <div className="small muted merchant-line">{s.merchant.trim().replace(/\s{2,}/g, ' · ')}</div>
+                    {s.renewal && (
+                      <div className={`small ${s.renewal.overdue ? 'secondary' : 'muted'}`}>
+                        {s.renewal.overdue
+                          ? `Renewal not seen yet (expected around ${dateLabel(s.renewal.expected)})`
+                          : `Renews yearly, next around ${dateLabel(s.renewal.expected)}${s.renewal.confirmed ? '' : ' (estimated)'}`}
+                      </div>
+                    )}
                     {s.notes.map((n) => (
                       <div key={n} className="small muted">{n}</div>
                     ))}
                     <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} /></div>
                   </td>
                   <td className="hide-sm"><CategoryChip category={s.category} /></td>
-                  <td className="amount">{formatEUR(s.monthlyCents)}</td>
+                  <td className="amount">
+                    {formatEUR(s.monthlyCents)}
+                    {s.cadence === 'yearly' && <div className="small muted">billed yearly: {formatEUR(s.billedCents)}</div>}
+                  </td>
                   <td className="amount">{formatEUR(s.yearlyCents)}</td>
                   <td className="date hide-sm">{monthLabel(monthOf(s.pattern.firstDate))}</td>
                 </tr>
@@ -149,7 +158,14 @@ function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcoming: Upco
               <span className="cal-date num">
                 <span className="muted">{weekday(u.date)}</span> {dateLabel(u.date).replace(/ \d{4}$/, '')}
               </span>
-              <ProviderLink provider={u.provider} />
+              <span>
+                <ProviderLink provider={u.provider} />
+                {u.cadence === 'yearly' && (
+                  <div className="small muted">
+                    {u.overdue ? 'Yearly renewal, not seen yet' : u.estimated ? 'Yearly renewal, date estimated' : 'Yearly renewal'}
+                  </div>
+                )}
+              </span>
               <span className="num">{formatEUR(u.cents)}</span>
             </div>
           ))}
@@ -244,6 +260,7 @@ function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
                   <tr key={s.provider + s.pattern.firstDate}>
                     <td>
                       <ProviderLink provider={s.provider} />
+                      {s.cadence === 'yearly' && <div className="small muted">Yearly subscription, no renewal seen</div>}
                       <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} /></div>
                     </td>
                     <td className="num nowrap">
@@ -278,7 +295,7 @@ function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
 function SavingsCard({ subs }: { subs: Subscription[] }) {
   const top = subs.slice(0, 5);
   return (
-    <Card title="What ending one would save" subtitle="Latest monthly charge × 12. Only you know which ones you still use.">
+    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge. Only you know which ones you still use.">
       {top.length === 0 ? (
         <EmptyState>No active recurring charges.</EmptyState>
       ) : (

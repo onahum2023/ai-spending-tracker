@@ -15,7 +15,8 @@ import {
 import { monthlyByProvider } from '../lib/analytics';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { OTHER_KEY } from '../lib/colors';
-import { fixedVariableByMonth, monthlyByCategory } from '../lib/insights';
+import { monthlyByCategory, typeByMonth } from '../lib/insights';
+import { KIND_LABELS, type ChargeKind, type TypeInfo } from '../lib/overrides';
 import { monthLabel, monthShort } from '../lib/dates';
 import { formatEUR } from '../lib/money';
 import type { LedgerRow } from '../lib/types';
@@ -423,38 +424,41 @@ export function MonthlyCategoryChart({
   );
 }
 
-// ---------- recurring (fixed) vs everything else (variable) ----------
+// ---------- subscription, usage and one-time ----------
 
-export function FixedVariableChart({
+const KINDS: ChargeKind[] = ['subscription', 'usage', 'other'];
+
+export function TypeChart({
   rows,
   months,
-  fixed,
+  typeOf,
   height = 260,
 }: {
   rows: LedgerRow[];
   months: string[];
-  fixed: Set<any>;
+  typeOf: (row: any) => TypeInfo;
   height?: number;
 }) {
+  const { typeColors } = useLedger();
   const data = useMemo(
     () =>
-      fixedVariableByMonth(rows, months, fixed).map((m) => ({
-        month: m.month,
-        fixedCents: m.fixedCents,
-        variableCents: m.variableCents,
-        fixed: m.fixedCents / 100,
-        variable: m.variableCents / 100,
+      typeByMonth(rows, months, typeOf).map((m) => ({
+        ...m,
+        subscription: m.subscriptionCents / 100,
+        usage: m.usageCents / 100,
+        other: m.otherCents / 100,
       })),
-    [rows, months, fixed],
+    [rows, months, typeOf],
   );
 
   const Tip = ({ active, payload, label }: TipProps) => {
     if (!active || !payload?.length) return null;
     const p = payload[0].payload;
     return (
-      <TipShell title={monthLabel(String(label))} total={p.fixedCents + p.variableCents}>
-        <TipRow color="var(--accent)" label="Recurring" cents={p.fixedCents} />
-        <TipRow color="var(--ink-3)" label="Usage and one-off" cents={p.variableCents} />
+      <TipShell title={monthLabel(String(label))} total={p.subscriptionCents + p.usageCents + p.otherCents}>
+        {KINDS.map((k) => (
+          <TipRow key={k} color={typeColors(k)} label={KIND_LABELS[k]} cents={p[`${k}Cents`]} />
+        ))}
       </TipShell>
     );
   };
@@ -462,8 +466,12 @@ export function FixedVariableChart({
   return (
     <div>
       <div className="legend" style={{ marginBottom: 10 }}>
-        <span className="legend-item"><span className="dot" style={{ background: 'var(--accent)' }} />Recurring charges</span>
-        <span className="legend-item"><span className="dot" style={{ background: 'var(--ink-3)' }} />Usage and one-off</span>
+        {KINDS.map((k) => (
+          <span key={k} className="legend-item">
+            <span className="dot" style={{ background: typeColors(k) }} />
+            {KIND_LABELS[k]}
+          </span>
+        ))}
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -471,8 +479,9 @@ export function FixedVariableChart({
           <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
           <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
           <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
-          <Bar dataKey="fixed" stackId="s" fill="var(--accent)" stroke="var(--surface)" strokeWidth={1} maxBarSize={24} isAnimationActive={false} />
-          <Bar dataKey="variable" stackId="s" fill="var(--ink-3)" stroke="var(--surface)" strokeWidth={1} maxBarSize={24} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          {KINDS.map((k, i) => (
+            <Bar key={k} dataKey={k} stackId="s" fill={typeColors(k)} stroke="var(--surface)" strokeWidth={1} maxBarSize={24} radius={i === KINDS.length - 1 ? [3, 3, 0, 0] : 0} isAnimationActive={false} />
+          ))}
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -39,8 +39,10 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   lastDate: string;
   nextExpected: string;
   active: boolean;
-  /** Set when the user marked this stream as a monthly subscription instead of detection finding it. */
+  /** Set when the user marked this stream as a subscription instead of detection finding it. */
   forced?: boolean;
+  /** Detection only finds monthly patterns; a yearly one is always marked by the user. */
+  cadence?: 'yearly';
 }
 
 function daysClose(a: number, b: number): boolean {

@@ -383,4 +383,5 @@ details.explain li { margin: 3px 0; }
 .bulk-tag { padding: 0 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
 
 /* ---------- overrides ---------- */
-.treat-as { max-width: 170px; font-size: 12px; }
+.treat-as { max-width: 190px; font-size: 12px; }
+.treat-as-wrap { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
