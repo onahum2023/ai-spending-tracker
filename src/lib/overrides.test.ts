@@ -136,11 +136,50 @@ describe('monthly subscription', () => {
     expect(a.report.stopped).toHaveLength(1);
   });
 
-  it('fixes the run-rate dropout after a plan switch: marking the stream keeps it counted at the new price', () => {
+  it('keeps the run-rate after a plan switch without any correction: the new price counts from its first charge', () => {
     const pro = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 2178));
     const data = [...pro, charge('2026-12-06', 10890)];
-    const before = analyze(data, '2026-12-07').report;
-    expect(before.monthlyCents).toBe(0); // the gap this feature exists to cover
+    const r = analyze(data, '2026-12-07').report;
+    expect(r.monthlyCents).toBe(10890);
+    expect(r.active).toHaveLength(1);
+    expect(r.active[0].pattern.provisional).toBe(true);
+    expect(r.active[0].notes.join(' ')).toContain('New price seen once');
+    // the old pattern is shown as replaced, not stopped
+    expect(r.stopped).toEqual([]);
+    expect(r.priceChanges[0]).toMatchObject({ kind: 'plan', fromCents: 2178, toCents: 10890 });
+  });
+
+  it('counts the new price once when the switch lands on the usual billing day', () => {
+    const pro = ['2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 2178));
+    const r = analyze([...pro, charge('2026-11-06', 10890), later('2026-11-08')], '2026-11-08').report;
+    expect(r.monthlyCents).toBe(10890); // not 2178 + 10890
+    expect(r.stopped).toEqual([]);
+  });
+
+  it('turns into an ordinary pattern once three charges confirm the new price', () => {
+    const pro = ['2026-04-06', '2026-05-06', '2026-06-06', '2026-07-06'].map((d) => charge(d, 2178));
+    const max = ['2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 10890));
+    const a = analyze([...pro, ...max], '2026-10-07');
+    expect(a.patterns.some((p) => p.provisional)).toBe(false);
+    expect(a.report.monthlyCents).toBe(10890);
+  });
+
+  it('does not invent a subscription from a lone charge that nothing followed', () => {
+    const pro = ['2026-01-06', '2026-02-06', '2026-03-06', '2026-04-06'].map((d) => charge(d, 2178));
+    const r = analyze([...pro, charge('2026-06-06', 10890), later('2026-11-01')], '2026-11-02').report;
+    expect(r.active).toEqual([]);
+    expect(r.stopped).toHaveLength(1);
+  });
+
+  it('does not chain a different descriptor of the same provider as a plan switch', () => {
+    const pro = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06'].map((d) => charge(d, 2178));
+    const r = analyze([...pro, charge('2026-10-06', 5000, 'Anthropic', 'Anthropic'), later('2026-10-08')], '2026-10-08').report;
+    expect(r.active.some((s) => s.pattern.provisional)).toBe(false);
+  });
+
+  it('still lets you set the type yourself: marking the stream keeps it counted at the new price', () => {
+    const pro = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 2178));
+    const data = [...pro, charge('2026-12-06', 10890)];
     const after = analyze(data, '2026-12-07', [{ provider: 'Anthropic', merchant: 'ANTHROPIC* CLAUDE SUB', kind: 'monthly' }]).report;
     expect(after.monthlyCents).toBe(10890);
     expect(after.stopped).toEqual([]);

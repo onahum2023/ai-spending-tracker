@@ -62,6 +62,8 @@ export function ProviderDetail({ provider }: { provider: string }) {
                   <span className="small secondary">
                     {p.cadence === 'yearly'
                       ? `Yearly, set by you · last charged ${dateLabel(p.lastDate)}`
+                      : p.provisional
+                      ? `New price after a plan change · ${p.months} charge${p.months === 1 ? '' : 's'} so far · first seen ${dateLabel(p.firstDate)}`
                       : `Around the ${ordinal(p.typicalDay)} · ${p.months} ${p.forced ? 'month' + (p.months === 1 ? '' : 's') + ' with charges, set by you' : 'consecutive months'} · ${monthLabel(monthOf(p.firstDate))} – ${monthLabel(monthOf(p.lastDate))}`}
                   </span>
                   <span className="small muted">

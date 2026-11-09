@@ -25,6 +25,8 @@ const MIN_MONTHS = 3;
 const USAGE_CHARGES_PER_MONTH = 3;
 /** A pattern still counts as active this many days after its next expected charge. */
 export const GRACE_DAYS = 7;
+/** A new price counts as the same subscription if it first shows up within this many months of the last old charge (1 = skipped month). */
+export const PROVISIONAL_MAX_GAP = 2;
 
 export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   provider: string;
@@ -43,6 +45,13 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   forced?: boolean;
   /** Detection only finds monthly patterns; a yearly one is always marked by the user. */
   cadence?: 'yearly';
+  /**
+   * A new price seen only once or twice after a monthly pattern ended. It is counted as the same
+   * subscription at a new price straight away, instead of waiting for three charges.
+   */
+  provisional?: boolean;
+  /** For a provisional pattern: the monthly pattern it continues. */
+  replaces?: RecurringPattern<T>;
 }
 
 function daysClose(a: number, b: number): boolean {
@@ -145,4 +154,66 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
       (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0) ||
       b.typicalCents - a.typicalCents,
   );
+}
+
+/**
+ * Plan switches, before there are three charges at the new price.
+ * After a monthly pattern ends, a charge on the same descriptor (the same provider, when the
+ * descriptor changes every time) in the next month, or the one after, is read as the same
+ * subscription at a new price. It is reported as a provisional pattern of 1 or 2 charges and
+ * only while it is still running; a lone charge that nothing followed stays a one-off.
+ * `patterns` are the ones `detectRecurring` found on the same `rows`.
+ */
+export function detectProvisional<T extends LedgerRow>(
+  rows: T[],
+  patterns: RecurringPattern<T>[],
+  latestDate: string,
+): RecurringPattern<T>[] {
+  const taken = new Set<T>();
+  for (const p of patterns) for (const c of p.charges) taken.add(c);
+  const perMonth = new Map<string, number>();
+  const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
+  for (const r of rows) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
+
+  const out: RecurringPattern<T>[] = [];
+  // Oldest-ending first, so results stay deterministic.
+  const monthly = patterns.filter((p) => p.cadence !== 'yearly' && !p.forced).sort((a, b) => (a.lastDate < b.lastDate ? -1 : a.lastDate > b.lastDate ? 1 : 0));
+  for (const old of monthly) {
+    const merchants = new Set(old.charges.map((c) => c.merchant));
+    const sameStream = (r: LedgerRow) =>
+      r.provider === old.provider && (merchants.size > 1 || r.merchant === old.merchant);
+    const candidates = rows.filter((r) => {
+      if (taken.has(r) || r.amountCents <= 0 || !sameStream(r)) return false;
+      if ((perMonth.get(usageKey(r)) ?? 0) >= USAGE_CHARGES_PER_MONTH) return false;
+      const gap = monthDiff(monthOf(old.lastDate), monthOf(r.date));
+      return r.date > old.lastDate && gap >= 1 && gap <= PROVISIONAL_MAX_GAP;
+    });
+    if (candidates.length === 0) continue;
+    const chains = buildChains(candidates).filter((c) => c.length < MIN_MONTHS);
+    const chain = chains[0];
+    if (!chain) continue;
+    const last = chain[chain.length - 1];
+    const nextExpected = addOneMonthToDate(last.date);
+    // Only while it is still running: a lone charge that nothing followed is a one-off.
+    if (addDays(nextExpected, GRACE_DAYS) < latestDate) continue;
+    for (const c of chain) taken.add(c);
+    const amounts = chain.map((c) => c.amountCents);
+    out.push({
+      provider: old.provider,
+      merchant: chain[0].merchant,
+      charges: chain,
+      months: chain.length,
+      typicalCents: medianCents(amounts),
+      minCents: Math.min(...amounts),
+      maxCents: Math.max(...amounts),
+      typicalDay: medianCents(chain.map((c) => dayOf(c.date))),
+      firstDate: chain[0].date,
+      lastDate: last.date,
+      nextExpected,
+      active: true,
+      provisional: true,
+      replaces: old,
+    });
+  }
+  return out;
 }
