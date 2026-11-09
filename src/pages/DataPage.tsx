@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
 import { Card, ConfirmDialog } from '../components/ui';
@@ -135,6 +136,8 @@ export function DataPage() {
         </Card>
       </div>
 
+      <AboutCard />
+
       {confirming && (
         <ConfirmDialog
           title="Delete all local data?"
@@ -146,7 +149,7 @@ export function DataPage() {
         >
           <p>
             This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}), their tags, your budgets,
-            your corrections and the import history from this browser. It can't be undone.
+            your corrections, labels and categories, and the import history from this browser. It can't be undone.
           </p>
           <button className="btn btn-sm" onClick={() => exportCsv(transactions)}>
             Export a backup first
