@@ -58,7 +58,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
     return (
       <div className="ask-claude row-between wrap">
         <span className="small secondary">
-          Not sure? Claude can review these {items.length} line{items.length === 1 ? '' : 's'} with your own Anthropic API key.
+          Not sure? You can decide each line yourself with Include / Exclude. Optionally, Claude can review these {items.length} line{items.length === 1 ? '' : 's'} if you have an Anthropic API key.
         </span>
         <button className="btn btn-sm" onClick={() => setOpen(true)}>Ask Claude…</button>
       </div>

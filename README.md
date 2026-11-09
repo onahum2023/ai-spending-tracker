@@ -67,6 +67,8 @@ Service types: Subscription, Usage / credits, Certification, Domains, Hosting / 
 
 ### Ask Claude (optional)
 
+Not needed: without an Anthropic API key, review each **Needs review** line yourself with Include / Exclude. Everything else works the same. Only Anthropic is supported for this step.
+
 For lines still in **Needs review**, **Ask Claude** sends them to Claude (`claude-opus-5-5`, with Anthropic's server-side refusal fallback) using the user's **own** Anthropic API key, straight from the browser to `api.anthropic.com`. Only the review lines are sent, and only: date, amount, merchant name, the bank's short name, foreign amount, country and the rules' note. No file names, references, addresses or other lines. **Show exactly what is sent** displays the payload before anything goes out. Answers come back as structured data; low-confidence answers stay in review. The key stays in memory unless "Remember on this device" is ticked. Nothing is sent unless the button is pressed.
 
 ### Adding a vendor
