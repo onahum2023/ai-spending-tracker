@@ -37,6 +37,34 @@ export const CATEGORY_NOUNS: Record<Category, { one: string; many: string }> = {
   other: { one: 'other service', many: 'other services' },
 };
 
+/**
+ * Your own category for a provider. It beats the built-in map and the charge's type, so a provider
+ * we do not know can be filed, and one we got wrong can be moved. Charts, budgets and overlap use it.
+ */
+export interface ProviderCategory {
+  provider: string;
+  category: Category;
+}
+
+export const isCategory = (v: unknown): v is Category => typeof v === 'string' && (CATEGORIES as readonly string[]).includes(v);
+
+/** Sets the category of one provider, or with null puts it back to the built-in mapping. */
+export function withProviderCategory(list: ProviderCategory[], provider: string, category: Category | null): ProviderCategory[] {
+  const rest = list.filter((c) => c.provider !== provider);
+  return category ? [...rest, { provider, category }] : rest;
+}
+
+/** Cleans anything read from storage. */
+export function normalizeProviderCategories(raw: unknown): ProviderCategory[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Map<string, ProviderCategory>();
+  for (const r of raw as Record<string, unknown>[]) {
+    if (typeof r?.provider !== 'string' || !r.provider || !isCategory(r.category)) continue;
+    out.set(r.provider, { provider: r.provider, category: r.category });
+  }
+  return [...out.values()].sort((a, b) => a.provider.localeCompare(b.provider));
+}
+
 /** Categories where owning several at once is worth pointing out. Hosting and domains are normally plural. */
 export const OVERLAP_CATEGORIES: readonly Category[] = ['chat', 'coding', 'media', 'writing'];
 

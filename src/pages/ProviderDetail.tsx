@@ -3,6 +3,7 @@ import { SingleSeriesMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
 import { TreatAs } from '../components/TreatAs';
 import { Card, EmptyState, Kpi, StreamName } from '../components/ui';
+import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
 import { filterPeriod, merchantBreakdown, periodLabel } from '../lib/analytics';
 import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
@@ -10,7 +11,8 @@ import { href } from '../router';
 import { useLedger } from '../store';
 
 export function ProviderDetail({ provider }: { provider: string }) {
-  const { transactions, span, colors, period, providers, analysis } = useLedger();
+  const { transactions, span, colors, period, providers, analysis, providerCategories, setProviderCategory } = useLedger();
+  const ownCategory = providerCategories.find((c) => c.provider === provider)?.category ?? '';
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
   const patterns = useMemo(() => analysis.patterns.filter((p) => p.provider === provider), [analysis, provider]);
 
@@ -85,7 +87,26 @@ export function ProviderDetail({ provider }: { provider: string }) {
         >
           <TransactionTable rows={rows} showProvider={false} />
         </Card>
-        <Card title="Services" subtitle="Each merchant descriptor is a service, with its own charge type. A provider can have several, such as a plan and usage.">
+        <Card
+          title="Services"
+          subtitle="Each merchant descriptor is a service, with its own charge type. A provider can have several, such as a plan and usage."
+          actions={
+            <label className="row small" style={{ gap: 6 }} title="Charts, budgets and overlap use this category for every charge from this provider. Totals never change.">
+              <span className="secondary">Category</span>
+              <select
+                className="select input-sm"
+                value={ownCategory}
+                aria-label={`Category for ${provider}`}
+                onChange={(e) => void setProviderCategory(provider, isCategory(e.target.value) ? e.target.value : null)}
+              >
+                <option value="">Automatic</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                ))}
+              </select>
+            </label>
+          }
+        >
           <div className="table-wrap" style={{ maxHeight: 520, overflowY: 'auto' }}>
             <table className="table">
               <thead>

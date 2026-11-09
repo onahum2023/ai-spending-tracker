@@ -1,3 +1,4 @@
+import { CATEGORY_LABELS } from '../lib/categories';
 import { dateLabel } from '../lib/dates';
 import { tidyDescriptor } from '../lib/labels';
 import { formatEUR } from '../lib/money';
@@ -7,18 +8,18 @@ import { Card, ProviderLink } from './ui';
 
 /** Every correction the user made, with a way back to automatic. */
 export function OverridesCard() {
-  const { overrides, setOverride, transactions, chargeOverrides, setChargeOverride, labels, setLabel } = useLedger();
+  const { overrides, setOverride, transactions, chargeOverrides, setChargeOverride, labels, setLabel, providerCategories, setProviderCategory } = useLedger();
   const byId = new Map(transactions.map((t) => [t.id, t]));
   // A correction for a charge that no longer exists has nothing to show or reset.
   const singles = chargeOverrides.flatMap((o) => {
     const tx = byId.get(o.id);
     return tx ? [{ ...o, tx }] : [];
   });
-  if (overrides.length === 0 && singles.length === 0 && labels.length === 0) return null;
+  if (overrides.length === 0 && singles.length === 0 && labels.length === 0 && providerCategories.length === 0) return null;
   return (
     <Card
       title="Your corrections"
-      subtitle="Charge types you set yourself, for a whole stream or for a single charge, and the names you gave streams. Reset puts it back. Charges and totals are never changed."
+      subtitle="Charge types you set yourself, for a whole stream or for a single charge, the names you gave streams, and categories you chose for providers. Reset puts it back. Charges and totals are never changed."
     >
       <div className="table-wrap">
         <table className="table">
@@ -68,6 +69,24 @@ export function OverridesCard() {
                 <td className="amount">
                   <button className="btn btn-sm" onClick={() => void setChargeOverride(id, null)}>
                     Reset to its stream
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {providerCategories.map((c) => (
+              <tr key={`category-${c.provider}`}>
+                <td>
+                  <ProviderLink provider={c.provider} />
+                  <div className="small muted merchant-line">Whole provider</div>
+                </td>
+                <td>
+                  <span className="chip">Category: {CATEGORY_LABELS[c.category]}</span>
+                  <div className="small muted">Used by charts, budgets and overlap instead of the built-in mapping.</div>
+                </td>
+                <td className="amount">{transactions.filter((t) => t.provider === c.provider).length}</td>
+                <td className="amount">
+                  <button className="btn btn-sm" onClick={() => void setProviderCategory(c.provider, null)}>
+                    Reset to automatic
                   </button>
                 </td>
               </tr>

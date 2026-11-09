@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { normalizeProviderCategories } from './categories';
 import { clearAll, closeDb, loadSetting, saveSetting } from './db';
 import { cleanLabel, labelMap, labelOf, MAX_LABEL_LENGTH, normalizeLabels, streamName, tidyDescriptor, withLabel } from './labels';
 
@@ -49,6 +50,19 @@ describe('service labels', () => {
       { provider: 'B', merchant: 'm', label: 'Two' },
     ]);
     expect(normalizeLabels(null)).toEqual([]);
+  });
+});
+
+describe('provider category storage', () => {
+  beforeEach(async () => {
+    await clearAll();
+  });
+  it('keeps categories across a reload and removes them with Clear local data', async () => {
+    await saveSetting('providerCategories', [{ provider: 'A', category: 'media' }]);
+    await closeDb();
+    expect(normalizeProviderCategories(await loadSetting('providerCategories'))).toEqual([{ provider: 'A', category: 'media' }]);
+    await clearAll();
+    expect(await loadSetting('providerCategories')).toBeUndefined();
   });
 });
 

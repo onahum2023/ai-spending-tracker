@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { evaluateBudgets, normalizeBudgets } from './budgets';
-import { CATEGORIES, categoryOf, knownProvider } from './categories';
+import { CATEGORIES, categoryOf, knownProvider, normalizeProviderCategories, withProviderCategory } from './categories';
 import { parseLedgerCsv, toLedgerCsv } from './csv';
 import { clearAll, closeDb, commitImport, loadAll, loadSetting, saveSetting, setTags } from './db';
 import { VENDORS } from './extract/vendors';
@@ -32,6 +32,49 @@ function monthly(provider: string, merchant: string, from: string, to: string, d
   }
   return out;
 }
+
+describe('a category you choose for a provider', () => {
+  it('sets, replaces and removes one, and cleans what it reads back from storage', () => {
+    let list = withProviderCategory([], 'Acme', 'coding');
+    list = withProviderCategory(list, 'Beta', 'media');
+    list = withProviderCategory(list, 'Acme', 'writing');
+    expect(list).toEqual([{ provider: 'Beta', category: 'media' }, { provider: 'Acme', category: 'writing' }]);
+    expect(withProviderCategory(list, 'Beta', null)).toEqual([{ provider: 'Acme', category: 'writing' }]);
+    expect(
+      normalizeProviderCategories([{ provider: 'B', category: 'api' }, { provider: 'A', category: 'nope' }, { provider: '', category: 'api' }, { provider: 'B', category: 'chat' }, 7]),
+    ).toEqual([{ provider: 'B', category: 'chat' }]);
+    expect(normalizeProviderCategories(undefined)).toEqual([]);
+  });
+
+  it('files a provider the app does not know, and beats the built-in mapping and the charge type', () => {
+    const data = [charge('Mystery AI', 'MYSTERY', '2026-10-05', 1000), charge('Cursor', 'CURSOR', '2026-10-06', 2000, { type: 'subscription' })];
+    const none = analyze(data, TODAY);
+    expect(none.categoryOf(data[0])).toBe('other');
+    expect(none.categoryOf(data[1])).toBe('coding');
+    const own = analyze(data, TODAY, [], [], [{ provider: 'Mystery AI', category: 'media' }, { provider: 'Cursor', category: 'writing' }]);
+    expect(own.categoryOf(data[0])).toBe('media');
+    expect(own.categoryOf(data[1])).toBe('writing');
+  });
+
+  it('moves the category chart, budgets and overlap with it, and never changes a total', () => {
+    const data = [
+      ...monthly('Mystery AI', 'MYSTERY', '2026-06', '2026-10', 5, 2000),
+      ...monthly('Cursor', 'CURSOR', '2026-06', '2026-10', 6, 2000),
+    ];
+    const months = ['2026-10'];
+    const before = analyze(data, '2026-10-20');
+    const after = analyze(data, '2026-10-20', [], [], [{ provider: 'Mystery AI', category: 'coding' }]);
+    expect(before.report.overlaps).toEqual([]);
+    expect(after.report.overlaps[0]).toMatchObject({ category: 'coding', combinedMonthlyCents: 4000 });
+    expect(after.report.overlaps[0].members.map((m) => m.provider).sort()).toEqual(['Cursor', 'Mystery AI']);
+    const stack = monthlyByCategory(data, months, after.categoryOf)[0];
+    expect(stack.cents.coding).toBe(4000);
+    expect(stack.cents.other).toBeUndefined();
+    expect(stack.totalCents).toBe(monthlyByCategory(data, months, before.categoryOf)[0].totalCents);
+    const rep = evaluateBudgets(data, { totalCents: null, byCategory: { coding: 3000 } }, '2026-10-20', after.categoryOf);
+    expect(rep.lines.find((l) => l.key === 'coding')?.actualCents).toBe(4000);
+  });
+});
 
 describe('categories', () => {
   it('has a category for every vendor in the extractor catalog', () => {

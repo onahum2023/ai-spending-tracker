@@ -1,5 +1,5 @@
 import { dataSpan, type MonthlyStackRow } from './analytics';
-import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category } from './categories';
+import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category, type ProviderCategory } from './categories';
 import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
 import { STALE_AFTER_DAYS } from './forecast';
 import { formatEUR, medianCents } from './money';
@@ -272,6 +272,7 @@ export function analyze<T extends LedgerRow & { id?: number }>(
   today: string,
   overrides: Override[] = [],
   chargeOverrides: ChargeOverride[] = [],
+  providerCategories: ProviderCategory[] = [],
 ): Analysis<T> {
   const span = dataSpan(rows);
   const latestDate = span?.lastDate ?? today;
@@ -337,7 +338,11 @@ export function analyze<T extends LedgerRow & { id?: number }>(
   const fixed = new Set<T>();
   for (const r of rows) if (typeOf(r).kind === 'subscription') fixed.add(r);
 
-  const category = (row: T) => {
+  const ownCategory = new Map(providerCategories.map((c) => [c.provider, c.category]));
+  const category = (row: T): Category => {
+    // The user's category for a provider beats the built-in map and the charge's type.
+    const own = ownCategory.get(row.provider);
+    if (own) return own;
     const info = typeOf(row);
     if (info.source === 'you') {
       // The user's word beats the charge's own Type: a stream they call usage is API-style usage.
