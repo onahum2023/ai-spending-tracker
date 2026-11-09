@@ -142,17 +142,18 @@ Every charge is one of three things, by how it is billed:
 
 The app guesses, and you correct. In order, a charge is:
 
-1. whatever you set (see below), else
-2. a **monthly subscription** if it is part of a detected pattern (monthly, similar day and amount, 3+ months in a row), else
-3. what the statement import or a `Type` column said (Subscription, Usage; Certification, Domains, Hosting and Other count as One-time / Other), else
-4. **Usage** if the same descriptor has been charged 3 or more times without a monthly rhythm, else
-5. **One-time / Other**.
+1. whatever you set **for that charge** (see below), else
+2. whatever you set for its **stream** (provider plus descriptor), else
+3. a **monthly subscription** if it is part of a detected pattern (monthly, similar day and amount, 3+ months in a row, or a new price straight after a pattern ended: see [Plan switches](#insights)), else
+4. what the statement import or a `Type` column said (Subscription, Usage; Certification, Domains, Hosting and Other count as One-time / Other), else
+5. **Usage** if the same descriptor has been charged 3 or more times without a monthly rhythm, else
+6. **One-time / Other**.
 
 **Yearly subscriptions are never detected.** One renewal a year cannot be told from a one-off charge, so a yearly subscription is always something you set. The amount is the last charge, and the next renewal is estimated a year after it and labelled "estimated" until a real renewal has been seen. If the date passes, it shows as "renewal not seen yet" and is still counted for 60 days. After that it moves to Stopped. In the run-rate it counts as a twelfth per month; in the 30-day calendar it appears, at its full amount, when a renewal is near.
 
 **Services under a provider.** A stream is a provider plus a merchant descriptor, and each stream has its own type. Anthropic's `CLAUDE SUB` descriptor can be a subscription while plain `Anthropic` is usage; the provider page lists them as services, each with its own control. When a service bills a plan and its usage in one charge (Vercel, for example) the data cannot separate them: set it to Subscription and accept that the amounts will vary.
 
-**Setting a type.** Each charge in the Transactions table, each row on the Subscriptions page and each service on a provider page has a **Type** control: Automatic, Subscription · monthly, Subscription · yearly, Usage, or One-time / Other. While it is on Automatic, the app shows what it guessed, and why on hover. A choice applies to the whole stream (every charge with the same provider and descriptor, and the control says how many). It never changes a charge or a total. Corrections are stored in this browser (removed by **Clear local data**; in demo mode kept in memory only). Corrections saved by earlier versions are converted: "subscription" becomes Subscription · monthly, and "ignore" becomes One-time / Other.
+**Setting a type.** Each charge in the Transactions table, each row on the Subscriptions page and each service on a provider page has a **Type** control: Automatic, Subscription · monthly, Subscription · yearly, Usage, or One-time / Other. While it is on Automatic, the app shows what it guessed, and why on hover. A choice applies to the whole stream (every charge with the same provider and descriptor, and the control says how many). In the Transactions table, **Just this charge…** sets the type of one charge instead, for a stream that shares a descriptor between a plan and its top-ups; such a charge is marked "Differs from its stream". It never changes a charge or a total. Corrections are stored in this browser (removed by **Clear local data**; in demo mode kept in memory only). **Labels and categories.** A stream can carry a short label such as "Claude Pro", edited next to the Type control on the Subscriptions page and a provider's Services card; it is shown instead of the descriptor (which stays on hover). A provider can be given a category on its page, which charts, budgets and overlap then use instead of the built-in mapping. Both are display choices: no charge or total changes. They are stored and listed in **Your corrections** like types. Corrections saved by earlier versions are converted: "subscription" becomes Subscription · monthly, and "ignore" becomes One-time / Other.
 
 ## Insights
 
@@ -160,6 +161,7 @@ A charge only has a merchant, provider, amount and date: no plan name, no usage 
 
 - **Run-rate.** The sum of the latest charge of each subscription that is still active, per month. A yearly subscription counts as a twelfth. The latest charge is used, not an average, because it is what you are committed to now; a service whose single charge mixes a plan and usage (Vercel, for example) will therefore move with its overage.
 - **Next 30 days.** Each active pattern lands on its usual day. Not shown when the newest recorded charge is more than 45 days old (it would be guesswork), the same rule as the month-end estimate.
+- **Plan switches.** A new charge on the same descriptor in the month after a monthly pattern ended (or the one after) is counted straight away as the same subscription at the new price, marked as seen once or twice, instead of waiting for three charges. The old pattern shows as replaced, not stopped. A lone charge that nothing followed stays a one-off. Descriptors whose charges mostly do not line up (credit top-ups that match for three months by chance) are not read as a subscription at all.
 - **Price changes.** Two cases: one pattern ends and another starts at a different amount within a month (a plan switch, "likely a plan change" at 25%+), or the amount inside one pattern moves by 10% or more and stays there. Small month-to-month wobble (for instance a USD price converted to EUR) and a single odd charge that goes straight back are ignored.
 - **Stopped.** Patterns that ran and are no longer appearing, unless a newer pattern at the same provider replaced them (that is a plan change). Each is checked for later charges from the same merchant: none means the cancellation looks clean; some are listed ("Still charging"), which often means the stream was usage top-ups rather than a subscription.
 - **Overlap.** Two or more active recurring charges from different providers in the same category: chat assistants, coding tools, media tools, writing and meeting tools. Hosting and domains are normally plural, so they are not flagged.
@@ -168,7 +170,7 @@ A charge only has a merchant, provider, amount and date: no plan name, no usage 
 - **Budgets.** A monthly budget in total and/or per category, shown against what is spent so far and the month-end estimate ("On track to exceed by €40", "Over budget by €20"). A category estimate uses the same method as the total, applied to that category's charges. Saved in this browser (IndexedDB), not exported, and removed by **Clear local data**.
 - **Tags.** One optional label per charge. Edit it in the Transactions table, or tag everything currently shown (existing different tags are only replaced after a confirmation). **Data → Export a quarter** downloads one quarter, optionally one tag, as a CSV with a `Tag` column that can be re-imported. The ledger has no VAT figures, so amounts are as charged and VAT is not split out.
 
-- **Your corrections.** See [Charge types](#charge-types). Corrections flow through run-rate, calendar, price changes, overlap, the type split, the month-end estimate and the recurring-patterns tables, and are listed with a **Reset to automatic** button in the **Your corrections** card.
+- **Your corrections.** See [Charge types](#charge-types). Corrections flow through run-rate, calendar, price changes, overlap, the type split, the month-end estimate and the recurring-patterns tables, and are listed with a **Reset** button in the **Your corrections** card (types per stream or per charge, labels and provider categories).
 
 In demo mode budgets, tags and corrections live in memory only, like the demo data.
 
@@ -245,7 +247,10 @@ Options: `--end YYYY-MM-DD` (default today), `--seed N` (default 2026), `--out D
 | ![Changes](docs/screenshots/07-trends-changes-recurring.jpg) Changes, concentration, recurring | ![Import review](docs/screenshots/08-import-review-errors.jpg) Import review with errors |
 | ![Data](docs/screenshots/09-data.jpg) Data management | ![Dark](docs/screenshots/13-overview-dark.jpg) Dark mode |
 | ![Mobile](docs/screenshots/10-mobile-overview.jpg) Mobile overview | ![Mobile forecast](docs/screenshots/11-mobile-forecast.jpg) Mobile estimate |
-| ![Mobile transactions](docs/screenshots/12-mobile-transactions.jpg) Mobile transactions | |
+| ![Mobile transactions](docs/screenshots/12-mobile-transactions.jpg) Mobile transactions | ![Subscriptions](docs/screenshots/15-subscriptions.jpg) Subscriptions: run-rate, calendar, Type control |
+| ![Price changes, overlap and stopped](docs/screenshots/16-subscriptions-insights.jpg) Price changes, overlap, stopped | ![Services](docs/screenshots/14-provider-services.jpg) Provider services: type, label and category |
+| ![Types](docs/screenshots/17-trends-types.jpg) Trends: subscription, usage and one-time | ![Budget](docs/screenshots/18-budget.jpg) Monthly budget against the estimate |
+| ![Quarter export](docs/screenshots/19-quarter-export.jpg) Export a quarter | |
 
 All screenshots show the synthetic demo data.
 
