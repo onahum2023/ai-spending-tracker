@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
-import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented } from '../components/ui';
+import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented, StreamName } from '../components/ui';
 import {
   concentration,
   filterPeriod,
@@ -323,7 +323,7 @@ function RecurringCard() {
               {patterns.map((p) => (
                 <tr key={p.provider + p.firstDate}>
                   <td><ProviderLink provider={p.provider} /></td>
-                  <td className="merchant hide-sm">{p.merchant}</td>
+                  <td className="merchant hide-sm"><StreamName provider={p.provider} merchant={p.merchant} className="merchant" /></td>
                   <td className="nowrap">{p.cadence === 'yearly' ? 'Yearly (set by you)' : `Monthly, ~${ordinal(p.typicalDay)}`}</td>
                   <td className="amount">
                     {formatEUR(p.typicalCents)}

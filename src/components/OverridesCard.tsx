@@ -1,4 +1,5 @@
 import { dateLabel } from '../lib/dates';
+import { tidyDescriptor } from '../lib/labels';
 import { formatEUR } from '../lib/money';
 import { OVERRIDE_HELP, OVERRIDE_LABELS, streamSize } from '../lib/overrides';
 import { useLedger } from '../store';
@@ -6,18 +7,18 @@ import { Card, ProviderLink } from './ui';
 
 /** Every correction the user made, with a way back to automatic. */
 export function OverridesCard() {
-  const { overrides, setOverride, transactions, chargeOverrides, setChargeOverride } = useLedger();
+  const { overrides, setOverride, transactions, chargeOverrides, setChargeOverride, labels, setLabel } = useLedger();
   const byId = new Map(transactions.map((t) => [t.id, t]));
   // A correction for a charge that no longer exists has nothing to show or reset.
   const singles = chargeOverrides.flatMap((o) => {
     const tx = byId.get(o.id);
     return tx ? [{ ...o, tx }] : [];
   });
-  if (overrides.length === 0 && singles.length === 0) return null;
+  if (overrides.length === 0 && singles.length === 0 && labels.length === 0) return null;
   return (
     <Card
       title="Your corrections"
-      subtitle="Charge types you set yourself, for a whole stream or for a single charge. Reset puts it back. Charges and totals are never changed."
+      subtitle="Charge types you set yourself, for a whole stream or for a single charge, and the names you gave streams. Reset puts it back. Charges and totals are never changed."
     >
       <div className="table-wrap">
         <table className="table">
@@ -67,6 +68,24 @@ export function OverridesCard() {
                 <td className="amount">
                   <button className="btn btn-sm" onClick={() => void setChargeOverride(id, null)}>
                     Reset to its stream
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {labels.map((l) => (
+              <tr key={`label-${l.provider}${l.merchant}`}>
+                <td>
+                  <ProviderLink provider={l.provider} />
+                  <div className="small muted merchant-line">{tidyDescriptor(l.merchant)}</div>
+                </td>
+                <td>
+                  <span className="chip">Label: {l.label}</span>
+                  <div className="small muted">Shown instead of the descriptor. The descriptor stays on hover.</div>
+                </td>
+                <td className="amount">{streamSize(transactions, l.provider, l.merchant)}</td>
+                <td className="amount">
+                  <button className="btn btn-sm" onClick={() => void setLabel(l.provider, l.merchant, null)}>
+                    Remove label
                   </button>
                 </td>
               </tr>

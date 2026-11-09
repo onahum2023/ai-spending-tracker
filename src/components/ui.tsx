@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
@@ -209,4 +210,22 @@ export function ConfirmDialog({
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>;
+}
+
+/**
+ * The name of a stream (provider + merchant descriptor): your label if you gave it one,
+ * otherwise the descriptor. The descriptor stays available on hover.
+ * `labelOnly` shows nothing when there is no label (for places that never showed the descriptor).
+ */
+export function StreamName({ provider, merchant, className = 'small muted merchant-line', labelOnly = false }: { provider: string; merchant: string; className?: string; labelOnly?: boolean }) {
+  const { labels } = useLedger();
+  const label = labelOf(labelMap(labels), provider, merchant);
+  if (!label && labelOnly) return null;
+  return label ? (
+    <div className={className.replace('merchant-line', '').trim() + ' stream-label'} title={`Descriptor: ${tidyDescriptor(merchant)}`}>
+      {label}
+    </div>
+  ) : (
+    <div className={className}>{tidyDescriptor(merchant)}</div>
+  );
 }

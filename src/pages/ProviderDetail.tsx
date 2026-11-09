@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { SingleSeriesMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
 import { TreatAs } from '../components/TreatAs';
-import { Card, EmptyState, Kpi } from '../components/ui';
+import { Card, EmptyState, Kpi, StreamName } from '../components/ui';
 import { filterPeriod, merchantBreakdown, periodLabel } from '../lib/analytics';
 import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
@@ -94,8 +94,8 @@ export function ProviderDetail({ provider }: { provider: string }) {
               <tbody>
                 {merchants.map((m) => (
                   <tr key={m.merchant}>
-                    <td className="merchant">{m.merchant}</td>
-                    <td><TreatAs provider={provider} merchant={m.merchant} /></td>
+                    <td className="merchant"><StreamName provider={provider} merchant={m.merchant} className="merchant" /></td>
+                    <td><TreatAs provider={provider} merchant={m.merchant} editLabel /></td>
                     <td className="amount">{m.count}</td>
                     <td className="amount">{formatEUR(m.totalCents)}</td>
                   </tr>

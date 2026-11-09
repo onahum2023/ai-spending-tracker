@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { labelMap, labelOf, MAX_LABEL_LENGTH } from '../lib/labels';
 import { OVERRIDE_LABELS, overrideMap, overrideOf, streamSize, typeLabel, WHY, type OverrideKind } from '../lib/overrides';
 import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
@@ -13,9 +15,40 @@ const OPTIONS: { value: '' | OverrideKind; label: string }[] = [
 /**
  * Lets the user set the type of a stream of charges (same provider and merchant descriptor):
  * Subscription (monthly or yearly), Usage, or One-time / Other. While it is on Automatic, the
- * type the app guessed is shown underneath. It never changes a charge or any total.
+ * type the app guessed is shown underneath. With `editLabel`, a box to name the stream. It never
+ * changes a charge or any total.
  */
-export function TreatAs({ provider, merchant, charge }: { provider: string; merchant: string; charge?: Transaction }) {
+/** A small text box for the label of a stream. Saves when you leave it or press Enter; empty removes the label. */
+function LabelInput({ provider, merchant }: { provider: string; merchant: string }) {
+  const { labels, setLabel } = useLedger();
+  const saved = labelOf(labelMap(labels), provider, merchant) ?? '';
+  const [text, setText] = useState(saved);
+  useEffect(() => setText(saved), [saved]);
+  const commit = () => {
+    if (text.trim() !== saved) void setLabel(provider, merchant, text);
+  };
+  return (
+    <input
+      className="input input-sm treat-as"
+      value={text}
+      maxLength={MAX_LABEL_LENGTH}
+      placeholder="Label, e.g. Claude Pro"
+      aria-label={`Label: ${provider}, ${merchant.trim()}`}
+      title="A name for this stream, shown instead of the descriptor. Charges and totals never change."
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') {
+          setText(saved);
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+export function TreatAs({ provider, merchant, charge, editLabel = false }: { provider: string; merchant: string; charge?: Transaction; editLabel?: boolean }) {
   const { overrides, setOverride, transactions, analysis, chargeOverrides, setChargeOverride } = useLedger();
   const own = charge ? chargeOverrides.find((o) => o.id === charge.id)?.kind ?? '' : '';
   const current = overrideOf(overrideMap(overrides), { provider, merchant }) ?? '';
@@ -36,6 +69,7 @@ export function TreatAs({ provider, merchant, charge }: { provider: string; merc
           </option>
         ))}
       </select>
+      {editLabel && <LabelInput provider={provider} merchant={merchant} />}
       {guess && !own && (
         <div className="small muted" title={WHY[guess.source]}>
           {typeLabel(guess)}
