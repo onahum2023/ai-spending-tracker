@@ -10,6 +10,8 @@ export interface LedgerRow {
   date: string;
   /** What the charge was for (optional; set by the statement extractor or a Type column). */
   type?: ServiceType;
+  /** Free-text label such as Personal, Business or a client name (optional; set in the app or a Tag column). */
+  tag?: string;
 }
 
 /** A stored transaction. */

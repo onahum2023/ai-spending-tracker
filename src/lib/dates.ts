@@ -45,11 +45,16 @@ export function addDays(date: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Same day next month, clamped to the month's last day (Jan 31 -> Feb 28). */
-export function addOneMonthToDate(date: string): string {
-  const next = addMonths(monthOf(date), 1);
+/** Same day `n` months later, clamped to the month's last day (Jan 31 + 1 -> Feb 28). */
+export function addMonthsToDate(date: string, n: number): string {
+  const next = addMonths(monthOf(date), n);
   const day = Math.min(dayOf(date), daysInMonth(next));
   return `${next}-${String(day).padStart(2, '0')}`;
+}
+
+/** Same day next month, clamped to the month's last day (Jan 31 -> Feb 28). */
+export function addOneMonthToDate(date: string): string {
+  return addMonthsToDate(date, 1);
 }
 
 /** Number of months between two months (b - a). */

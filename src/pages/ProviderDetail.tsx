@@ -1,21 +1,18 @@
 import { useMemo } from 'react';
 import { SingleSeriesMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
+import { TreatAs } from '../components/TreatAs';
 import { Card, EmptyState, Kpi } from '../components/ui';
 import { filterPeriod, merchantBreakdown, periodLabel } from '../lib/analytics';
 import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
-import { detectRecurring } from '../lib/recurring';
 import { href } from '../router';
 import { useLedger } from '../store';
 
 export function ProviderDetail({ provider }: { provider: string }) {
-  const { transactions, span, colors, period, providers } = useLedger();
+  const { transactions, span, colors, period, providers, analysis } = useLedger();
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
-  const patterns = useMemo(
-    () => (span ? detectRecurring(rows, span.lastDate) : []),
-    [rows, span],
-  );
+  const patterns = useMemo(() => analysis.patterns.filter((p) => p.provider === provider), [analysis, provider]);
 
   if (!span) return null;
   if (rows.length === 0) {
@@ -51,19 +48,21 @@ export function ProviderDetail({ provider }: { provider: string }) {
         <Card title="Monthly spending" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}`}>
           <SingleSeriesMonthlyChart rows={rows} months={months} color={colors.color(provider)} />
         </Card>
-        <Card title="Recurring-looking patterns" subtitle="Observed in the data, not confirmed subscriptions">
+        <Card title="Subscription patterns" subtitle="Monthly ones are observed in the data, not confirmed. Yearly ones are set by you.">
           {patterns.length === 0 ? (
-            <EmptyState>No charge repeats on a similar day for 3+ consecutive months.</EmptyState>
+            <EmptyState>No charge repeats monthly on a similar day for 3+ months, and none is set as a subscription.</EmptyState>
           ) : (
             <div className="stack" style={{ gap: 12 }}>
               {patterns.map((p) => (
                 <div key={p.firstDate} className="stack" style={{ gap: 2 }}>
                   <div className="row-between">
-                    <strong className="num">~{formatEUR(p.typicalCents)} / month</strong>
+                    <strong className="num">~{formatEUR(p.typicalCents)} / {p.cadence === 'yearly' ? 'year' : 'month'}</strong>
                     <span className={`chip ${p.active ? 'chip-active' : 'chip-ended'}`}>{p.active ? 'Still appearing' : 'Stopped'}</span>
                   </div>
                   <span className="small secondary">
-                    Around the {ordinal(p.typicalDay)} · {p.months} consecutive months · {monthLabel(monthOf(p.firstDate))} – {monthLabel(monthOf(p.lastDate))}
+                    {p.cadence === 'yearly'
+                      ? `Yearly, set by you · last charged ${dateLabel(p.lastDate)}`
+                      : `Around the ${ordinal(p.typicalDay)} · ${p.months} ${p.forced ? 'month' + (p.months === 1 ? '' : 's') + ' with charges, set by you' : 'consecutive months'} · ${monthLabel(monthOf(p.firstDate))} – ${monthLabel(monthOf(p.lastDate))}`}
                   </span>
                   <span className="small muted">
                     {p.minCents !== p.maxCents ? `Amounts ${formatEUR(p.minCents)}–${formatEUR(p.maxCents)} · ` : ''}
@@ -84,16 +83,17 @@ export function ProviderDetail({ provider }: { provider: string }) {
         >
           <TransactionTable rows={rows} showProvider={false} />
         </Card>
-        <Card title="Merchant descriptors" subtitle="How this provider appears on statements">
+        <Card title="Services" subtitle="Each merchant descriptor is a service, with its own charge type. A provider can have several, such as a plan and usage.">
           <div className="table-wrap" style={{ maxHeight: 520, overflowY: 'auto' }}>
             <table className="table">
               <thead>
-                <tr><th>Descriptor</th><th className="amount">Charges</th><th className="amount">Total</th></tr>
+                <tr><th>Descriptor</th><th>Type</th><th className="amount">Charges</th><th className="amount">Total</th></tr>
               </thead>
               <tbody>
                 {merchants.map((m) => (
                   <tr key={m.merchant}>
                     <td className="merchant">{m.merchant}</td>
+                    <td><TreatAs provider={provider} merchant={m.merchant} /></td>
                     <td className="amount">{m.count}</td>
                     <td className="amount">{formatEUR(m.totalCents)}</td>
                   </tr>

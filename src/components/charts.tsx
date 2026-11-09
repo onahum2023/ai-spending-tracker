@@ -13,7 +13,10 @@ import {
   YAxis,
 } from 'recharts';
 import { monthlyByProvider } from '../lib/analytics';
+import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { OTHER_KEY } from '../lib/colors';
+import { monthlyByCategory, typeByMonth } from '../lib/insights';
+import { KIND_LABELS, type ChargeKind, type TypeInfo } from '../lib/overrides';
 import { monthLabel, monthShort } from '../lib/dates';
 import { formatEUR } from '../lib/money';
 import type { LedgerRow } from '../lib/types';
@@ -331,6 +334,155 @@ export function YearCompareChart({ rows, years, height = 260 }: { rows: LedgerRo
             />
           ))}
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ---------- monthly spending stacked by category ----------
+
+export function MonthlyCategoryChart({
+  rows,
+  months,
+  categoryFor,
+  selectedMonth,
+  onSelectMonth,
+  height = 280,
+}: {
+  rows: LedgerRow[];
+  months: string[];
+  categoryFor: (row: any) => Category;
+  selectedMonth?: string | null;
+  onSelectMonth?: (m: string) => void;
+  height?: number;
+}) {
+  const { categoryColors } = useLedger();
+  const { data, keys } = useMemo(() => {
+    const stack = monthlyByCategory(rows, months, categoryFor);
+    const present = new Set<string>();
+    for (const s of stack) for (const k of Object.keys(s.cents)) present.add(k);
+    const keys = CATEGORIES.filter((c) => present.has(c));
+    const data = stack.map((s) => {
+      const row: Record<string, number | string> = { month: s.month, total: s.totalCents };
+      for (const k of keys) row[k] = (s.cents[k] ?? 0) / 100;
+      return row;
+    });
+    return { data, keys };
+  }, [rows, months, categoryFor]);
+
+  const Tip = ({ active, payload, label }: TipProps) => {
+    if (!active || !payload?.length) return null;
+    const row = payload[0].payload as Record<string, number>;
+    const items = keys
+      .map((k) => ({ k, cents: Math.round(Number(row[k] ?? 0) * 100) }))
+      .filter((i) => i.cents !== 0)
+      .sort((a, b) => b.cents - a.cents);
+    return (
+      <TipShell title={monthLabel(String(label))} total={Number(row.total)} hint={onSelectMonth ? 'Click to open this month' : undefined}>
+        {items.length === 0 && <div className="muted">No recorded spending</div>}
+        {items.map((i) => (
+          <TipRow key={i.k} color={categoryColors(i.k)} label={CATEGORY_LABELS[i.k]} cents={i.cents} />
+        ))}
+      </TipShell>
+    );
+  };
+
+  return (
+    <div>
+      <div className="legend" style={{ marginBottom: 10 }}>
+        {keys.map((k) => (
+          <span key={k} className="legend-item">
+            <span className="dot" style={{ background: categoryColors(k) }} />
+            {CATEGORY_LABELS[k]}
+          </span>
+        ))}
+      </div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart
+          data={data}
+          margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+          onClick={(s: any) => {
+            const i = s?.activeTooltipIndex ?? s?.activeIndex;
+            if (onSelectMonth && i !== undefined && i !== null && data[Number(i)]) onSelectMonth(String(data[Number(i)].month));
+          }}
+          style={{ cursor: onSelectMonth ? 'pointer' : undefined }}
+        >
+          <CartesianGrid vertical={false} stroke="var(--grid)" />
+          <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
+          <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
+          <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
+          {keys.map((k, idx) => (
+            <Bar key={k} dataKey={k} stackId="s" fill={categoryColors(k)} stroke="var(--surface)" strokeWidth={1} maxBarSize={28} radius={idx === keys.length - 1 ? [3, 3, 0, 0] : 0} isAnimationActive={false}>
+              {data.map((d) => (
+                <Cell key={String(d.month)} fillOpacity={selectedMonth && d.month !== selectedMonth ? 0.38 : 1} />
+              ))}
+            </Bar>
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ---------- subscription, usage and one-time ----------
+
+const KINDS: ChargeKind[] = ['subscription', 'usage', 'other'];
+
+export function TypeChart({
+  rows,
+  months,
+  typeOf,
+  height = 260,
+}: {
+  rows: LedgerRow[];
+  months: string[];
+  typeOf: (row: any) => TypeInfo;
+  height?: number;
+}) {
+  const { typeColors } = useLedger();
+  const data = useMemo(
+    () =>
+      typeByMonth(rows, months, typeOf).map((m) => ({
+        ...m,
+        subscription: m.subscriptionCents / 100,
+        usage: m.usageCents / 100,
+        other: m.otherCents / 100,
+      })),
+    [rows, months, typeOf],
+  );
+
+  const Tip = ({ active, payload, label }: TipProps) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0].payload;
+    return (
+      <TipShell title={monthLabel(String(label))} total={p.subscriptionCents + p.usageCents + p.otherCents}>
+        {KINDS.map((k) => (
+          <TipRow key={k} color={typeColors(k)} label={KIND_LABELS[k]} cents={p[`${k}Cents`]} />
+        ))}
+      </TipShell>
+    );
+  };
+
+  return (
+    <div>
+      <div className="legend" style={{ marginBottom: 10 }}>
+        {KINDS.map((k) => (
+          <span key={k} className="legend-item">
+            <span className="dot" style={{ background: typeColors(k) }} />
+            {KIND_LABELS[k]}
+          </span>
+        ))}
+      </div>
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--grid)" />
+          <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
+          <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
+          <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
+          {KINDS.map((k, i) => (
+            <Bar key={k} dataKey={k} stackId="s" fill={typeColors(k)} stroke="var(--surface)" strokeWidth={1} maxBarSize={24} radius={i === KINDS.length - 1 ? [3, 3, 0, 0] : 0} isAnimationActive={false} />
+          ))}
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

@@ -24,7 +24,7 @@ const MIN_MONTHS = 3;
 /** A descriptor charged this many times in one month is treated as usage, not a recurring charge. */
 const USAGE_CHARGES_PER_MONTH = 3;
 /** A pattern still counts as active this many days after its next expected charge. */
-const GRACE_DAYS = 7;
+export const GRACE_DAYS = 7;
 
 export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   provider: string;
@@ -39,6 +39,10 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   lastDate: string;
   nextExpected: string;
   active: boolean;
+  /** Set when the user marked this stream as a subscription instead of detection finding it. */
+  forced?: boolean;
+  /** Detection only finds monthly patterns; a yearly one is always marked by the user. */
+  cadence?: 'yearly';
 }
 
 function daysClose(a: number, b: number): boolean {

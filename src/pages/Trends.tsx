@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { MonthlyTrendChart, YearCompareChart } from '../components/charts';
+import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
 import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented } from '../components/ui';
 import {
   concentration,
@@ -11,7 +11,7 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal, yearOf } from '../lib/dates';
 import { formatEUR, formatSignedEUR, sumCents } from '../lib/money';
-import { detectRecurring } from '../lib/recurring';
+import { typeChange, typeSentence } from '../lib/insights';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 
@@ -48,6 +48,8 @@ export function Trends() {
         </Card>
       </div>
 
+      <SpendingTypes />
+
       <YearComparison />
 
       <div className="grid cols-2-even">
@@ -66,6 +68,39 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
       <div className="small secondary">{label}</div>
       <div className="num" style={{ fontSize: 19, fontWeight: 650 }}>{value}</div>
       {sub && <div className="small muted">{sub}</div>}
+    </div>
+  );
+}
+
+function SpendingTypes() {
+  const { transactions, span, today, analysis } = useLedger();
+  if (!span) return null;
+  const L = lastCompleteMonth(span, today);
+  const c = typeChange(transactions, analysis.typeOf, L);
+  const sentence = typeSentence(c);
+  const total = c.after.subscriptionCents + c.after.usageCents + c.after.otherCents;
+  const share = (x: number) => (total > 0 ? Math.round((x / total) * 100) : 0);
+  const Row = ({ label, now, before }: { label: string; now: number; before: number }) => (
+    <Stat label={label} value={formatEUR(now)} sub={<>{share(now)}% of the last 3 months · <Delta before={before} after={now} /></>} />
+  );
+  return (
+    <div className="grid cols-2">
+      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither">
+        <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
+      </Card>
+      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
+        <div className="stack" style={{ gap: 14 }}>
+          <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
+          <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
+          <Row label="One-time / Other" now={c.after.otherCents} before={c.before.otherCents} />
+          {sentence && <p className="small secondary">{sentence}</p>}
+          <p className="small muted">
+            The app guesses each charge's type. A charge is a subscription once it has appeared monthly for three months in a row, and usage
+            when the same descriptor is charged three or more times without that rhythm. Correct any of them with the Type control on the
+            Transactions or Subscriptions page.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -261,8 +296,8 @@ function ConcentrationCard() {
 }
 
 function RecurringCard() {
-  const { transactions, span } = useLedger();
-  const patterns = useMemo(() => (span ? detectRecurring(transactions, span.lastDate) : []), [transactions, span]);
+  const { analysis } = useLedger();
+  const patterns = analysis.patterns;
   return (
     <Card
       title="Recurring-looking patterns"
@@ -289,7 +324,7 @@ function RecurringCard() {
                 <tr key={p.provider + p.firstDate}>
                   <td><ProviderLink provider={p.provider} /></td>
                   <td className="merchant hide-sm">{p.merchant}</td>
-                  <td className="nowrap">Monthly, ~{ordinal(p.typicalDay)}</td>
+                  <td className="nowrap">{p.cadence === 'yearly' ? 'Yearly (set by you)' : `Monthly, ~${ordinal(p.typicalDay)}`}</td>
                   <td className="amount">
                     {formatEUR(p.typicalCents)}
                     {p.minCents !== p.maxCents && <div className="small muted">{formatEUR(p.minCents)}–{formatEUR(p.maxCents)}</div>}
