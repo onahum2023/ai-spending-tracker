@@ -341,3 +341,18 @@ details.explain li { margin: 3px 0; }
   padding: 14px 16px; border-radius: var(--radius); background: var(--accent-wash);
 }
 .welcome-demo p { margin-top: 2px; }
+
+/* ---------- statement import ---------- */
+.welcome-card.welcome-wide { width: min(1180px, 100%); }
+.file-list { display: flex; flex-direction: column; gap: 6px; }
+.file-item { padding: 8px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); }
+.file-item.file-error { background: var(--danger-wash); }
+.input-sm { height: 28px; font-size: 13px; padding: 0 8px; }
+.stmt-table input.input-sm { width: 150px; }
+.stmt-table td { vertical-align: top; }
+.stmt-table .why { min-width: 220px; max-width: 360px; }
+.stmt-table td .merchant { white-space: pre-wrap; }
+.stmt-footer { padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); }
+.stmt-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 380px; }
+.ask-claude { padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--border-strong); background: var(--surface); }
+.ask-preview { max-height: 220px; overflow: auto; font-size: 11px; background: var(--surface-2); padding: 10px; border-radius: 8px; margin: 0; }

@@ -74,6 +74,7 @@ export async function commitImport(
       provider: r.provider,
       amountCents: r.amountCents,
       date: r.date,
+      ...(r.type ? { type: r.type } : {}),
       sourceRow: r.sourceRow,
       importId,
     } as Transaction);

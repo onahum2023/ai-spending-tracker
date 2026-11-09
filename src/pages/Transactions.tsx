@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
 import { Card, SearchInput, type SortDir } from '../components/ui';
 import { daysInMonth } from '../lib/dates';
+import { SERVICE_TYPE_LABELS, SERVICE_TYPES } from '../lib/extract/types';
 import { centsToPlain, formatEUR, sumCents } from '../lib/money';
 import { navigate, type Route } from '../router';
 import { useLedger } from '../store';
@@ -11,13 +12,14 @@ export function Transactions({ route }: { route: Route }) {
   const { transactions, providers, span, period } = useLedger();
   const q = route.query.get('q') ?? '';
   const provider = route.query.get('provider') ?? '';
+  const type = route.query.get('type') ?? '';
   const from = route.query.get('from') ?? '';
   const to = route.query.get('to') ?? '';
   const sortKey = (route.query.get('sort') as TxSortKey) || 'date';
   const sortDir = (route.query.get('dir') as SortDir) || 'desc';
 
   const update = (patch: Record<string, string>) => {
-    const next = { q, provider, from, to, sort: sortKey === 'date' ? '' : sortKey, dir: sortDir === 'desc' ? '' : sortDir, ...patch };
+    const next = { q, provider, type, from, to, sort: sortKey === 'date' ? '' : sortKey, dir: sortDir === 'desc' ? '' : sortDir, ...patch };
     navigate(['transactions'], next, true);
   };
 
@@ -25,6 +27,7 @@ export function Transactions({ route }: { route: Route }) {
     const needle = q.trim().toLowerCase();
     return transactions.filter((t) => {
       if (provider && t.provider !== provider) return false;
+      if (type && (t.type ?? '') !== type) return false;
       if (from && t.date < from) return false;
       if (to && t.date > to) return false;
       if (needle) {
@@ -33,9 +36,10 @@ export function Transactions({ route }: { route: Route }) {
       }
       return true;
     });
-  }, [transactions, q, provider, from, to]);
+  }, [transactions, q, provider, type, from, to]);
 
-  const anyFilter = q || provider || from || to;
+  const anyFilter = q || provider || type || from || to;
+  const types = SERVICE_TYPES.filter((ty) => transactions.some((t) => t.type === ty));
 
   const usePeriod = () => {
     if (period.kind === 'all') return update({ from: '', to: '' });
@@ -56,6 +60,14 @@ export function Transactions({ route }: { route: Route }) {
               <option key={p.provider} value={p.provider}>{p.provider}</option>
             ))}
           </select>
+          {types.length > 0 && (
+            <select className="select" aria-label="Type" value={type} onChange={(e) => update({ type: e.target.value })}>
+              <option value="">All types</option>
+              {types.map((ty) => (
+                <option key={ty} value={ty}>{SERVICE_TYPE_LABELS[ty]}</option>
+              ))}
+            </select>
+          )}
           <label>
             From
             <input className="input" type="date" value={from} min={span?.firstDate} max={span?.lastDate} onChange={(e) => update({ from: e.target.value })} />

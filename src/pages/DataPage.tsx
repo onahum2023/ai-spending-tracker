@@ -1,23 +1,12 @@
 import { useState } from 'react';
 import { ImportPanel } from '../components/ImportPanel';
 import { Card, ConfirmDialog } from '../components/ui';
-import { toLedgerCsv } from '../lib/csv';
+import { exportCsv } from '../lib/download';
+import { StatementImport } from '../components/StatementImport';
 import { dateLabel } from '../lib/dates';
 import { clearAll } from '../lib/db';
 import { formatEUR, sumCents } from '../lib/money';
 import { useLedger } from '../store';
-
-export function exportCsv(rows: Parameters<typeof toLedgerCsv>[0], fileName?: string) {
-  const blob = new Blob([toLedgerCsv(rows)], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName ?? `ai-spending-export-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 export function DataPage() {
   const { transactions, imports, span, providers, reload, mode, exitDemo } = useLedger();
@@ -39,9 +28,15 @@ export function DataPage() {
 
   return (
     <div className="stack">
+      <Card
+        title={demo ? 'Use your own data: extract AI charges from statements' : 'Extract AI charges from bank or card statements'}
+        subtitle="Excel or CSV exports and Revolut PDFs. Read in your browser; review before anything is saved."
+      >
+        <StatementImport onImported={demo ? () => (window.location.hash = '#/') : undefined} />
+      </Card>
       <div className="grid cols-2">
         <Card
-          title={demo ? 'Use your own data' : 'Import transactions'}
+          title={demo ? 'Or import a ledger CSV' : 'Import a ledger CSV'}
           subtitle={
             demo
               ? 'Import a CSV to replace the demo. The demo data is discarded, never mixed with yours.'

@@ -7,3 +7,11 @@ dist
 
 # Real financial data: never commit
 private/
+
+# Raw statements dropped in for extraction: never commit
+inbox/
+*.pdf
+*.xlsx
+*.xls
+*.xlsm
+*.ods
