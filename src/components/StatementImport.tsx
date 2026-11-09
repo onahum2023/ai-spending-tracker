@@ -248,7 +248,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
             <AskClaude
               items={askable}
               onVerdicts={(v) =>
-                void import('../lib/extract/claude').then(({ applyVerdicts }) => setItems((prev) => applyVerdicts(prev, v)))
+                void import('../lib/extract/review').then(({ applyVerdicts }) => setItems((prev) => applyVerdicts(prev, v)))
               }
             />
           )}

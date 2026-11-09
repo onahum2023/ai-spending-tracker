@@ -108,8 +108,8 @@ const CURRENCY_WORDS: [RegExp, string][] = [
   [/yen/i, 'JPY'],
 ];
 
-/** Short, human summary of statement details: the foreign amount if there is one, else the first part. */
-export function summarizeDetails(details: string | undefined): string {
+/** The foreign-currency amount (e.g. "USD 24.20" or "$10.80") when the details contain one, else "". Never returns other text. */
+export function foreignAmount(details: string | undefined): string {
   if (!details) return '';
   const amex = /Foreign Spend Amount:\s*([\d.,]+)\s+([^\d]+?)\s+Commission/i.exec(details);
   if (amex) {
@@ -117,6 +117,13 @@ export function summarizeDetails(details: string | undefined): string {
     return `${cur} ${amex[1]}`;
   }
   const rev = /Revolut Rate[^)]*\)\s*([$£₪¥][\d,]+\.\d{2})/.exec(details);
-  if (rev) return rev[1];
+  return rev ? rev[1] : '';
+}
+
+/** Short, human summary of statement details for the screen: the foreign amount if there is one, else the first part. */
+export function summarizeDetails(details: string | undefined): string {
+  if (!details) return '';
+  const fx = foreignAmount(details);
+  if (fx) return fx;
   return details.length > 60 ? `${details.slice(0, 57)}…` : details;
 }

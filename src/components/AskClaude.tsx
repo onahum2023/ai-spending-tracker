@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Classified } from '../lib/extract/classify';
-import type { Verdict } from '../lib/extract/claude';
+import { buildChatPrompt, chatUrl, lineIds, parseChatAnswer, payloadFor, type Verdict } from '../lib/extract/review';
 
 const KEY_STORE = 'ai-spending-tracker.anthropic-key';
 
@@ -23,6 +23,8 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<unknown[] | null>(null);
+  const [answer, setAnswer] = useState('');
+  const [note, setNote] = useState<string | null>(null);
 
   const saveKey = (key: string, keep: boolean) => {
     try {
@@ -33,9 +35,40 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
     }
   };
 
-  const showPreview = async () => {
-    const { payloadFor } = await import('../lib/extract/claude');
-    setPreview(items.map((c, i) => payloadFor(c, `r${i + 1}`)));
+  const showPreview = () => setPreview(items.map((c, i) => payloadFor(c, `r${i + 1}`)));
+
+  const openChat = async () => {
+    setError(null);
+    setNote(null);
+    const prompt = buildChatPrompt(items);
+    const url = chatUrl(prompt);
+    window.open(url ?? 'https://claude.ai/new', '_blank', 'noopener,noreferrer');
+    let copied = true;
+    try {
+      await navigator.clipboard.writeText(prompt);
+    } catch {
+      copied = false;
+    }
+    setNote(
+      url
+        ? 'claude.ai opened with the lines filled in. Press Send there, then paste its answer below.'
+        : copied
+          ? 'Too many lines to fit in a link. The prompt is copied: paste it into the new claude.ai chat, press Send, then paste the answer below.'
+          : 'Too many lines to fit in a link and the clipboard is blocked. Use "Show exactly what is sent", or review fewer lines.',
+    );
+  };
+
+  const applyAnswer = () => {
+    setError(null);
+    setNote(null);
+    try {
+      const { verdicts } = parseChatAnswer(answer, lineIds(items));
+      onVerdicts(verdicts);
+      setAnswer('');
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   const run = async () => {
@@ -58,7 +91,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
     return (
       <div className="ask-claude row-between wrap">
         <span className="small secondary">
-          Not sure? You can decide each line yourself with Include / Exclude. Optionally, Claude can review these {items.length} line{items.length === 1 ? '' : 's'} if you have an Anthropic API key.
+          Not sure? You can decide each line yourself with Include / Exclude. Optionally, Claude can review these {items.length} line{items.length === 1 ? '' : 's'}, with your Claude subscription or an Anthropic API key.
         </span>
         <button className="btn btn-sm" onClick={() => setOpen(true)}>Ask Claude…</button>
       </div>
@@ -71,6 +104,32 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
         <strong>Ask Claude about {items.length} line{items.length === 1 ? '' : 's'}</strong>
         <button className="btn btn-sm btn-ghost" onClick={() => setOpen(false)} disabled={!!busy}>Close</button>
       </div>
+      <div className="stack" style={{ gap: 8 }}>
+        <strong className="small">Option 1: use my Claude subscription</strong>
+        <p className="small secondary">
+          Opens claude.ai in a new tab with these lines already typed in. Nothing is sent until you press Send there. Then paste
+          Claude's answer back here. The same fields as below are included.
+        </p>
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn btn-primary" onClick={() => void openChat()}>Open in Claude…</button>
+          <button className="btn btn-sm btn-ghost" onClick={() => (preview ? setPreview(null) : showPreview())}>
+            {preview ? 'Hide' : 'Show'} exactly what is sent
+          </button>
+        </div>
+        {note && <div className="notice notice-info">{note}</div>}
+        <textarea
+          className="input"
+          rows={4}
+          placeholder="Paste Claude's answer here (the JSON starting with {&quot;results&quot;…)"
+          aria-label="Claude's answer"
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+        />
+        <div>
+          <button className="btn" onClick={applyAnswer} disabled={!answer.trim()}>Apply the answer</button>
+        </div>
+      </div>
+      <strong className="small">Option 2: use an Anthropic API key</strong>
       <p className="small secondary">
         Only these lines leave your browser, sent directly to Anthropic's API with your key: date, amount, merchant name,
         your bank's short name, foreign amount, country and why the rules were unsure. No file names, references or
@@ -91,9 +150,6 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           Remember on this device
         </label>
-        <button className="btn btn-sm btn-ghost" onClick={() => (preview ? setPreview(null) : void showPreview())}>
-          {preview ? 'Hide' : 'Show'} exactly what is sent
-        </button>
         <button className="btn btn-primary" onClick={run} disabled={!apiKey.trim() || !!busy}>
           {busy ?? 'Ask Claude'}
         </button>

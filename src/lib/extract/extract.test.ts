@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseLedgerCsv, toLedgerCsv } from '../csv';
 import { classifyRows, type Classified } from './classify';
 import { applyVerdicts, payloadFor } from './claude';
+import { buildChatPrompt, chatUrl, lineIds, parseChatAnswer } from './review';
 import { extractFromPdfItems, extractFromTables, mergeFiles } from './load';
 import { detectDayOrder, parseLooseAmount, parseLooseDate, summarizeDetails } from './parse';
 import type { PdfTextItem } from './revolut';
@@ -216,6 +217,38 @@ describe('asking Claude (no network in tests)', () => {
     ]));
     expect(out[0]).toMatchObject({ decision: 'include', provider: 'Examplebot', type: 'subscription', by: 'claude' });
     expect(out[1]).toMatchObject({ decision: 'review', by: 'claude' });
+  });
+});
+
+describe('asking Claude in a chat (copy and paste)', () => {
+  const mk = (merchant: string, details?: string): Classified => ({
+    row: row(merchant, 6.1, '2026-02-14', { details, source: 'private-file.pdf' }),
+    decision: 'review', provider: null, type: null, group: null, reasons: ['name suggests an AI product'], by: 'rules',
+  });
+  const items = [mk('Examplebot.ai Inc'), mk('Other.ai Ltd', 'NL91ABNA0417164300 · IBAN counterparty note')];
+
+  it('never sends free-text details, only a parsed foreign amount', () => {
+    const prompt = buildChatPrompt(items);
+    expect(prompt).not.toMatch(/NL91ABNA|counterparty note|private-file/);
+    expect(prompt).toContain('Examplebot.ai Inc');
+    expect(prompt).toContain('"id": "r2"');
+  });
+  it('builds a short link only while it fits', () => {
+    expect(chatUrl(buildChatPrompt(items.slice(0, 1)))).toMatch(/^https:\/\/claude\.ai\/new\?q=/);
+    expect(chatUrl(buildChatPrompt(Array.from({ length: 60 }, (_, i) => mk(`Bot${i}.ai Inc`))))).toBeNull();
+  });
+  it('reads the answer through code fences and maps ids back to rows', () => {
+    const answer = 'Sure!\n```json\n{"results":[{"id":"r1","is_ai_spending":true,"provider":"Examplebot","type":"subscription","confidence":"high","reason":"AI app"},{"id":"r2","is_ai_spending":false,"provider":null,"type":null,"confidence":"medium","reason":"shop"},{"id":"zz","is_ai_spending":true,"provider":"X","type":null,"confidence":"high","reason":""},{"id":"r1","is_ai_spending":"yes"}]}\n```';
+    const { verdicts, skipped } = parseChatAnswer(answer, lineIds(items));
+    expect(skipped).toBe(2);
+    expect(verdicts.get(items[0].row.id)).toMatchObject({ is_ai_spending: true, provider: 'Examplebot', type: 'subscription' });
+    expect(verdicts.get(items[1].row.id)).toMatchObject({ is_ai_spending: false, provider: null });
+  });
+  it('accepts a bare array and rejects text that is not an answer', () => {
+    const arr = '[{"id":"r1","is_ai_spending":true,"provider":"A","type":"usage","confidence":"low","reason":"?"}]';
+    expect(parseChatAnswer(arr, lineIds(items)).verdicts.size).toBe(1);
+    expect(() => parseChatAnswer('no json here', lineIds(items))).toThrow(/JSON/);
+    expect(() => parseChatAnswer('{"results":[{"id":"nope"}]}', lineIds(items))).toThrow(/matched/);
   });
 });
 
