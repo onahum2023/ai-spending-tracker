@@ -1,0 +1,66 @@
+Merchant,Provider,Amount,Date
+HUGGINGFACE             NEW YORK,Hugging Face,8.30,2026-09-01
+Anthropic,Anthropic,11.02,2026-09-02
+"GITHUB, INC.            SAN FRANCISCO",GitHub,9.46,2026-09-05
+Anthropic,Anthropic,10.07,2026-09-07
+Anthropic,Anthropic,11.13,2026-09-07
+GROQ INC                MOUNTAIN VIEW,Groq,4.88,2026-09-07
+OPENAI                  SAN FRANCISCO,OpenAI,21.26,2026-09-07
+Anthropic,Anthropic,10.96,2026-09-08
+Google Cloud,Google,14.09,2026-09-08
+CURSOR AI               NEW YORK,Cursor,18.80,2026-09-09
+SLACK T00DEMO0000       DUBLIN 1,Slack,7.92,2026-09-09
+Anthropic,Anthropic,10.74,2026-09-10
+AWS EMEA                AWS.AMAZON.CO,Amazon Web Services,36.42,2026-09-12
+RUNWAYML                NEW YORK,Runway,14.17,2026-09-12
+SUPABASE                SINGAPORE,Supabase,22.63,2026-09-12
+OPENAI                  SAN FRANCISCO,OpenAI,27.25,2026-09-15
+OPENAI *CHATGPT SUBSCR  SAN FRANCISCO,OpenAI,112.19,2026-09-15
+ELEVENLABS.IO           NEW YORK,ElevenLabs,20.30,2026-09-16
+ANTHROPIC* CLAUDE SUB   SAN FRANCISCO,Anthropic,21.78,2026-09-19
+Openrouter,OpenRouter,10.69,2026-09-19
+REPLICATE               SAN FRANCISCO,Replicate,20.86,2026-09-19
+Anthropic,Anthropic,11.01,2026-09-20
+CURSOR USAGE            NEW YORK,Cursor,11.84,2026-09-21
+GRANOLA INC             DOVER,Granola,14.01,2026-09-23
+LOVABLE                 DOVER,Lovable,25.00,2026-09-24
+VERCEL INC.             COVINA,Vercel,18.06,2026-09-26
+Anthropic,Anthropic,10.98,2026-09-28
+MISTRAL AI              PARIS,Mistral AI,6.93,2026-09-28
+HUGGINGFACE             NEW YORK,Hugging Face,8.61,2026-10-01
+Anthropic,Anthropic,10.44,2026-10-02
+"GITHUB, INC.            SAN FRANCISCO",GitHub,9.51,2026-10-05
+CURSOR USAGE            NEW YORK,Cursor,10.35,2026-10-06
+Anthropic,Anthropic,10.66,2026-10-07
+Anthropic,Anthropic,10.75,2026-10-07
+Anthropic,Anthropic,19.69,2026-10-08
+OPENAI                  SAN FRANCISCO,OpenAI,14.83,2026-10-08
+CURSOR AI               NEW YORK,Cursor,18.73,2026-10-09
+SLACK T00DEMO0000       DUBLIN 1,Slack,8.17,2026-10-09
+OPENAI                  SAN FRANCISCO,OpenAI,29.88,2026-10-10
+SUPABASE                SINGAPORE,Supabase,22.50,2026-10-12
+Anthropic,Anthropic,10.82,2026-10-14
+GROQ INC                MOUNTAIN VIEW,Groq,1.17,2026-10-15
+OPENAI *CHATGPT SUBSCR  SAN FRANCISCO,OpenAI,111.86,2026-10-15
+ELEVENLABS.IO           NEW YORK,ElevenLabs,20.12,2026-10-16
+AWS EMEA                AWS.AMAZON.CO,Amazon Web Services,13.95,2026-10-17
+ANTHROPIC* CLAUDE SUB   SAN FRANCISCO,Anthropic,21.78,2026-10-19
+GRANOLA INC             DOVER,Granola,14.22,2026-10-23
+LOVABLE                 DOVER,Lovable,25.00,2026-10-24
+VERCEL INC.             COVINA,Vercel,18.32,2026-10-26
+Google Cloud,Google,17.51,2026-10-29
+MISTRAL AI              PARIS,Mistral AI,6.93,2026-10-29
+Anthropic,Anthropic,10.99,2026-10-31
+HUGGINGFACE             NEW YORK,Hugging Face,8.41,2026-11-01
+Openrouter,OpenRouter,11.97,2026-11-02
+Anthropic,Anthropic,10.92,2026-11-04
+CURSOR USAGE            NEW YORK,Cursor,23.71,2026-11-04
+"GITHUB, INC.            SAN FRANCISCO",GitHub,9.62,2026-11-05
+AWS EMEA                AWS.AMAZON.CO,Amazon Web Services,21.01,2026-11-06
+Anthropic,Anthropic,34.95,2026-11-07
+OPENAI                  SAN FRANCISCO,OpenAI,12.74,2026-11-07
+VERCEL                  COVINA,Vercel,8.98,2026-11-07
+Anthropic,Anthropic,20.06,2026-11-08
+MISTRAL AI              PARIS,Mistral AI,9.90,2026-11-08
+CURSOR AI               NEW YORK,Cursor,18.73,2026-11-09
+SLACK T00DEMO0000       DUBLIN 1,Slack,8.02,2026-11-09

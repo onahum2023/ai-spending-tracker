@@ -1,0 +1,43 @@
+{
+  "note": "SYNTHETIC DEMO DATA. Every transaction is invented. Regenerate with: npm run demo:data",
+  "seed": 2026,
+  "end": "2026-11-09",
+  "rows": 301,
+  "providers": 24,
+  "providerNames": [
+    "Amazon Web Services",
+    "Anthropic",
+    "Cursor",
+    "DeepSeek",
+    "ElevenLabs",
+    "Gamma",
+    "GitHub",
+    "Google",
+    "Granola",
+    "Groq",
+    "Hugging Face",
+    "Lovable",
+    "Midjourney",
+    "Mistral AI",
+    "Namecheap",
+    "OpenAI",
+    "OpenRouter",
+    "Perplexity",
+    "Replicate",
+    "Runway",
+    "Slack",
+    "Supabase",
+    "Venice",
+    "Vercel"
+  ],
+  "total": "€5985.43",
+  "totalCents": 598543,
+  "firstDate": "2025-01-05",
+  "lastDate": "2026-11-09",
+  "files": {
+    "ai-spending-demo.csv": "Full history, 301 rows",
+    "ai-spending-demo-part1.csv": "History through 2026-09, 264 rows",
+    "ai-spending-demo-part2.csv": "From 2026-09 on, 65 rows (overlaps part 1 by one month)",
+    "ai-spending-demo-errors.csv": "2 already-stored rows + 6 invalid rows, to show validation"
+  }
+}

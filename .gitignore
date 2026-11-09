@@ -1,0 +1,9 @@
+node_modules
+dist
+*.local
+.DS_Store
+*.tsbuildinfo
+.claude/settings.local.json
+
+# Real financial data: never commit
+private/

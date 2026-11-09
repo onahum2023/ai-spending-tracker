@@ -1,0 +1,159 @@
+import { useState } from 'react';
+import { ImportPanel } from '../components/ImportPanel';
+import { Card, ConfirmDialog } from '../components/ui';
+import { toLedgerCsv } from '../lib/csv';
+import { dateLabel } from '../lib/dates';
+import { clearAll } from '../lib/db';
+import { formatEUR, sumCents } from '../lib/money';
+import { useLedger } from '../store';
+
+export function exportCsv(rows: Parameters<typeof toLedgerCsv>[0], fileName?: string) {
+  const blob = new Blob([toLedgerCsv(rows)], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName ?? `ai-spending-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function DataPage() {
+  const { transactions, imports, span, providers, reload, mode, exitDemo } = useLedger();
+  const demo = mode === 'demo';
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const clear = async () => {
+    setBusy(true);
+    try {
+      await clearAll();
+      await reload();
+      window.location.hash = '#/';
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  };
+
+  return (
+    <div className="stack">
+      <div className="grid cols-2">
+        <Card
+          title={demo ? 'Use your own data' : 'Import transactions'}
+          subtitle={
+            demo
+              ? 'Import a CSV to replace the demo. The demo data is discarded, never mixed with yours.'
+              : "Add another CSV in the same format. You'll review it before anything is saved."
+          }
+        >
+          <ImportPanel onImported={demo ? () => (window.location.hash = '#/') : undefined} />
+        </Card>
+        <Card
+          title={demo ? 'Demo data' : 'Stored data'}
+          subtitle={
+            demo
+              ? 'Invented transactions, generated in your browser. Not saved anywhere.'
+              : 'Kept only in this browser (IndexedDB) on this device. Nothing is uploaded, and it is not synced to other devices.'
+          }
+        >
+          <div className="stat-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+            <div><div className="small muted">Transactions</div><div className="value num">{transactions.length}</div></div>
+            <div><div className="small muted">Providers</div><div className="value num">{providers.length}</div></div>
+            <div><div className="small muted">Total</div><div className="value num">{formatEUR(sumCents(transactions))}</div></div>
+          </div>
+          {span && <p className="small muted" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
+          <div className="row wrap" style={{ marginTop: 14 }}>
+            <button
+              className="btn"
+              onClick={() => exportCsv(transactions, demo ? 'ai-spending-example.csv' : undefined)}
+              disabled={!transactions.length}
+            >
+              {demo ? 'Download demo as CSV' : 'Export all as CSV'}
+            </button>
+            {demo ? (
+              <button className="btn" onClick={exitDemo}>
+                Exit demo
+              </button>
+            ) : (
+              <button className="btn btn-danger" onClick={() => setConfirming(true)} disabled={!transactions.length}>
+                Clear local data…
+              </button>
+            )}
+          </div>
+          <p className="small muted" style={{ marginTop: 10 }}>
+            Exports use the import format (Merchant, Provider, Amount, Date), so an export can be re-imported or loaded on another device.
+          </p>
+        </Card>
+      </div>
+
+      <div className="grid cols-2">
+        <Card title="Import history">
+          {imports.length === 0 ? (
+            <p className="muted">No imports yet.</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>When</th><th>File</th><th className="amount">Rows</th><th className="amount">Added</th><th className="amount">Skipped</th><th className="amount">Invalid</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...imports].reverse().map((i) => (
+                    <tr key={i.id}>
+                      <td className="date">{new Date(i.importedAt).toLocaleString()}</td>
+                      <td>{i.fileName}</td>
+                      <td className="amount">{i.rowsInFile}</td>
+                      <td className="amount">{i.added}</td>
+                      <td className="amount">{i.skippedDuplicates}</td>
+                      <td className="amount">{i.invalid}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+        <Card title="How duplicates are handled">
+          <div className="stack small secondary" style={{ gap: 8 }}>
+            <p>
+              The CSV has no transaction IDs, so a record is identified by all four values together:
+              date, provider, merchant descriptor and amount (exact match).
+            </p>
+            <p>
+              Two identical charges on the same day can be real, so identical rows within one file are never merged.
+              Instead, counts are compared: if a file contains a record <strong>N</strong> times and it is already stored{' '}
+              <strong>M</strong> times, <strong>N − M</strong> copies are added (never fewer than zero).
+            </p>
+            <p>
+              Re-importing the same file or an export adds nothing. A newer statement that overlaps an older one only adds the new rows.
+              Every skipped row is listed in the import review, so nothing is discarded silently.
+            </p>
+            <p>Rows that fail validation (missing fields, malformed amounts or dates) are listed with their row number and are not imported.</p>
+          </div>
+        </Card>
+      </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Delete all local data?"
+          confirmLabel={`Delete ${transactions.length} transactions`}
+          requireText="DELETE"
+          busy={busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={clear}
+        >
+          <p>
+            This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}) and the import history
+            from this browser. It can't be undone.
+          </p>
+          <button className="btn btn-sm" onClick={() => exportCsv(transactions)}>
+            Export a backup first
+          </button>
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
