@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import vercel from './vercel.json';
+import vercel from './vercel.json' with { type: 'json' };
 
 // `npm run preview` sends the same security headers as Vercel, so a local check is faithful.
 const deployHeaders = Object.fromEntries(vercel.headers[0].headers.map((h) => [h.key, h.value]));

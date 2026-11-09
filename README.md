@@ -21,8 +21,8 @@ npm run dev
 Open http://localhost:5173. On first visit you'll see the welcome screen:
 
 - **Explore demo data** generates invented data in memory (see [Demo mode](#demo-mode)). Nothing is saved.
-- **Choose CSV file** imports your own data, which is then stored in this browser.
-- **Download example CSV** saves a file in the expected format.
+- **Bank or card statements**: drop the exports you already download from your bank or card; the app picks out the AI charges (see [Statement extractor](#statement-extractor)).
+- **Ledger CSV**: import a file that is already in the ledger format. **Download example CSV** saves one to look at.
 
 On later visits your stored data loads automatically. To start over, use **Data → Clear local data**.
 
@@ -46,6 +46,34 @@ npm run demo:data   # regenerate the synthetic demo pack (see below)
 | **Data** | Import more CSVs (with a review step), export everything as CSV, clear local data (requires typing `DELETE`), import history, and the duplicate policy in plain language. |
 
 Works on desktop and mobile, in light and dark mode. Provider colours are assigned once by all-time spend and stay the same across every chart; the 7 largest providers get their own colour and the rest share a grey "Other".
+
+## Statement extractor
+
+Most people do not have a clean ledger; they have bank and card statements. The extractor turns those into ledger rows, in the browser:
+
+1. **Read.** Drop one or more files on the welcome screen or the Data page.
+   - **Excel (.xlsx) or CSV** exports: the header row and columns are found by name (English, Dutch, German, French), including the American Express transaction export and common bank CSVs (Revolut, ING-style "Af/Bij"). Day/month order and whether charges are positive or negative are worked out from the data.
+   - **Revolut PDF statements**: only settled *Account transactions* are used; Pending, Reverted, Pockets and Deposit sections are skipped.
+   - Lines that appear in two overlapping files are counted once. Old `.xls`, scanned PDFs and other banks' PDFs are refused with a clear message (export CSV instead).
+2. **Decide.** Each line is matched against a vendor catalog (`src/lib/extract/vendors.ts`, about 60 AI vendors plus the hosting, domain and dev-tool services AI projects run on). Every decision carries its reasons:
+   - **Provider and type** come from the descriptor where it says so: `CLAUDE.AI SUBSCRIPTION` / `ANTHROPIC* CLAUDE SUB` → subscription, `CLAUDE CERT` → certification, plain `Anthropic` → API usage, `CHATGPT SUBSCR` → subscription, `CHATGPT CREDIT` → usage.
+   - **When the descriptor can't tell** (e.g. Lovable sells plans and credit top-ups under one name), the charge pattern decides: repeating monthly at a similar amount → subscription, otherwise usage.
+   - **Look-alikes are caught**: Amazon shop purchases are not AWS; `Bck*gamma Utrecht` could be the Gamma DIY store rather than the Gamma AI app; Google One is usually storage. These go to **Needs review** or **Not AI** with the reason shown.
+   - Unknown names that look like AI products (`.ai`, `GPT`, ...) go to review. Card repayments, transfers and savings movements are excluded.
+   - Hosting, domains and dev tools can be switched off with one checkbox.
+3. **Review.** Three tabs (AI charges, Needs review, Not AI). Change any provider or type, or move a line between tabs. Then **Add to the ledger** (duplicates already stored are skipped) or **Download as CSV**.
+
+Service types: Subscription, Usage / credits, Certification, Domains, Hosting / infra, Other. They are stored with each transaction, shown in the Transactions table (with a filter), and exported as an optional `Type` column.
+
+### Ask Claude (optional)
+
+Not needed: without an Anthropic API key, review each **Needs review** line yourself with Include / Exclude. Everything else works the same. Only Anthropic is supported for this step.
+
+For lines still in **Needs review**, **Ask Claude** sends them to Claude (`claude-opus-5-5`, with Anthropic's server-side refusal fallback) using the user's **own** Anthropic API key, straight from the browser to `api.anthropic.com`. Only the review lines are sent, and only: date, amount, merchant name, the bank's short name, foreign amount, country and the rules' note. No file names, references, addresses or other lines. **Show exactly what is sent** displays the payload before anything goes out. Answers come back as structured data; low-confidence answers stay in review. The key stays in memory unless "Remember on this device" is ticked. Nothing is sent unless the button is pressed.
+
+### Adding a vendor
+
+Append an entry to `VENDORS` in `src/lib/extract/vendors.ts`: the provider name, `group` (`ai` or `infra`), a `match` pattern for the upper-cased descriptor, optional `services` for descriptors that name the charge type, and a default `type` (or `'auto'` to decide from the charge pattern). Add a case to `src/lib/extract/extract.test.ts` and run `npm test`. Keep patterns specific: a bare word like `GAMMA` also matches unrelated shops.
 
 ## CSV format
 
@@ -103,13 +131,18 @@ This separates plan changes cleanly. In the demo data, for example, Claude Pro (
 
 ## Verification
 
-Automated tests (`npm test`) run against a synthetic fixture (`src/lib/__fixtures__/ledger.csv`, 296 invented rows, 24 providers). Expected totals per month, provider and year were computed independently in Python with decimal arithmetic. The tests cover amount parsing and formatting, date maths, CSV validation, export round-trip, the duplicate policy, aggregation against the reference figures, concentration, recurring detection, the forecast (including insufficient-data cases), IndexedDB persistence via `fake-indexeddb`, the demo pack (determinism, validity, part 1 + part 2 rebuilding the full file), and a guard that `public/` contains no CSV except the synthetic pack.
+Automated tests (`npm test`) run against a synthetic fixture (`src/lib/__fixtures__/ledger.csv`, 296 invented rows, 24 providers). Expected totals per month, provider and year were computed independently in Python with decimal arithmetic. The tests cover amount parsing and formatting, date maths, CSV validation, export round-trip, the duplicate policy, aggregation against the reference figures, concentration, recurring detection, the forecast (including insufficient-data cases), IndexedDB persistence via `fake-indexeddb`, the demo pack (determinism, validity, part 1 + part 2 rebuilding the full file), the statement extractor on invented statements (date and amount formats, Amex/ING/Revolut layouts, Revolut PDF sections, vendor rules and look-alikes, pattern-based types, the exact payload Ask Claude would send), and a guard that `public/` contains no CSV except the synthetic pack.
 
 Checked by hand in the browser: import with validation errors and duplicates, persistence after reload, export → re-import (adds nothing), clear data, demo → own data switch, mobile and dark layouts, and a production build served with the Vercel security headers.
 
 ### Checking your own data locally
 
-Put real ledgers in `private/`, which git ignores. If any CSV is there, `npm test` also checks each one (every row valid, export round-trip, exact total after storing, re-import adds nothing) without hardcoding any figures. With an empty or missing folder, those checks are skipped.
+Two git-ignored folders let `npm test` check real data without any of it, or any figure from it, ending up in the repo:
+
+- `private/`: real ledger CSVs. Each is checked: every row valid, export round-trip, exact total after storing, re-import adds nothing.
+- `inbox/`: raw bank and card statements (`.pdf`, `.xlsx`, `.csv`). Each must read without errors, and every included line must have a provider, a type and reasons. Run `SHOW_EXTRACT=1 npm test` to print a per-provider summary and the lines sent to review.
+
+PDF and Excel files are git-ignored anywhere in the repo as a second safety net. With empty or missing folders, these checks are skipped.
 
 ## Demo mode
 
@@ -128,7 +161,7 @@ What stays private:
 
 - A visitor's CSV is read with the browser's file API and saved in that browser's IndexedDB on their device. It is never uploaded, and nobody else can see it, including you. It is not synced across devices, and it is lost if the visitor clears site data.
 - Page filters live after the `#`, which browsers never send to the server.
-- `vercel.json` sends a strict **Content-Security-Policy**: the page can only load scripts and make requests to its own origin, so even a bug or injected script can't send data elsewhere. It also sends `Referrer-Policy: no-referrer` and related headers. `npm run preview` uses the same headers, so you can check a production build locally.
+- `vercel.json` sends a strict **Content-Security-Policy**: the page can only load scripts and workers from its own origin, and can only make requests to its own origin plus `api.anthropic.com` (used solely by the opt-in Ask Claude button), so even a bug or injected script can't send data anywhere else. It also sends `Referrer-Policy: no-referrer` and related headers. `npm run preview` uses the same headers, so you can check a production build locally.
 - After a successful import the app asks the browser to keep its storage (`navigator.storage.persist()`). Browsers may decline; Safari can still clear storage for sites not visited in a while.
 - Vercel keeps normal request logs (IP address, requested file). Those never include CSV contents. Don't add analytics or session-replay tools that record page content.
 - Only `public/` and the built app are deployed. The repo holds no real financial data; tests use a synthetic fixture. A test fails if any CSV other than the synthetic pack appears in `public/`.
@@ -187,6 +220,7 @@ src/
     recurring.ts    recurring-looking pattern detection
     forecast.ts     current-month estimate
     colors.ts       provider colour assignment
+    extract/        statement extractor: readers (table, Revolut PDF), vendor catalog, classifier, Ask Claude
     *.test.ts       Vitest suites
     __fixtures__/   synthetic test ledger
   components/     charts, tables, import panel, shared UI
@@ -198,6 +232,7 @@ scripts/          generate-demo-data.ts (writes the demo pack to disk)
 public/demo/      synthetic demo pack (the only data files that get deployed)
 vercel.json       Vercel build settings and security headers
 private/          your real ledgers for local checks (git-ignored, never committed)
+inbox/            raw bank/card statements for local checks (git-ignored, never committed)
 ```
 
-Stack: React 19, TypeScript, Vite, Recharts, PapaParse, idb. Dev: Vitest, fake-indexeddb.
+Stack: React 19, TypeScript, Vite, Recharts, PapaParse, idb, pdf.js and read-excel-file (statements), Anthropic SDK + zod (Ask Claude, loaded only when used). Dev: Vitest, fake-indexeddb.

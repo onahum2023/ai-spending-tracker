@@ -1,3 +1,5 @@
+import type { ServiceType } from './extract/types';
+
 /** One ledger line as it appears in the CSV, with the amount held in integer cents. */
 export interface LedgerRow {
   merchant: string;
@@ -6,6 +8,8 @@ export interface LedgerRow {
   amountCents: number;
   /** Calendar date, YYYY-MM-DD. Kept as a string to avoid time-zone shifts. */
   date: string;
+  /** What the charge was for (optional; set by the statement extractor or a Type column). */
+  type?: ServiceType;
 }
 
 /** A stored transaction. */

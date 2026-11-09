@@ -1,9 +1,12 @@
 import Papa from 'papaparse';
 import { isValidDate } from './dates';
 import { centsToPlain, parseAmountToCents } from './money';
+import { parseServiceType, SERVICE_TYPE_LABELS } from './extract/types';
 import type { LedgerRow } from './types';
 
 export const REQUIRED_COLUMNS = ['Merchant', 'Provider', 'Amount', 'Date'] as const;
+/** Optional: what the charge was for (Subscription, Usage, ...). */
+export const TYPE_COLUMN = 'Type';
 
 export interface ParsedRow extends LedgerRow {
   /** Row number in the file, counting the header as row 1. */
@@ -53,8 +56,9 @@ export function parseLedgerCsv(text: string): ParseResult {
       `Expected the columns: ${REQUIRED_COLUMNS.join(', ')}. Found: ${header.join(', ') || '(nothing)'}.`;
     return result;
   }
+  const typeIndex = header.findIndex((h) => h.toLowerCase() === TYPE_COLUMN.toLowerCase());
   const extra = header.filter(
-    (h) => !REQUIRED_COLUMNS.some((c) => c.toLowerCase() === h.toLowerCase()),
+    (h) => !REQUIRED_COLUMNS.some((c) => c.toLowerCase() === h.toLowerCase()) && h.toLowerCase() !== TYPE_COLUMN.toLowerCase(),
   );
   if (extra.length > 0) result.warnings.push(`Ignoring extra column(s): ${extra.join(', ')}.`);
 
@@ -98,17 +102,22 @@ export function parseLedgerCsv(text: string): ParseResult {
       fail(problems.join('; ') + '.');
       continue;
     }
-    result.rows.push({ merchant, provider, amountCents: amountCents!, date, sourceRow });
+    const type = typeIndex >= 0 ? parseServiceType(cells[typeIndex] ?? '') : null;
+    result.rows.push({ merchant, provider, amountCents: amountCents!, date, sourceRow, ...(type ? { type } : {}) });
   }
   return result;
 }
 
-/** Serializes rows to CSV (RFC 4180, CRLF line endings) in the same 4-column format the app imports. */
+/** Serializes rows to CSV (RFC 4180, CRLF line endings) in the import format; adds a Type column when any row has one. */
 export function toLedgerCsv(rows: LedgerRow[]): string {
+  const withType = rows.some((r) => r.type);
   return Papa.unparse(
     {
-      fields: [...REQUIRED_COLUMNS],
-      data: rows.map((r) => [r.merchant, r.provider, centsToPlain(r.amountCents), r.date]),
+      fields: withType ? [...REQUIRED_COLUMNS, TYPE_COLUMN] : [...REQUIRED_COLUMNS],
+      data: rows.map((r) => {
+        const base = [r.merchant, r.provider, centsToPlain(r.amountCents), r.date];
+        return withType ? [...base, r.type ? SERVICE_TYPE_LABELS[r.type] : ''] : base;
+      }),
     },
     { newline: '\r\n' },
   ) + '\r\n';
