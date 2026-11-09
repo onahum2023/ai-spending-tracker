@@ -12,7 +12,8 @@ import type { LedgerRow } from './types';
  *     (or both near month-end, day 27+), and
  *   - is within 30% of the previous charge's amount.
  * Charges whose descriptor appears 3+ times in the same month are treated as usage
- * top-ups and ignored. Chains spanning 3+ consecutive months are reported. Charges with the same merchant
+ * top-ups and ignored. Chains spanning 3+ consecutive months are reported, unless they explain
+ * less than half of the charges on that descriptor (erratic top-ups that happen to line up). Charges with the same merchant
  * descriptor are chained first, then leftovers are chained per provider. Charges are
  * processed in date order and attach to the closest matching chain, so the result is
  * deterministic.
@@ -21,6 +22,12 @@ import type { LedgerRow } from './types';
 const DAY_TOLERANCE = 4;
 const AMOUNT_TOLERANCE = 0.3;
 const MIN_MONTHS = 3;
+/**
+ * A chain on one descriptor only counts when it explains at least this share of that descriptor's
+ * charges. Credit top-ups that line up by chance for 3 months, while the rest of the charges
+ * land on other days, are not a subscription.
+ */
+const MIN_COVERAGE = 0.5;
 /** A descriptor charged this many times in one month is treated as usage, not a recurring charge. */
 const USAGE_CHARGES_PER_MONTH = 3;
 /** A pattern still counts as active this many days after its next expected charge. */
@@ -115,8 +122,14 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
     const chains: T[][] = [];
     const used = new Set<T>();
     for (const group of byMerchant.values()) {
-      for (const chain of buildChains(group)) {
-        if (chain.length < MIN_MONTHS) continue;
+      const found = buildChains(group).filter((chain) => chain.length >= MIN_MONTHS);
+      const covered = found.reduce((n, chain) => n + chain.length, 0);
+      if (found.length > 0 && covered / group.length < MIN_COVERAGE) {
+        // Erratic charges that line up by chance: not a subscription, and not worth a second look at provider level.
+        for (const r of group) used.add(r);
+        continue;
+      }
+      for (const chain of found) {
         chains.push(chain);
         for (const c of chain) used.add(c);
       }

@@ -105,9 +105,11 @@ describe('subscription report on the fixture ledger', () => {
     expect(r.priceChanges.find((c) => c.provider === 'OpenRouter')).toBeUndefined();
   });
 
-  it('is honest when a "stopped" stream keeps charging: usage top-ups are not a subscription', () => {
-    const openrouter = r.stopped.find((s) => s.provider === 'OpenRouter');
-    expect(openrouter?.chargesSince.length).toBeGreaterThan(0);
+  it('does not read erratic credit top-ups as a subscription that then "stopped" while still charging', () => {
+    expect(r.stopped.find((s) => s.provider === 'OpenRouter')).toBeUndefined();
+    expect(r.active.find((s) => s.provider === 'OpenRouter')).toBeUndefined();
+    // every stopped subscription on the fixture is a clean one: nothing kept charging
+    expect(r.stopped.filter((s) => s.chargesSince.length > 0)).toEqual([]);
   });
 
   it('lists stopped subscriptions with a clean cancellation, and not plans that were replaced', () => {
