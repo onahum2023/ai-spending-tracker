@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseLedgerCsv, toLedgerCsv } from '../csv';
+import { ASK_CLAUDE_NOT_SENT, ASK_CLAUDE_SENT } from '../../content/privacy';
 import { classifyRows, type Classified } from './classify';
 import { applyVerdicts, payloadFor } from './claude';
 import { extractFromPdfItems, extractFromTables, mergeFiles } from './load';
@@ -213,6 +214,20 @@ describe('asking Claude (no network in tests)', () => {
     const p = payloadFor(plain, 'r1');
     expect(p.foreign_amount).toBeNull();
     expect(JSON.stringify(p)).not.toMatch(/NL91ABNA|rent for flat/);
+  });
+  it('sends the description of a line exactly as the file has it, so a city or reference in it goes too (and the privacy text says so)', () => {
+    const table = [
+      ['Date', 'Description', 'Amount'],
+      ['2026-03-10', 'EXAMPLEBOT.AI INC 123 MAIN ST AUSTIN TX REF 998877', '12.50'],
+    ];
+    const read = extractFromTables('private-file.csv', [{ name: 'x', table }]);
+    expect(read.error).toBeUndefined();
+    const [line] = classifyRows(read.rows);
+    const sent = JSON.stringify(payloadFor(line, 'r1'));
+    expect(sent).toContain('EXAMPLEBOT.AI INC 123 MAIN ST AUSTIN TX REF 998877');
+    expect(sent).not.toContain('private-file'); // the file name never goes
+    expect(ASK_CLAUDE_SENT.join(' ')).toMatch(/exactly as it appears/);
+    expect(ASK_CLAUDE_NOT_SENT.join(' ')).not.toMatch(/reference|address/i);
   });
   it('applies verdicts and keeps low-confidence answers in review', () => {
     const base = [c, { ...c, row: { ...c.row, id: 'other' } }];

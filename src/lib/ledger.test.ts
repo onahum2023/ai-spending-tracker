@@ -260,6 +260,11 @@ describe('recurring-looking patterns', () => {
     const dates = ['2025-11-18', '2025-12-05', '2026-01-03', '2026-02-06', '2026-03-15', '2026-04-24', '2026-06-02', '2026-07-23', '2026-09-09'];
     expect(detectRecurring(dates.map(topUp), '2026-09-30')).toEqual([]);
   });
+  it('counts the heavy usage months of a descriptor too: a 3-of-9 chain is not a subscription', () => {
+    const t = (date: string) => ({ merchant: 'Openrouter', provider: 'Openrouter', amountCents: 1050, date });
+    const heavy = ['2026-03', '2026-04', '2026-05'].flatMap((m) => [`${m}-05`, `${m}-15`, `${m}-25`]);
+    expect(detectRecurring(['2025-12-05', '2026-01-03', '2026-02-06', ...heavy].map(t), '2026-05-31')).toEqual([]);
+  });
   it('still finds a real subscription that has a stray extra charge on the same descriptor', () => {
     const sub = (date: string) => ({ merchant: 'CLAUDE SUB', provider: 'Anthropic', amountCents: 2178, date });
     const found = detectRecurring(

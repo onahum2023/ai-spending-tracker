@@ -47,7 +47,7 @@ export const FAQ: { q: string; a: string }[] = [
   { q: 'Do I need an account?', a: 'No. There is no account and no backend.' },
   {
     q: 'Where does my data live?',
-    a: 'In your browser, on your device, in IndexedDB. It is not synced between devices and it is lost if you clear your browser’s data, so export a backup now and then.',
+    a: 'In your browser, on your device, in IndexedDB. It is not synced between devices and it is lost if you clear your browser’s data, so export your transactions as a CSV now and then. The CSV does not hold your budgets, corrections or labels.',
   },
   { q: 'How do I delete it?', a: 'Open Data and choose Clear local data. You can also clear this site’s data in your browser settings.' },
   {

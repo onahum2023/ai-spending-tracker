@@ -43,13 +43,13 @@ export const LINKS = {
 /** What leaves the browser for each statement line in Ask Claude. Must match payloadFor() in src/lib/extract/review.ts. */
 export const ASK_CLAUDE_SENT = [
   'the date and the amount in euros',
-  'the merchant name as it appears on the statement',
+  'the description of the line exactly as it appears in your file or statement: it can include whatever your bank put there, such as a city or a payment reference',
   'your bank’s short name for the line, if the statement has one',
   'the foreign amount and the country, if the line has them',
   'a short note on why the built-in rules were unsure',
 ];
 export const ASK_CLAUDE_NOT_SENT = [
-  'file names, references and addresses',
+  'file names, or any column of your file that is not listed above',
   'statement lines you did not choose',
   'your saved ledger, tags, budgets, corrections, labels or categories',
 ];
@@ -93,6 +93,7 @@ export const SECTIONS: Section[] = [
     items: ASK_CLAUDE_SENT,
     after: [
       `It does not send: ${ASK_CLAUDE_NOT_SENT.join('; ')}.`,
+      'Because the description goes exactly as your bank wrote it, check the preview first. If a line’s description contains something you would rather not send, leave that line out.',
       'We do not see this traffic. Anthropic handles it under its own terms and privacy policy: see Anthropic’s privacy policy and commercial terms (links at the end of this page). You pay Anthropic directly for the use of your key.',
       'Your API key is kept in memory only, and is gone when you close or reload the tab. If you tick “Remember on this device”, it is stored in this browser’s localStorage instead. Unticking the box removes it immediately, and so does Data → Clear local data. Anyone who can use this browser profile could read a stored key, so do not tick it on a shared computer.',
     ],
@@ -109,9 +110,9 @@ export const SECTIONS: Section[] = [
     id: 'your-control',
     title: 'Your control',
     items: [
-      'See and export everything: Data → Export all as CSV.',
+      'See and export your transactions: Data → Export all as CSV. The file holds every transaction, with its type and tag when used. It does not include budgets, corrections, labels, categories, tag rules or the import history.',
       'Delete everything: Data → Clear local data. It removes transactions, import history, tags, budgets, corrections, labels, categories, tag rules and a remembered API key from this browser. You can also clear this site’s data in your browser settings.',
-      'Your data is not synced between devices, and it is lost if you clear your browser’s data. Export a backup now and then.',
+      'Your data is not synced between devices, and it is lost if you clear your browser’s data. Export your transactions now and then as a backup. Your budgets, corrections, labels, categories and tag rules are not in that file and would have to be set again.',
     ],
   },
   {

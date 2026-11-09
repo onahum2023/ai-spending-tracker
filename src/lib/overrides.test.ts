@@ -166,6 +166,17 @@ describe('monthly subscription', () => {
     expect(r.stopped).toEqual([]);
   });
 
+  it('finds the new plan even when an unrelated charge on the same descriptor comes first', () => {
+    const old = ['2026-01-06', '2026-02-06', '2026-03-06'].map((d) => charge(d, 2000));
+    const data = [...old, charge('2026-04-02', 1000), charge('2026-04-15', 10000), charge('2026-05-15', 10000)];
+    const r = analyze(data, '2026-05-16').report;
+    expect(r.monthlyCents).toBe(10000);
+    expect(r.active).toHaveLength(1);
+    expect(r.active[0].pattern.charges.map((c) => c.amountCents)).toEqual([10000, 10000]);
+    expect(r.stopped).toEqual([]);
+    expect(r.priceChanges[0]).toMatchObject({ kind: 'plan', fromCents: 2000, toCents: 10000 });
+  });
+
   it('turns into an ordinary pattern once three charges confirm the new price', () => {
     const pro = ['2026-04-06', '2026-05-06', '2026-06-06', '2026-07-06'].map((d) => charge(d, 2178));
     const max = ['2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 10890));

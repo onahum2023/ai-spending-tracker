@@ -83,7 +83,7 @@ export function DataPage() {
           </div>
           <p className="small muted" style={{ marginTop: 10 }}>
             Exports use the import format (Merchant, Provider, Amount, Date, plus Type and Tag when used), so an export can be re-imported
-            or loaded on another device. Budgets are not part of the export.
+            or loaded on another device. The file holds transactions only: budgets, corrections, labels, categories, tag rules and the import history are not in it.
           </p>
         </Card>
       </div>

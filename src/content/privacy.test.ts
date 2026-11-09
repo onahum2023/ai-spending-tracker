@@ -101,6 +101,20 @@ describe('privacy statement matches the app', () => {
     expect(ASK_CLAUDE_SENT).toHaveLength(5); // date+amount, merchant, bank label, foreign amount+country, rule note
   });
 
+  it('does not claim that references or addresses are never sent, anywhere', () => {
+    const claim = /no file names,? (?:or )?(?:references|other columns)[^.]*addresses|references,? (?:and|or) addresses/i;
+    for (const f of ['src/components/AskClaude.tsx', 'src/content/privacy.ts', 'README.md', 'src/lib/extract/review.ts']) expect(read(f)).not.toMatch(claim);
+    expect(read('src/components/AskClaude.tsx')).toMatch(/exactly as your bank wrote it/);
+  });
+
+  it('does not say the CSV export holds everything', () => {
+    const body = renderPrivacyBody();
+    expect(body).not.toMatch(/export everything/i);
+    expect(body).toMatch(/does not include budgets, corrections, labels, categories, tag rules/);
+    expect(read('src/content/landing.ts')).not.toMatch(/export a backup now/);
+    expect(read('src/pages/DataPage.tsx')).toMatch(/transactions only/);
+  });
+
   it('says the same sentence everywhere it is repeated', () => {
     expect(read('README.md')).toContain(PRIVACY_SENTENCE);
     expect(read('src/App.tsx')).toContain('PRIVACY_SENTENCE');

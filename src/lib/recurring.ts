@@ -13,7 +13,7 @@ import type { LedgerRow } from './types';
  *   - is within 30% of the previous charge's amount.
  * Charges whose descriptor appears 3+ times in the same month are treated as usage
  * top-ups and ignored. Chains spanning 3+ consecutive months are reported, unless they explain
- * less than half of the charges on that descriptor (erratic top-ups that happen to line up). Charges with the same merchant
+ * less than half of ALL the charges on that descriptor, heavy usage months included (erratic top-ups that happen to line up). Charges with the same merchant
  * descriptor are chained first, then leftovers are chained per provider. Charges are
  * processed in date order and attach to the closest matching chain, so the result is
  * deterministic.
@@ -102,6 +102,11 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
   const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
   for (const r of rows) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
+  // Every charge of a descriptor, heavy months included, for the coverage check below.
+  const streamTotal = new Map<string, number>();
+  const streamKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}`;
+  for (const r of rows) if (r.amountCents > 0) streamTotal.set(streamKey(r), (streamTotal.get(streamKey(r)) ?? 0) + 1);
+
   const byProvider = new Map<string, T[]>();
   for (const r of rows) {
     if (r.amountCents <= 0) continue;
@@ -124,7 +129,10 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
     for (const group of byMerchant.values()) {
       const found = buildChains(group).filter((chain) => chain.length >= MIN_MONTHS);
       const covered = found.reduce((n, chain) => n + chain.length, 0);
-      if (found.length > 0 && covered / group.length < MIN_COVERAGE) {
+      // The denominator is all the descriptor's charges, including the heavy months left out of `group`:
+      // otherwise a 3-of-9 chain would pass as 3-of-3.
+      const all = streamTotal.get(streamKey(group[0])) ?? group.length;
+      if (found.length > 0 && covered / all < MIN_COVERAGE) {
         // Erratic charges that line up by chance: not a subscription, and not worth a second look at provider level.
         for (const r of group) used.add(r);
         continue;
@@ -202,13 +210,17 @@ export function detectProvisional<T extends LedgerRow>(
       return r.date > old.lastDate && gap >= 1 && gap <= PROVISIONAL_MAX_GAP;
     });
     if (candidates.length === 0) continue;
-    const chains = buildChains(candidates).filter((c) => c.length < MIN_MONTHS);
-    const chain = chains[0];
+    // An unrelated one-off can come first, so look at every candidate chain, not just the earliest.
+    // Only a chain that is still running counts: a lone charge that nothing followed is a one-off.
+    // Of those, the longest wins, then the most recent.
+    const running = buildChains(candidates)
+      .filter((c) => c.length < MIN_MONTHS)
+      .filter((c) => addDays(addOneMonthToDate(c[c.length - 1].date), GRACE_DAYS) >= latestDate)
+      .sort((a, b) => b.length - a.length || (a[a.length - 1].date < b[b.length - 1].date ? 1 : -1));
+    const chain = running[0];
     if (!chain) continue;
     const last = chain[chain.length - 1];
     const nextExpected = addOneMonthToDate(last.date);
-    // Only while it is still running: a lone charge that nothing followed is a one-off.
-    if (addDays(nextExpected, GRACE_DAYS) < latestDate) continue;
     for (const c of chain) taken.add(c);
     const amounts = chain.map((c) => c.amountCents);
     out.push({
