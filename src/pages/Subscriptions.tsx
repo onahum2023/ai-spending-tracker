@@ -1,3 +1,4 @@
+import { SignupsCard } from '../components/SignupsCard';
 import { Card, Delta, EmptyState, Kpi, ProviderLink } from '../components/ui';
 import { CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort } from '../lib/dates';
@@ -70,6 +71,8 @@ export function Subscriptions() {
           </div>
         </>
       )}
+
+      <SignupsCard />
     </div>
   );
 }

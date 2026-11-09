@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
+import { SignupImport } from '../components/SignupImport';
 import { Card, ConfirmDialog } from '../components/ui';
 import { exportCsv } from '../lib/download';
 import { StatementImport } from '../components/StatementImport';
@@ -87,6 +88,8 @@ export function DataPage() {
 
       <QuarterExport />
 
+      <SignupImport />
+
       <div className="grid cols-2">
         <Card title="Import history">
           {imports.length === 0 ? (
@@ -145,8 +148,8 @@ export function DataPage() {
           onConfirm={clear}
         >
           <p>
-            This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}), their tags, your budgets
-            and the import history from this browser. It can't be undone.
+            This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}), their tags, your budgets,
+            your sign-ups and the import history from this browser. It can't be undone.
           </p>
           <button className="btn btn-sm" onClick={() => exportCsv(transactions)}>
             Export a backup first

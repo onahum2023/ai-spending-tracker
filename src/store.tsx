@@ -7,6 +7,7 @@ import { todayLocal } from './lib/dates';
 import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
 import { generateDemo } from './lib/demoData';
 import { analyze, type Analysis } from './lib/insights';
+import { DEMO_SIGNUPS, normalizeSignups, type Signup } from './lib/signups';
 import type { ImportRecord, Period, Transaction } from './lib/types';
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready' };
@@ -33,6 +34,10 @@ interface Ledger {
   categoryColors: (c: Category) => string;
   /** Recurring patterns, subscriptions and categories, computed once for the displayed transactions. */
   analysis: Analysis<Transaction>;
+  /** Sign-up and trial-start events from email. */
+  signups: Signup[];
+  /** Replaces the list. Saved in this browser; in demo mode kept in memory only. */
+  setSignups: (list: Signup[]) => Promise<void>;
   budgets: Budgets;
   /** Saved in this browser; in demo mode kept in memory only. */
   setBudgets: (b: Budgets) => Promise<void>;
@@ -78,6 +83,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   // Demo edits live in memory only ("nothing is saved") and are dropped when the demo starts or ends.
   const [demoBudgets, setDemoBudgets] = useState<Budgets>(EMPTY_BUDGETS);
   const [demoTags, setDemoTags] = useState<Record<number, string>>({});
+  const [storedSignups, setStoredSignups] = useState<Signup[]>([]);
+  const [demoSignups, setDemoSignups] = useState<Signup[]>(DEMO_SIGNUPS);
   const [demoOn, setDemoOn] = useState(readDemoFlag);
   const [period, setPeriodState] = useState<Period | null>(null);
   const scheme = useColorScheme();
@@ -85,10 +92,11 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const [data, budgets] = await Promise.all([loadAll(), loadSetting('budgets')]);
+      const [data, budgets, signups] = await Promise.all([loadAll(), loadSetting('budgets'), loadSetting('signups')]);
       setStored(data.transactions);
       setImports(data.imports);
       setStoredBudgets(normalizeBudgets(budgets));
+      setStoredSignups(normalizeSignups(signups));
       // Once the user has their own data, the demo is over.
       if (data.transactions.length > 0) {
         setDemoOn(false);
@@ -118,6 +126,17 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   );
   const transactions = mode === 'demo' ? demoRows : stored;
   const budgets = mode === 'demo' ? demoBudgets : storedBudgets;
+  const signups = mode === 'demo' ? demoSignups : storedSignups;
+
+  const setSignups = useCallback(
+    async (list: Signup[]) => {
+      const clean = normalizeSignups(list);
+      if (mode === 'demo') return setDemoSignups(clean);
+      await saveSetting('signups', clean);
+      setStoredSignups(clean);
+    },
+    [mode],
+  );
 
   const setBudgets = useCallback(
     async (b: Budgets) => {
@@ -157,6 +176,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const startDemo = useCallback(() => {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
+    setDemoSignups(DEMO_SIGNUPS);
     setPeriodState(null);
     setDemoOn(true);
     writeDemoFlag(true);
@@ -164,6 +184,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const exitDemo = useCallback(() => {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
+    setDemoSignups(DEMO_SIGNUPS);
     setPeriodState(null);
     setDemoOn(false);
     writeDemoFlag(false);
@@ -200,6 +221,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     colors,
     categoryColors: (c: Category) => categoryColor(c, scheme),
     analysis,
+    signups,
+    setSignups,
     budgets,
     setBudgets,
     setTags,
