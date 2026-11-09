@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { MonthlyProviderChart } from '../components/charts';
+import { useMemo, useState } from 'react';
+import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts';
+import { BudgetCard } from '../components/BudgetCard';
 import { ForecastCard } from '../components/ForecastCard';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, EmptyState, Kpi, ProviderDot } from '../components/ui';
+import { Card, Delta, EmptyState, Kpi, ProviderDot, Segmented } from '../components/ui';
 import {
   filterPeriod,
   monthTotal,
@@ -19,7 +20,8 @@ import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
 export function Overview() {
-  const { transactions, span, period, setPeriod, today } = useLedger();
+  const { transactions, span, period, setPeriod, today, analysis } = useLedger();
+  const [view, setView] = useState<'provider' | 'category'>('provider');
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
 
   if (!span) return null;
@@ -35,17 +37,41 @@ export function Overview() {
 
       <div className="grid cols-2">
         <Card
-          title={period.kind === 'all' ? 'Monthly spending by provider' : `Monthly spending by provider · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}
+          title={`Monthly spending by ${view}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
           subtitle="Click a month to explore it"
+          actions={
+            <Segmented<'provider' | 'category'>
+              label="Group by"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'provider', label: 'Provider' },
+                { value: 'category', label: 'Category' },
+              ]}
+            />
+          }
         >
-          <MonthlyProviderChart
-            rows={transactions}
-            months={chartMonths}
-            selectedMonth={period.kind === 'month' ? period.month : null}
-            onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
-          />
+          {view === 'provider' ? (
+            <MonthlyProviderChart
+              rows={transactions}
+              months={chartMonths}
+              selectedMonth={period.kind === 'month' ? period.month : null}
+              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+            />
+          ) : (
+            <MonthlyCategoryChart
+              rows={transactions}
+              months={chartMonths}
+              categoryFor={analysis.categoryOf}
+              selectedMonth={period.kind === 'month' ? period.month : null}
+              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+            />
+          )}
         </Card>
-        <ForecastCard />
+        <div className="stack">
+          <ForecastCard />
+          <BudgetCard />
+        </div>
       </div>
 
       <div className="grid cols-2">

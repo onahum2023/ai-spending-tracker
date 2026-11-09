@@ -7,6 +7,9 @@ import type { LedgerRow } from './types';
 export const REQUIRED_COLUMNS = ['Merchant', 'Provider', 'Amount', 'Date'] as const;
 /** Optional: what the charge was for (Subscription, Usage, ...). */
 export const TYPE_COLUMN = 'Type';
+/** Optional: a label such as Personal, Business or a client name. */
+export const TAG_COLUMN = 'Tag';
+export const MAX_TAG_LENGTH = 40;
 
 export interface ParsedRow extends LedgerRow {
   /** Row number in the file, counting the header as row 1. */
@@ -58,8 +61,12 @@ export function parseLedgerCsv(text: string): ParseResult {
   }
   const unknownTypes = new Set<string>();
   const typeIndex = header.findIndex((h) => h.toLowerCase() === TYPE_COLUMN.toLowerCase());
+  const tagIndex = header.findIndex((h) => h.toLowerCase() === TAG_COLUMN.toLowerCase());
   const extra = header.filter(
-    (h) => !REQUIRED_COLUMNS.some((c) => c.toLowerCase() === h.toLowerCase()) && h.toLowerCase() !== TYPE_COLUMN.toLowerCase(),
+    (h) =>
+      !REQUIRED_COLUMNS.some((c) => c.toLowerCase() === h.toLowerCase()) &&
+      h.toLowerCase() !== TYPE_COLUMN.toLowerCase() &&
+      h.toLowerCase() !== TAG_COLUMN.toLowerCase(),
   );
   if (extra.length > 0) result.warnings.push(`Ignoring extra column(s): ${extra.join(', ')}.`);
 
@@ -106,7 +113,12 @@ export function parseLedgerCsv(text: string): ParseResult {
     const typeRaw = typeIndex >= 0 ? (cells[typeIndex] ?? '').trim() : '';
     const type = typeRaw ? parseServiceType(typeRaw) : null;
     if (type === 'other' && !/^other$/i.test(typeRaw)) unknownTypes.add(typeRaw);
-    result.rows.push({ merchant, provider, amountCents: amountCents!, date, sourceRow, ...(type ? { type } : {}) });
+    const tag = tagIndex >= 0 ? (cells[tagIndex] ?? '').trim().slice(0, MAX_TAG_LENGTH) : '';
+    result.rows.push({
+      merchant, provider, amountCents: amountCents!, date, sourceRow,
+      ...(type ? { type } : {}),
+      ...(tag ? { tag } : {}),
+    });
   }
   if (unknownTypes.size > 0) {
     const list = [...unknownTypes].slice(0, 5).map((t) => `"${t}"`).join(', ');
@@ -115,16 +127,21 @@ export function parseLedgerCsv(text: string): ParseResult {
   return result;
 }
 
-/** Serializes rows to CSV (RFC 4180, CRLF line endings) in the import format; adds a Type column when any row has one. */
+/** Serializes rows to CSV (RFC 4180, CRLF line endings) in the import format; adds Type and Tag columns when any row has one. */
 export function toLedgerCsv(rows: LedgerRow[]): string {
   const withType = rows.some((r) => r.type);
+  const withTag = rows.some((r) => r.tag);
   return Papa.unparse(
     {
-      fields: withType ? [...REQUIRED_COLUMNS, TYPE_COLUMN] : [...REQUIRED_COLUMNS],
-      data: rows.map((r) => {
-        const base = [r.merchant, r.provider, centsToPlain(r.amountCents), r.date];
-        return withType ? [...base, r.type ? SERVICE_TYPE_LABELS[r.type] : ''] : base;
-      }),
+      fields: [...REQUIRED_COLUMNS, ...(withType ? [TYPE_COLUMN] : []), ...(withTag ? [TAG_COLUMN] : [])],
+      data: rows.map((r) => [
+        r.merchant,
+        r.provider,
+        centsToPlain(r.amountCents),
+        r.date,
+        ...(withType ? [r.type ? SERVICE_TYPE_LABELS[r.type] : ''] : []),
+        ...(withTag ? [r.tag ?? ''] : []),
+      ]),
     },
     { newline: '\r\n' },
   ) + '\r\n';

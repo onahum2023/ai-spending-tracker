@@ -1,9 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { dataSpan, summarizeProviders, type DataSpan, type ProviderSummary } from './lib/analytics';
-import { buildProviderColors, useColorScheme, type ProviderColors } from './lib/colors';
+import { EMPTY_BUDGETS, normalizeBudgets, type Budgets } from './lib/budgets';
+import type { Category } from './lib/categories';
+import { buildProviderColors, categoryColor, useColorScheme, type ProviderColors } from './lib/colors';
 import { todayLocal } from './lib/dates';
-import { loadAll } from './lib/db';
+import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
 import { generateDemo } from './lib/demoData';
+import { analyze, type Analysis } from './lib/insights';
 import type { ImportRecord, Period, Transaction } from './lib/types';
 
 type LoadState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready' };
@@ -27,6 +30,14 @@ interface Ledger {
   /** All-time provider summaries, largest first. */
   providers: ProviderSummary[];
   colors: ProviderColors;
+  categoryColors: (c: Category) => string;
+  /** Recurring patterns, subscriptions and categories, computed once for the displayed transactions. */
+  analysis: Analysis<Transaction>;
+  budgets: Budgets;
+  /** Saved in this browser; in demo mode kept in memory only. */
+  setBudgets: (b: Budgets) => Promise<void>;
+  /** Sets (or with null, clears) the tag on charges. Saved in this browser; in demo mode kept in memory only. */
+  setTags: (ids: number[], tag: string | null) => Promise<void>;
   today: string;
   period: Period;
   setPeriod: (p: Period) => void;
@@ -63,6 +74,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const [stored, setStored] = useState<Transaction[]>([]);
   const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [storedBudgets, setStoredBudgets] = useState<Budgets>(EMPTY_BUDGETS);
+  // Demo edits live in memory only ("nothing is saved") and are dropped when the demo starts or ends.
+  const [demoBudgets, setDemoBudgets] = useState<Budgets>(EMPTY_BUDGETS);
+  const [demoTags, setDemoTags] = useState<Record<number, string>>({});
   const [demoOn, setDemoOn] = useState(readDemoFlag);
   const [period, setPeriodState] = useState<Period | null>(null);
   const scheme = useColorScheme();
@@ -70,9 +85,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const data = await loadAll();
+      const [data, budgets] = await Promise.all([loadAll(), loadSetting('budgets')]);
       setStored(data.transactions);
       setImports(data.imports);
+      setStoredBudgets(normalizeBudgets(budgets));
       // Once the user has their own data, the demo is over.
       if (data.transactions.length > 0) {
         setDemoOn(false);
@@ -95,21 +111,66 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   }, [reload]);
 
   const mode: DataMode = stored.length > 0 ? 'mine' : demoOn ? 'demo' : 'empty';
-  const demoRows = useMemo(() => (mode === 'demo' ? buildDemoTransactions(today) : []), [mode, today]);
+  const demoBase = useMemo(() => (mode === 'demo' ? buildDemoTransactions(today) : []), [mode, today]);
+  const demoRows = useMemo(
+    () => (Object.keys(demoTags).length ? demoBase.map((t) => (demoTags[t.id] ? { ...t, tag: demoTags[t.id] } : t)) : demoBase),
+    [demoBase, demoTags],
+  );
   const transactions = mode === 'demo' ? demoRows : stored;
+  const budgets = mode === 'demo' ? demoBudgets : storedBudgets;
+
+  const setBudgets = useCallback(
+    async (b: Budgets) => {
+      const clean = normalizeBudgets(b);
+      if (mode === 'demo') return setDemoBudgets(clean);
+      await saveSetting('budgets', clean);
+      setStoredBudgets(clean);
+    },
+    [mode],
+  );
+
+  const setTags = useCallback(
+    async (ids: number[], tag: string | null) => {
+      const set = new Set(ids);
+      if (mode === 'demo') {
+        return setDemoTags((prev) => {
+          const next = { ...prev };
+          for (const id of ids) {
+            if (tag) next[id] = tag;
+            else delete next[id];
+          }
+          return next;
+        });
+      }
+      await storeTags(ids, tag);
+      setStored((prev) =>
+        prev.map((t) => {
+          if (!set.has(t.id)) return t;
+          const { tag: _old, ...rest } = t;
+          return tag ? { ...rest, tag } : rest;
+        }),
+      );
+    },
+    [mode],
+  );
 
   const startDemo = useCallback(() => {
+    setDemoBudgets(EMPTY_BUDGETS);
+    setDemoTags({});
     setPeriodState(null);
     setDemoOn(true);
     writeDemoFlag(true);
   }, []);
   const exitDemo = useCallback(() => {
+    setDemoBudgets(EMPTY_BUDGETS);
+    setDemoTags({});
     setPeriodState(null);
     setDemoOn(false);
     writeDemoFlag(false);
   }, []);
 
   const span = useMemo(() => dataSpan(transactions), [transactions]);
+  const analysis = useMemo(() => analyze(transactions, today), [transactions, today]);
   const providers = useMemo(() => summarizeProviders(transactions), [transactions]);
   const colors = useMemo(
     () => buildProviderColors(providers.map((p) => p.provider), scheme),
@@ -137,6 +198,11 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     span,
     providers,
     colors,
+    categoryColors: (c: Category) => categoryColor(c, scheme),
+    analysis,
+    budgets,
+    setBudgets,
+    setTags,
     today,
     period: effectivePeriod,
     setPeriod: setPeriodState,

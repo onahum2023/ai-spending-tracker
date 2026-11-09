@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
+import { BulkTag, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
 import { Card, SearchInput, type SortDir } from '../components/ui';
 import { daysInMonth } from '../lib/dates';
 import { SERVICE_TYPE_LABELS, SERVICE_TYPES } from '../lib/extract/types';
 import { centsToPlain, formatEUR, sumCents } from '../lib/money';
-import { navigate, type Route } from '../router';
+import { tagsInUse, UNTAGGED } from '../lib/tags';
+import { href, navigate, type Route } from '../router';
 import { useLedger } from '../store';
 
 /** Filters live in the URL so provider pages and the overview can deep-link here. */
@@ -13,13 +15,14 @@ export function Transactions({ route }: { route: Route }) {
   const q = route.query.get('q') ?? '';
   const provider = route.query.get('provider') ?? '';
   const type = route.query.get('type') ?? '';
+  const tag = route.query.get('tag') ?? '';
   const from = route.query.get('from') ?? '';
   const to = route.query.get('to') ?? '';
   const sortKey = (route.query.get('sort') as TxSortKey) || 'date';
   const sortDir = (route.query.get('dir') as SortDir) || 'desc';
 
   const update = (patch: Record<string, string>) => {
-    const next = { q, provider, type, from, to, sort: sortKey === 'date' ? '' : sortKey, dir: sortDir === 'desc' ? '' : sortDir, ...patch };
+    const next = { q, provider, type, tag, from, to, sort: sortKey === 'date' ? '' : sortKey, dir: sortDir === 'desc' ? '' : sortDir, ...patch };
     navigate(['transactions'], next, true);
   };
 
@@ -28,6 +31,7 @@ export function Transactions({ route }: { route: Route }) {
     return transactions.filter((t) => {
       if (provider && t.provider !== provider) return false;
       if (type && (t.type ?? '') !== type) return false;
+      if (tag && (tag === UNTAGGED ? t.tag : t.tag !== tag)) return false;
       if (from && t.date < from) return false;
       if (to && t.date > to) return false;
       if (needle) {
@@ -36,9 +40,10 @@ export function Transactions({ route }: { route: Route }) {
       }
       return true;
     });
-  }, [transactions, q, provider, type, from, to]);
+  }, [transactions, q, provider, type, tag, from, to]);
 
-  const anyFilter = q || provider || type || from || to;
+  const anyFilter = q || provider || type || tag || from || to;
+  const tags = useMemo(() => tagsInUse(transactions), [transactions]);
   const types = SERVICE_TYPES.filter((ty) => transactions.some((t) => t.type === ty));
 
   const usePeriod = () => {
@@ -68,6 +73,15 @@ export function Transactions({ route }: { route: Route }) {
               ))}
             </select>
           )}
+          {(tags.length > 0 || tag) && (
+            <select className="select" aria-label="Tag" value={tag} onChange={(e) => update({ tag: e.target.value })}>
+              <option value="">All tags</option>
+              {tags.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+              <option value={UNTAGGED}>{UNTAGGED}</option>
+            </select>
+          )}
           <label>
             From
             <input className="input" type="date" value={from} min={span?.firstDate} max={span?.lastDate} onChange={(e) => update({ from: e.target.value })} />
@@ -92,12 +106,16 @@ export function Transactions({ route }: { route: Route }) {
         title={`${filtered.length} of ${transactions.length} transactions`}
         subtitle={`${formatEUR(sumCents(filtered))} shown${provider ? ` · ${provider}` : ''}`}
         actions={
-          provider ? (
-            <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details →</a>
-          ) : undefined
+          <span className="row wrap">
+            {provider && <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details →</a>}
+            <a className="btn btn-sm btn-ghost" href={href(['data'])}>Export a quarter →</a>
+          </span>
         }
       >
+        <TagSuggestions />
+        {filtered.length > 0 && <BulkTag rows={filtered} />}
         <TransactionTable
+          editableTags
           rows={filtered}
           sort={{ key: sortKey, dir: sortDir }}
           onSort={(s) => update({ sort: s.key, dir: s.dir })}

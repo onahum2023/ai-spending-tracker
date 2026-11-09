@@ -39,11 +39,12 @@ npm run demo:data   # regenerate the synthetic demo pack (see below)
 
 | Page | What you get |
 |---|---|
-| **Overview** | Spending for the selected month (default: latest recorded month), previous month, month-over-month change (like-for-like when the month is still in progress), year total, number of providers, a monthly chart stacked by provider (click a bar to open that month), largest contributors, the month's charges, and a current-month estimate. Switch between Month / Year / All time in the header. |
+| **Overview** | Spending for the selected month (default: latest recorded month), previous month, month-over-month change (like-for-like when the month is still in progress), year total, number of providers, a monthly chart stacked by provider or by category (click a bar to open that month), largest contributors, the month's charges, a current-month estimate, and an optional monthly budget shown against that estimate. Switch between Month / Year / All time in the header. |
+| **Subscriptions** | What your recurring charges commit you to: monthly run-rate and per year, a 30-day calendar of expected charges, price changes ("went from €22.49 to €109.38 in Jun"), stopped subscriptions with a check that nothing still charges, overlapping tools ("2 chat assistants · €130/month combined") and what ending each would save. See [Insights](#insights). |
 | **Providers** | All providers with all-time total, spending in the selected period, share, transaction count, and first / most recent charge. Search and sort any column. Click a provider for its detail page: monthly chart, recurring-looking patterns, full transaction history, and the merchant descriptors it appears under. |
-| **Transactions** | Searchable, sortable table with original merchant descriptors and amounts. Filter by provider and date range (or "Use selected period"). Filters live in the URL, so provider pages and the overview link straight into a filtered view. Click a row to jump to its provider. |
-| **Trends** | Monthly spending with a 3-month average, year-over-year by calendar month, yearly totals with like-for-like comparison, biggest increases and decreases by provider (last 3 months vs the 3 before, or year to date vs last year), provider concentration (top-1 / top-3 share, providers making up 80%), and recurring-looking patterns. |
-| **Data** | Import more CSVs (with a review step), export everything as CSV, clear local data (requires typing `DELETE`), import history, and the duplicate policy in plain language. |
+| **Transactions** | Searchable, sortable table with original merchant descriptors and amounts. Filter by provider and date range (or "Use selected period"). Filters live in the URL, so provider pages and the overview link straight into a filtered view. Click a row to jump to its provider. Each charge can carry a tag (Personal, Business, a client), singly or for everything shown at once. |
+| **Trends** | Monthly spending with a 3-month average, year-over-year by calendar month, yearly totals with like-for-like comparison, biggest increases and decreases by provider (last 3 months vs the 3 before, or year to date vs last year), provider concentration (top-1 / top-3 share, providers making up 80%), recurring charges against usage and one-off charges, and recurring-looking patterns. |
+| **Data** | Import more CSVs (with a review step), export everything as CSV, export one quarter (optionally one tag) for expense claims, clear local data (requires typing `DELETE`), import history, and the duplicate policy in plain language. |
 
 Works on desktop and mobile, in light and dark mode. Provider colours are assigned once by all-time spend and stay the same across every chart; the 7 largest providers get their own colour and the rest share a grey "Other".
 
@@ -82,7 +83,7 @@ Merchant,Provider,Amount,Date
 OPENAI *CHATGPT SUBSCR  SAN FRANCISCO,OpenAI,22.99,2026-01-14
 ```
 
-- Column order and header case don't matter; extra columns are ignored with a warning.
+- Column order and header case don't matter. Optional columns: `Type` (Subscription, Usage, ...) and `Tag` (free text, up to 40 characters). Other extra columns are ignored with a warning.
 - **Amount** is treated as EUR. Dot decimal, up to 2 decimals, no currency symbol or thousands separator. Negative values (refunds) are accepted.
 - **Date** must be a real calendar date in `YYYY-MM-DD`.
 - Surrounding whitespace is trimmed; whitespace inside merchant descriptors is kept exactly.
@@ -108,7 +109,7 @@ The duplicate check runs again inside the same IndexedDB transaction that writes
 
 Amounts are parsed from text straight into **integer euro cents** (`"12.34"` → `1234`) without going through floating point, and every sum is an integer sum. Floats only appear when drawing chart geometry. Dates are kept as `YYYY-MM-DD` strings and month maths is done in UTC, so time zones can't shift a transaction into another month.
 
-Export writes the same 4-column format with CRLF line endings. Exporting a file in this format reproduces it byte for byte.
+Export writes the same 4-column format with CRLF line endings (plus `Type` and `Tag` columns when any charge has one). Exporting a file in this format reproduces it byte for byte.
 
 ## Current-month estimate
 
@@ -129,11 +130,27 @@ These are observations, not confirmed subscriptions. A pattern is a chain of cha
 
 This separates plan changes cleanly. In the demo data, for example, Claude Pro (€21.78 on the 6th), Max (€108.90 on the 19th) and Pro again (€21.78 on the 19th) show up as three separate patterns.
 
+## Insights
+
+A charge only has a merchant, provider, amount and date: no plan name, no usage figure. So every insight is derived from the pattern of charges and worded as an observation, never as a fact about a plan. They all build on the [recurring-looking patterns](#recurring-looking-patterns) above (monthly, similar day and amount, 3+ months in a row); annual and one-off charges are not counted as recurring.
+
+- **Run-rate.** The sum of the latest charge of each pattern that is still appearing, ×12 for a year. The latest charge is used, not an average, because it is what you are committed to now.
+- **Next 30 days.** Each active pattern lands on its usual day. Not shown when the newest recorded charge is more than 45 days old (it would be guesswork), the same rule as the month-end estimate.
+- **Price changes.** Two cases: one pattern ends and another starts at a different amount within a month (a plan switch, "likely a plan change" at 25%+), or the amount inside one pattern moves by 10% or more and stays there. Small month-to-month wobble (for instance a USD price converted to EUR) and a single odd charge that goes straight back are ignored.
+- **Stopped.** Patterns that ran and are no longer appearing, unless a newer pattern at the same provider replaced them (that is a plan change). Each is checked for later charges from the same merchant: none means the cancellation looks clean; some are listed ("Still charging"), which often means the stream was usage top-ups rather than a subscription.
+- **Overlap.** Two or more active recurring charges from different providers in the same category: chat assistants, coding tools, media tools, writing and meeting tools. Hosting and domains are normally plural, so they are not flagged.
+- **Recurring vs usage.** Every charge is recurring (part of a pattern, or typed Subscription) or not. Trends shows both over time and answers "more tools or more usage?" by comparing the last 3 complete months with the 3 before. A tool started in the last two months counts as usage until it has appeared three months in a row.
+- **Categories.** From the provider (`src/lib/categories.ts`): chat assistants, coding and app builders, API and inference, image/video/audio, writing and meetings, hosting and infra, domains, other. For providers that sell both a chat plan and an API (Anthropic, OpenAI, ...) a recurring charge is the plan and anything else is API usage, unless the charge has a Type. A test checks that every vendor in the extractor catalog has a category. Overview can group its monthly chart by category.
+- **Budgets.** A monthly budget in total and/or per category, shown against what is spent so far and the month-end estimate ("On track to exceed by €40", "Over budget by €20"). A category estimate uses the same method as the total, applied to that category's charges. Saved in this browser (IndexedDB), not exported, and removed by **Clear local data**.
+- **Tags.** One optional label per charge. Edit it in the Transactions table, or tag everything currently shown (existing different tags are only replaced after a confirmation). **Data → Export a quarter** downloads one quarter, optionally one tag, as a CSV with a `Tag` column that can be re-imported. The ledger has no VAT figures, so amounts are as charged and VAT is not split out.
+
+In demo mode budgets and tags live in memory only, like the demo data.
+
 ## Verification
 
-Automated tests (`npm test`) run against a synthetic fixture (`src/lib/__fixtures__/ledger.csv`, 296 invented rows, 24 providers). Expected totals per month, provider and year were computed independently in Python with decimal arithmetic. The tests cover amount parsing and formatting, date maths, CSV validation, export round-trip, the duplicate policy, aggregation against the reference figures, concentration, recurring detection, the forecast (including insufficient-data cases), IndexedDB persistence via `fake-indexeddb`, the demo pack (determinism, validity, part 1 + part 2 rebuilding the full file), the statement extractor on invented statements (date and amount formats, Amex/ING/Revolut layouts, Revolut PDF sections, vendor rules and look-alikes, pattern-based types, the exact payload Ask Claude would send), and a guard that `public/` contains no CSV except the synthetic pack.
+Automated tests (`npm test`) run against a synthetic fixture (`src/lib/__fixtures__/ledger.csv`, 296 invented rows, 24 providers). Expected totals per month, provider and year were computed independently in Python with decimal arithmetic. The tests cover amount parsing and formatting, date maths, CSV validation, export round-trip, the duplicate policy, aggregation against the reference figures, concentration, recurring detection, the forecast (including insufficient-data cases), IndexedDB persistence via `fake-indexeddb`, the subscription insights, categories, fixed/variable split, budgets, tags and quarter reports (including storing tags and budgets in IndexedDB), the demo pack (determinism, validity, part 1 + part 2 rebuilding the full file), the statement extractor on invented statements (date and amount formats, Amex/ING/Revolut layouts, Revolut PDF sections, vendor rules and look-alikes, pattern-based types, the exact payload Ask Claude would send), and a guard that `public/` contains no CSV except the synthetic pack.
 
-Checked by hand in the browser: import with validation errors and duplicates, persistence after reload, export → re-import (adds nothing), clear data, demo → own data switch, mobile and dark layouts, and a production build served with the Vercel security headers.
+Checked by hand in the browser: opening a database saved by the previous version (schema v1) and upgrading it with all rows intact, setting a budget and tagging charges and finding both after a reload, import with validation errors and duplicates, persistence after reload, export → re-import (adds nothing), clear data, demo → own data switch, mobile and dark layouts, and a production build served with the Vercel security headers.
 
 ### Checking your own data locally
 

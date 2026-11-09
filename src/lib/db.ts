@@ -6,6 +6,8 @@ import type { ImportRecord, Transaction } from './types';
 interface LedgerDB extends DBSchema {
   transactions: { key: number; value: Transaction; indexes: { date: string } };
   imports: { key: number; value: ImportRecord };
+  /** Small key/value settings, e.g. budgets. */
+  settings: { key: string; value: unknown };
 }
 
 export const DB_NAME = 'ai-spending-tracker';
@@ -14,11 +16,14 @@ let dbPromise: Promise<IDBPDatabase<LedgerDB>> | null = null;
 
 function db() {
   if (!dbPromise) {
-    dbPromise = openDB<LedgerDB>(DB_NAME, 1, {
-      upgrade(d) {
-        const tx = d.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
-        tx.createIndex('date', 'date');
-        d.createObjectStore('imports', { keyPath: 'id', autoIncrement: true });
+    dbPromise = openDB<LedgerDB>(DB_NAME, 2, {
+      upgrade(d, oldVersion) {
+        if (oldVersion < 1) {
+          const tx = d.createObjectStore('transactions', { keyPath: 'id', autoIncrement: true });
+          tx.createIndex('date', 'date');
+          d.createObjectStore('imports', { keyPath: 'id', autoIncrement: true });
+        }
+        if (oldVersion < 2) d.createObjectStore('settings');
       },
     });
   }
@@ -75,6 +80,7 @@ export async function commitImport(
       amountCents: r.amountCents,
       date: r.date,
       ...(r.type ? { type: r.type } : {}),
+      ...(r.tag ? { tag: r.tag } : {}),
       sourceRow: r.sourceRow,
       importId,
     } as Transaction);
@@ -87,10 +93,37 @@ export async function commitImport(
   };
 }
 
+/** Sets (or, with null, removes) the tag on the given transactions, in one IndexedDB transaction. */
+export async function setTags(ids: number[], tag: string | null): Promise<void> {
+  const d = await db();
+  const tx = d.transaction('transactions', 'readwrite');
+  const store = tx.objectStore('transactions');
+  for (const id of ids) {
+    const row = await store.get(id);
+    if (!row) continue;
+    const { tag: _old, ...rest } = row;
+    await store.put(tag ? { ...rest, tag } : rest);
+  }
+  await tx.done;
+}
+
+export async function loadSetting(key: string): Promise<unknown> {
+  return (await db()).get('settings', key);
+}
+
+export async function saveSetting(key: string, value: unknown): Promise<void> {
+  await (await db()).put('settings', value, key);
+}
+
+/** Removes everything: transactions, import history, tags and budgets. */
 export async function clearAll(): Promise<void> {
   const d = await db();
-  const tx = d.transaction(['transactions', 'imports'], 'readwrite');
-  await Promise.all([tx.objectStore('transactions').clear(), tx.objectStore('imports').clear()]);
+  const tx = d.transaction(['transactions', 'imports', 'settings'], 'readwrite');
+  await Promise.all([
+    tx.objectStore('transactions').clear(),
+    tx.objectStore('imports').clear(),
+    tx.objectStore('settings').clear(),
+  ]);
   await tx.done;
 }
 

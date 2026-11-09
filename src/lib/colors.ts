@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Category } from './categories';
 
 // Validated categorical palette (fixed order). Slot 8 is held back for "Other".
 const LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6'];
@@ -10,6 +11,17 @@ export const OTHER_KEY = 'Other providers';
 export const SERIES_SLOTS = LIGHT.length;
 
 export type Scheme = 'light' | 'dark';
+
+/** One fixed palette slot per category, so a category never changes colour between views. */
+const CATEGORY_SLOT: Record<Category, number | null> = {
+  chat: 0, coding: 1, api: 2, media: 3, writing: 4, domains: 5, hosting: 6, other: null,
+};
+
+export function categoryColor(category: Category, scheme: Scheme): string {
+  const slot = CATEGORY_SLOT[category];
+  if (slot === null) return scheme === 'dark' ? OTHER_DARK : OTHER_LIGHT;
+  return (scheme === 'dark' ? DARK : LIGHT)[slot];
+}
 
 export function useColorScheme(): Scheme {
   const query = '(prefers-color-scheme: dark)';

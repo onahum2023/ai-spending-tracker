@@ -1,4 +1,4 @@
-import { dataSpan } from './analytics';
+import { dataSpan, type DataSpan } from './analytics';
 import { addDays, addMonths, dayOf, daysInMonth, monthOf } from './dates';
 import { medianCents } from './money';
 import { detectRecurring, type RecurringPattern } from './recurring';
@@ -47,8 +47,11 @@ export type Forecast =
     }
   | { status: 'insufficient'; month: string; asOf: string; actualCents: number; reason: string };
 
-export function forecastCurrentMonth(rows: LedgerRow[], today: string): Forecast {
-  const span = dataSpan(rows);
+/**
+ * `span` defaults to the span of `rows`. Pass the whole ledger's span when forecasting a
+ * subset (one category), so the history and freshness checks are about the data, not the subset.
+ */
+export function forecastCurrentMonth(rows: LedgerRow[], today: string, span: DataSpan | null = dataSpan(rows)): Forecast {
   // If the data runs past "today" (e.g. a clock mismatch), forecast from the latest record.
   const asOf = span && span.lastDate > today ? span.lastDate : today;
   const month = monthOf(asOf);

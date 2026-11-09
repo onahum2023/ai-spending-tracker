@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { MonthlyTrendChart, YearCompareChart } from '../components/charts';
+import { FixedVariableChart, MonthlyTrendChart, YearCompareChart } from '../components/charts';
 import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented } from '../components/ui';
 import {
   concentration,
@@ -11,6 +11,7 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal, yearOf } from '../lib/dates';
 import { formatEUR, formatSignedEUR, sumCents } from '../lib/money';
+import { fixedVariableChange, fixedVariableSentence } from '../lib/insights';
 import { detectRecurring } from '../lib/recurring';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
@@ -48,6 +49,8 @@ export function Trends() {
         </Card>
       </div>
 
+      <FixedVariable />
+
       <YearComparison />
 
       <div className="grid cols-2-even">
@@ -66,6 +69,34 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
       <div className="small secondary">{label}</div>
       <div className="num" style={{ fontSize: 19, fontWeight: 650 }}>{value}</div>
       {sub && <div className="small muted">{sub}</div>}
+    </div>
+  );
+}
+
+function FixedVariable() {
+  const { transactions, span, today, analysis } = useLedger();
+  if (!span) return null;
+  const L = lastCompleteMonth(span, today);
+  const c = fixedVariableChange(transactions, analysis.fixed, L);
+  const sentence = fixedVariableSentence(c);
+  const total = c.after.fixedCents + c.after.variableCents;
+  const share = total > 0 ? Math.round((c.after.fixedCents / total) * 100) : 0;
+  return (
+    <div className="grid cols-2">
+      <Card title="Recurring vs usage" subtitle="Charges that repeat every month, against API top-ups, overages and one-off charges">
+        <FixedVariableChart rows={transactions} months={span.months} fixed={analysis.fixed} />
+      </Card>
+      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
+        <div className="stack" style={{ gap: 14 }}>
+          <Stat label="Recurring charges" value={formatEUR(c.after.fixedCents)} sub={<>{share}% of the last 3 months · <Delta before={c.before.fixedCents} after={c.after.fixedCents} /></>} />
+          <Stat label="Usage and one-off charges" value={formatEUR(c.after.variableCents)} sub={<>{100 - share}% · <Delta before={c.before.variableCents} after={c.after.variableCents} /></>} />
+          {sentence && <p className="small secondary">{sentence}</p>}
+          <p className="small muted">
+            A charge counts as recurring once it has appeared three months in a row, so a tool started in the last two months shows as
+            usage until then.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }
