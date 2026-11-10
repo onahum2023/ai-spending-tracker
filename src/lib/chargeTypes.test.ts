@@ -125,6 +125,44 @@ describe('confirming a charge type as a subscription', () => {
     expect(a.report.active.map((s) => s.monthlyCents).sort()).toEqual([2000, 5000]);
   });
 
+  it('keeps ONE subscription as one when its reference comes and goes (repeated references alone prove nothing)', () => {
+    const rows = [plan('2026-01-05', 2000, 'ABC123'), c('2026-02-05', 2000, 'ACME* PLAN', 'Acme'), plan('2026-03-05', 2000, 'ABC123'), c('2026-04-05', 2000, 'ACME* PLAN', 'Acme')];
+    const a = analyze(rows, '2026-04-20', confirm);
+    expect(a.report.monthlyCents).toBe(2000);
+    expect(a.report.active).toHaveLength(1);
+  });
+
+  it('keeps a yearly subscription as one when its reference changes between renewals', () => {
+    const rows = [plan('2024-03-10', 12000, 'ABC123'), plan('2025-03-10', 12000, 'ABC123'), plan('2026-03-10', 12000, 'XYZ456')];
+    const a = analyze(rows, '2026-03-25', [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'yearly' }]);
+    expect(a.report.active).toHaveLength(1); // during the renewal grace, not counted twice
+    expect(a.report.yearlyCents).toBe(12000);
+  });
+
+  it('still counts two concurrent subscriptions when every charge carries its own reference, with no false price rise', () => {
+    const rows = [
+      ...['2026-01-05', '2026-02-05', '2026-03-05'].map((d, i) => plan(d, 2000, `A${i}B9C${i}`)),
+      ...['2026-01-15', '2026-02-15', '2026-03-15'].map((d, i) => plan(d, 5000, `X${i}Y9Z${i}`)),
+    ];
+    expect(analyze(rows, '2026-03-20').report.monthlyCents).toBe(7000); // detection
+    const a = analyze(rows, '2026-03-20', confirm);
+    expect(a.report.monthlyCents).toBe(7000); // and Confirm must not change that
+    expect(a.report.active).toHaveLength(2);
+    expect(a.report.priceChanges).toEqual([]);
+  });
+
+  it('keeps a stopped subscription separate from a concurrent one that is still charging', () => {
+    const rows = [
+      ...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'ABC123')),
+      ...['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15'].map((d) => plan(d, 5000, 'XYZ456')),
+    ];
+    const a = analyze(rows, '2026-05-20', confirm);
+    const stopped = a.report.stopped.find((s) => s.lastCents === 2000);
+    expect(stopped).toBeDefined();
+    expect(stopped!.chargesSince).toEqual([]); // the other subscription's later charges are not "still charging"
+    expect(a.report.active.map((s) => s.monthlyCents)).toEqual([5000]);
+  });
+
   it('keeps charges whose reference changes every time together as one subscription', () => {
     const rows = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d, i) => plan(d, 2000, `R${i}X9Z${i}`));
     const a = analyze(rows, '2026-03-20', confirm);
@@ -153,5 +191,24 @@ describe('confirming a charge type as a subscription', () => {
     const rows = [...planRows, c('2026-04-12', 700, 'ACME* API', 'Acme'), c('2026-04-20', 100, 'OTHER', 'Other')];
     const a = analyze(rows, '2026-04-21');
     expect(a.patterns.some((p) => p.provisional)).toBe(false);
+  });
+});
+
+describe('a separate charge that shares a charge type is not a plan switch', () => {
+  it('leaves a subscription that is still on schedule alone when a different charge appears well before its next date', () => {
+    // "VERCEL INC." monthly on the 26th, then a "VERCEL" charge on the 7th: same charge type, but not the next renewal
+    const rows = ['2026-07-26', '2026-08-26', '2026-09-26', '2026-10-26'].map((d) => c(d, 1832, 'VERCEL INC.             COVINA', 'Vercel'));
+    const all = [...rows, c('2026-11-07', 898, 'VERCEL                  COVINA', 'Vercel')];
+    const a = analyze(all, '2026-11-10');
+    expect(a.patterns.some((p) => p.provisional)).toBe(false);
+    expect(a.report.monthlyCents).toBe(1832);
+    expect(a.report.priceChanges).toEqual([]);
+  });
+
+  it('still recognises a switch that lands on the usual billing day', () => {
+    const rows = ['2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => c(d, 2178, 'ANTHROPIC* CLAUDE SUB   SAN FRANCISCO', 'Anthropic'));
+    const a = analyze([...rows, c('2026-11-06', 10890, 'Anthropic* Claude Sub', 'Anthropic')], '2026-11-08');
+    expect(a.report.monthlyCents).toBe(10890);
+    expect(a.report.priceChanges[0]).toMatchObject({ kind: 'plan', fromCents: 2178, toCents: 10890 });
   });
 });

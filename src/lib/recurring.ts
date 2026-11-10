@@ -182,7 +182,7 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
  * Plan switches, before there are three charges at the new price.
  * After a monthly pattern ends, a charge on the same descriptor (the same provider, when the
  * descriptor changes every time) in the next month, or the one after, is read as the same
- * subscription at a new price. It is reported as a provisional pattern of 1 or 2 charges and
+ * subscription at a new price, when it lands at or near the day the old one was next expected. It is reported as a provisional pattern of 1 or 2 charges and
  * only while it is still running; a lone charge that nothing followed stays a one-off.
  * `patterns` are the ones `detectRecurring` found on the same `rows`.
  */
@@ -209,7 +209,10 @@ export function detectProvisional<T extends LedgerRow>(
       if (taken.has(r) || r.amountCents <= 0 || !sameStream(r)) return false;
       if ((perMonth.get(usageKey(r)) ?? 0) >= USAGE_CHARGES_PER_MONTH) return false;
       const gap = monthDiff(monthOf(old.lastDate), monthOf(r.date));
-      return r.date > old.lastDate && gap >= 1 && gap <= PROVISIONAL_MAX_GAP;
+      // Only at or near the next expected charge: a charge well before it, while the old pattern is still on schedule, is a
+      // separate charge, not the same subscription at a new price. (A switch part-way through a cycle is recognised once
+      // three charges at the new price confirm it.)
+      return r.date > old.lastDate && gap >= 1 && gap <= PROVISIONAL_MAX_GAP && r.date >= addDays(old.nextExpected, -DAY_TOLERANCE);
     });
     if (candidates.length === 0) continue;
     // An unrelated one-off can come first, so look at every candidate chain, not just the earliest.

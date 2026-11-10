@@ -147,34 +147,48 @@ export interface Analysis<T extends LedgerRow = LedgerRow> {
 const lastOf = <T,>(xs: T[]): T => xs[xs.length - 1];
 
 /**
- * Same stream = same charge type (the cleaned description, so "ACME* PLAN" and "Acme* Plan" are one), unless the pattern runs
- * across several charge types (then the provider is the stream: the description changes every time).
+ * The charges that belong to the same stream as a pattern, for "does anything still charge after it stopped?".
+ * As narrow as the pattern allows: the same reference ("ACME* PLAN ABC123" is not "ACME* PLAN XYZ456", two subscriptions
+ * that share a charge type), else the same charge type (the reference changes every time), else the whole provider
+ * (the description changes every time).
  */
 function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>): (r: LedgerRow) => boolean {
+  const refs = new Set(p.charges.map((c) => referenceKey(c.merchant)));
+  if (refs.size === 1) {
+    const ref = [...refs][0];
+    return (r) => r.provider === p.provider && referenceKey(r.merchant) === ref;
+  }
   const types = new Set(p.charges.map((c) => streamKey(c.provider, c.merchant)));
   return types.size > 1
     ? (r) => r.provider === p.provider
     : (r) => r.provider === p.provider && streamKey(r.provider, r.merchant) === streamKey(p.provider, p.merchant);
 }
 
-/**
- * The charges of a charge type you marked as a subscription, split into one lane per subscription: charges that carry the same
- * reference are one subscription, so two plans under one charge type ("ACME* PLAN ABC123", "ACME* PLAN XYZ456") are both counted.
- * Charges that each carry a different reference (a renewal code that changes every time) are one subscription together.
- */
-function subscriptionLanes<T extends LedgerRow>(charges: T[]): T[][] {
-  const byReference = new Map<string, T[]>();
-  for (const c of charges) {
-    const k = referenceKey(c.merchant);
-    byReference.set(k, [...(byReference.get(k) ?? []), c]);
+/** True when two of the patterns were running at the same time. */
+function anyConcurrent(patterns: { firstDate: string; lastDate: string }[]): boolean {
+  for (let i = 0; i < patterns.length; i++) {
+    for (let j = i + 1; j < patterns.length; j++) {
+      if (patterns[i].firstDate <= patterns[j].lastDate && patterns[j].firstDate <= patterns[i].lastDate) return true;
+    }
   }
-  const lanes: T[][] = [];
-  const loose: T[] = [];
-  for (const group of byReference.values()) (group.filter((c) => c.amountCents > 0).length >= 2 ? lanes.push(group) : loose.push(...group));
-  if (loose.length) lanes.push(loose);
-  return lanes;
+  return false;
 }
 
+/**
+ * The subscriptions of a charge type you marked as a subscription. Normally the charge type is ONE subscription, counted from
+ * its latest charge whatever their spacing. But when detection finds two or more monthly patterns among its charges that ran at
+ * the same time ("ACME* PLAN ABC123" at 20 and "ACME* PLAN XYZ456" at 50, both monthly), they are separate subscriptions that
+ * share a charge type, and each is counted. Repeated references alone do not make a second subscription: one subscription whose
+ * reference comes and goes is still one, and so are renewals that follow one another.
+ */
+function forcedPatternsFor<T extends LedgerRow>(charges: T[], cadence: Cadence, latestDate: string): RecurringPattern<T>[] {
+  if (cadence === 'monthly') {
+    const found = detectRecurring(charges, latestDate);
+    if (anyConcurrent(found)) return found.map((p) => ({ ...p, forced: true }));
+  }
+  const one = forcedPattern(charges, cadence, latestDate);
+  return one ? [one] : [];
+}
 function stepChanges<T extends LedgerRow>(p: RecurringPattern<T>): PriceChange[] {
   const out: PriceChange[] = [];
   const cs = p.charges;
@@ -315,8 +329,7 @@ export function analyze<T extends LedgerRow>(
     }
   }
   const forced = [...forcedStreams.values()]
-    .flatMap((f) => subscriptionLanes(f.charges).map((lane) => forcedPattern(lane, f.cadence, latestDate)))
-    .filter((p): p is RecurringPattern<T> => p !== null);
+    .flatMap((f) => forcedPatternsFor(f.charges, f.cadence, latestDate));
   const detected = span ? detectRecurring(auto, latestDate) : [];
   const patterns = span
     ? [...detected, ...detectProvisional(auto, detected, latestDate), ...forced].sort(
