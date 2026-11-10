@@ -268,7 +268,7 @@ All screenshots show the synthetic demo data.
 | `/app` (`app.html`) | The tracker. `/app?demo=1` starts the demo. | `app.html`, `src/` |
 | `/privacy` (`privacy.html`) | The privacy statement (draft until reviewed). Static HTML. | `privacy.html`, `src/content/privacy.ts` |
 
-The landing page and the privacy page are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The landing page leaves out the canonical link and social image until a public address is known: set `SITE_URL` (or, on Vercel, the production domain is used) and rebuild.
+The landing page and the privacy page are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The production address is `https://ai-spend-tracker.neotixhq.com`, set once in `src/content/site.ts`: the landing page's canonical link and social card, `robots.txt` and `sitemap.xml` use it (a test keeps them in step). The sitemap lists only the landing page: the app and, while it is a draft, the privacy page are `noindex`. Set `SITE_URL` to build with another address.
 
 ## Project layout
 

@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { renderLandingBody, renderLandingMeta } from './src/content/landing.ts';
 import { PRIVACY_IS_DRAFT, renderPrivacyBody } from './src/content/privacy.ts';
+import { PRODUCTION_URL } from './src/content/site.ts';
 import pkg from './package.json' with { type: 'json' };
 import vercel from './vercel.json' with { type: 'json' };
 
@@ -22,13 +23,11 @@ function buildCommit(): string {
 // `npm run preview` sends the same security headers as Vercel, so a local check is faithful.
 const deployHeaders = Object.fromEntries(vercel.headers[0].headers.map((h) => [h.key, h.value]));
 
-// The public address, for canonical and social-card URLs (they must be absolute). Set SITE_URL, or on Vercel the
-// production domain is used. Empty until a domain exists: the page then leaves those tags out.
+// The public address, for canonical and social-card URLs (they must be absolute). Always the production domain, so a
+// preview deployment never names its own temporary address as canonical. Set SITE_URL to override it (for example
+// for a staging domain).
 function siteUrl(): string {
-  const explicit = process.env.SITE_URL;
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  const url = explicit || (vercel ? `https://${vercel}` : '');
-  return url.replace(/\/+$/, '');
+  return (process.env.SITE_URL || PRODUCTION_URL).replace(/\/+$/, '');
 }
 
 // Fills the static pages from src/content, so the wording lives in one place and the pages need no script.
