@@ -8,14 +8,15 @@
  *     localStorage keys, cookies, third-party hosts). If you change what the app stores or sends,
  *     that test fails until this text and the code agree again.
  *
- * DRAFT: the text has not been reviewed by a legal professional and is not legal advice. (The legal basis for the
- * web-server logs is settled for now as legitimate interest.) While PRIVACY_IS_DRAFT is true the page says so and asks
- * search engines not to index it. Set it to false only after review (see issue #19).
+ * PUBLISHED: the owner reviewed the text and published it on 2026-11-10 (issue #19), taking responsibility for the residual
+ * risk. It is not legal advice. (The legal basis for the web-server logs is settled for now as legitimate interest.)
+ * While PRIVACY_IS_DRAFT is true the page says it is a draft and asks search engines not to index it; set it back to true
+ * if the text is ever changed without a review.
  */
 
 import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, OWNER, OWNER_URL, TRADING_AS } from './site.ts';
 
-export const PRIVACY_IS_DRAFT = true;
+export const PRIVACY_IS_DRAFT = false;
 export const PRIVACY_UPDATED = '2026-11-10';
 /** Where the page lives. An absolute file path works from the landing page and the app, in the dev server, the build and on Vercel (cleanUrls redirects it). */
 export const PRIVACY_PATH = '/privacy.html';
