@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parseLedgerCsv, toLedgerCsv } from './csv';
-import { clearAll, closeDb, commitImport, loadAll } from './db';
+import { clearAll, closeDb, commitImport, deleteTransactions, loadAll } from './db';
 import { sumCents } from './money';
 
 const csvText = readFileSync(resolve(__dirname, '__fixtures__/ledger.csv'), 'utf8');
@@ -55,5 +55,36 @@ describe('IndexedDB storage', () => {
     const { transactions, imports } = await loadAll();
     expect(transactions).toHaveLength(0);
     expect(imports).toHaveLength(0);
+  });
+});
+
+describe('deleting transactions', () => {
+  beforeEach(async () => {
+    await clearAll();
+  });
+
+  it('deletes exactly the given charges, ignores unknown ids and repeats, and survives a reload', async () => {
+    const p = parseLedgerCsv(csvText);
+    await commitImport('ledger.csv', p.rows, p.rowsInFile, 0);
+    const before = await loadAll();
+    const [a, b, c] = before.transactions;
+    expect(await deleteTransactions([a.id, c.id, a.id, 999999])).toBe(2);
+    await closeDb(); // simulate a page reload
+    const after = await loadAll();
+    expect(after.transactions).toHaveLength(before.transactions.length - 2);
+    expect(after.transactions.some((t) => t.id === a.id || t.id === c.id)).toBe(false);
+    expect(after.transactions.some((t) => t.id === b.id)).toBe(true);
+    expect(sumCents(after.transactions)).toBe(sumCents(before.transactions) - a.amountCents - c.amountCents);
+    expect(await deleteTransactions([])).toBe(0);
+  });
+
+  it('lets a deleted charge come back when the same file is imported again (it is a plain delete, not a block)', async () => {
+    const p = parseLedgerCsv(csvText);
+    await commitImport('ledger.csv', p.rows, p.rowsInFile, 0);
+    const { transactions } = await loadAll();
+    await deleteTransactions([transactions[0].id]);
+    const again = await commitImport('ledger.csv', p.rows, p.rowsInFile, 0);
+    expect(again.added).toBe(1);
+    expect((await loadAll()).transactions).toHaveLength(transactions.length);
   });
 });

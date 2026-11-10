@@ -1,17 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BulkTag, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
-import { Card, SearchInput, type SortDir } from '../components/ui';
-import { daysInMonth } from '../lib/dates';
+import { Card, ConfirmDialog, SearchInput, type SortDir } from '../components/ui';
+import { dateLabel, daysInMonth } from '../lib/dates';
 import { KIND_LABELS, type ChargeKind } from '../lib/overrides';
 import { centsToPlain, formatEUR, sumCents } from '../lib/money';
 import { tagsInUse, UNTAGGED } from '../lib/tags';
+import type { Transaction } from '../lib/types';
 import { href, navigate, type Route } from '../router';
 import { useLedger } from '../store';
 
 /** Filters live in the URL so provider pages and the overview can deep-link here. */
 export function Transactions({ route }: { route: Route }) {
-  const { transactions, providers, span, period, analysis } = useLedger();
+  const { transactions, providers, span, period, analysis, mode, deleteTransactions } = useLedger();
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const q = route.query.get('q') ?? '';
   const provider = route.query.get('provider') ?? '';
   const type = route.query.get('type') ?? '';
@@ -114,12 +117,42 @@ export function Transactions({ route }: { route: Route }) {
         {filtered.length > 0 && <BulkTag rows={filtered} />}
         <TransactionTable
           editableTags
+          onDelete={setPendingDelete}
           rows={filtered}
           sort={{ key: sortKey, dir: sortDir }}
           onSort={(s) => update({ sort: s.key, dir: s.dir })}
           emptyText="No transactions match these filters."
         />
       </Card>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete this charge?"
+          confirmLabel="Delete charge"
+          busy={deleting}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={async () => {
+            setDeleting(true);
+            try {
+              await deleteTransactions([pendingDelete.id]);
+              setPendingDelete(null);
+            } finally {
+              setDeleting(false);
+            }
+          }}
+        >
+          <p>
+            <strong>{pendingDelete.provider}</strong> · {formatEUR(pendingDelete.amountCents)} · {dateLabel(pendingDelete.date)}
+            <br />
+            <span className="small muted">{pendingDelete.merchant.trim()}</span>
+          </p>
+          <p className="small secondary">
+            {mode === 'demo'
+              ? 'The charge is removed from the demo until you leave it. Nothing is saved.'
+              : 'The charge is removed from this browser, and from totals, trends and subscriptions. If you import a file that contains it again, it comes back.'}
+          </p>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

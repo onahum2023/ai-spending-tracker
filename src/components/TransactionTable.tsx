@@ -36,6 +36,7 @@ export function TransactionTable({
   emptyText = 'No transactions match.',
   initialSort = { key: 'date', dir: 'desc' },
   editableTags = false,
+  onDelete,
 }: {
   rows: Transaction[];
   showProvider?: boolean;
@@ -46,6 +47,8 @@ export function TransactionTable({
   initialSort?: { key: TxSortKey; dir: SortDir };
   /** Show a Tag column the user can edit. Without it, a Tag column appears only when some charge has a tag. */
   editableTags?: boolean;
+  /** Adds a delete button to each charge. The caller asks for confirmation and does the deleting. */
+  onDelete?: (t: Transaction) => void;
 }) {
   const [localSort, setLocalSort] = useState<{ key: TxSortKey; dir: SortDir }>(initialSort);
   const sort = controlledSort ?? localSort;
@@ -74,6 +77,7 @@ export function TransactionTable({
               <SortHeader label="Type" k="type" sort={sort} onSort={setSort} defaultDir="asc" className="hide-sm" />
               {showTag && <SortHeader label="Tag" k="tag" sort={sort} onSort={setSort} defaultDir="asc" />}
               <SortHeader label="Amount" k="amount" sort={sort} onSort={setSort} className="amount" />
+              {onDelete && <th><span className="sr-only">Delete</span></th>}
             </tr>
           </thead>
           <tbody>
@@ -102,6 +106,20 @@ export function TransactionTable({
                   </td>
                 )}
                 <td className="amount">{formatEUR(t.amountCents)}</td>
+                {onDelete && (
+                  <td className="row-action" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="btn btn-sm btn-ghost btn-icon"
+                      onClick={() => onDelete(t)}
+                      aria-label={`Delete the ${t.provider} charge of ${formatEUR(t.amountCents)} on ${dateLabel(t.date)}`}
+                      title="Delete this charge"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" />
+                      </svg>
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -128,6 +146,11 @@ export function TransactionTable({
               {t.merchant}
               {t.tag ? ` · #${t.tag}` : ''}
             </span>
+            {onDelete && (
+              <button className="btn btn-sm btn-ghost" style={{ gridColumn: '1 / -1', justifySelf: 'start' }} onClick={() => onDelete(t)}>
+                Delete this charge
+              </button>
+            )}
           </div>
         ))}
         {showTotal && (

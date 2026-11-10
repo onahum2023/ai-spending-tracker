@@ -7,7 +7,7 @@ import { todayLocal } from './lib/dates';
 import { normalizeTagRules, withTagRule, type TagRule } from './lib/tags';
 import { DEMO_FLAG } from './lib/localPrefs';
 import { normalizeLabels, withLabel, type Label } from './lib/labels';
-import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
+import { deleteTransactions as storeDelete, loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/db';
 import { generateDemo } from './lib/demoData';
 import { analyze, type Analysis } from './lib/insights';
 import {
@@ -67,6 +67,8 @@ interface Ledger {
   setBudgets: (b: Budgets) => Promise<void>;
   /** Sets (or with null, clears) the tag on charges. Saved in this browser; in demo mode kept in memory only. */
   setTags: (ids: number[], tag: string | null) => Promise<void>;
+  /** Deletes charges (for example one imported by mistake). Saved in this browser; in demo mode kept in memory only. */
+  deleteTransactions: (ids: number[]) => Promise<void>;
   today: string;
   period: Period;
   setPeriod: (p: Period) => void;
@@ -124,6 +126,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   // Demo edits live in memory only ("nothing is saved") and are dropped when the demo starts or ends.
   const [demoBudgets, setDemoBudgets] = useState<Budgets>(EMPTY_BUDGETS);
   const [demoTags, setDemoTags] = useState<Record<number, string>>({});
+  const [demoDeleted, setDemoDeleted] = useState<Set<number>>(new Set());
   const [storedOverrides, setStoredOverrides] = useState<Override[]>([]);
   const [demoOverrides, setDemoOverrides] = useState<Override[]>([]);
   const [storedLabels, setStoredLabels] = useState<Label[]>([]);
@@ -177,10 +180,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const mode: DataMode = stored.length > 0 ? 'mine' : demoOn ? 'demo' : 'empty';
   const demoBase = useMemo(() => (mode === 'demo' ? buildDemoTransactions(today) : []), [mode, today]);
-  const demoRows = useMemo(
-    () => (Object.keys(demoTags).length ? demoBase.map((t) => (demoTags[t.id] ? { ...t, tag: demoTags[t.id] } : t)) : demoBase),
-    [demoBase, demoTags],
-  );
+  const demoRows = useMemo(() => {
+    const kept = demoDeleted.size ? demoBase.filter((t) => !demoDeleted.has(t.id)) : demoBase;
+    return Object.keys(demoTags).length ? kept.map((t) => (demoTags[t.id] ? { ...t, tag: demoTags[t.id] } : t)) : kept;
+  }, [demoBase, demoTags, demoDeleted]);
   const transactions = mode === 'demo' ? demoRows : stored;
   const budgets = mode === 'demo' ? demoBudgets : storedBudgets;
   const overrides = mode === 'demo' ? demoOverrides : storedOverrides;
@@ -275,9 +278,20 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     [mode],
   );
 
+  const deleteTransactions = useCallback(
+    async (ids: number[]) => {
+      const gone = new Set(ids);
+      if (mode === 'demo') return setDemoDeleted((prev) => new Set([...prev, ...gone]));
+      await storeDelete(ids);
+      setStored((prev) => prev.filter((t) => !gone.has(t.id)));
+    },
+    [mode],
+  );
+
   const startDemo = useCallback(() => {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
+    setDemoDeleted(new Set());
     setDemoOverrides([]);
     setDemoLabels([]);
     setDemoCategories([]);
@@ -289,6 +303,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const exitDemo = useCallback(() => {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
+    setDemoDeleted(new Set());
     setDemoOverrides([]);
     setDemoLabels([]);
     setDemoCategories([]);
@@ -343,6 +358,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     budgets,
     setBudgets,
     setTags,
+    deleteTransactions,
     today,
     period: effectivePeriod,
     setPeriod: setPeriodState,
