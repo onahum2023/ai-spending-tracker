@@ -273,9 +273,9 @@ All screenshots show the synthetic demo data.
 |---|---|---|
 | `/` | Landing page: what it is, privacy up front, screenshots, FAQ. Static HTML, no scripts except a tiny redirect for old `/#/…` links. | `index.html`, `src/content/landing.ts` |
 | `/app` (`app.html`) | The tracker. `/app?demo=1` starts the demo. | `app.html`, `src/` |
-| `/privacy` (`privacy.html`) | The privacy statement (draft until reviewed). Static HTML. | `privacy.html`, `src/content/privacy.ts` |
+| `/privacy` (`privacy.html`) | The privacy statement (published 2026-11-10; set `PRIVACY_IS_DRAFT` back to true to show a draft notice and `noindex` again). Static HTML. | `privacy.html`, `src/content/privacy.ts` |
 
-The landing page and the privacy page are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The production address is `https://ai-spend-tracker.neotixhq.com`, set once in `src/content/site.ts`: the landing page's canonical link and social card, `robots.txt` and `sitemap.xml` use it (a test keeps them in step). The sitemap lists only the landing page: the app and, while it is a draft, the privacy page are `noindex`. Set `SITE_URL` to build with another address.
+The landing page and the privacy page are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The production address is `https://ai-spend-tracker.neotixhq.com`, set once in `src/content/site.ts`: the landing page's canonical link and social card, `robots.txt` and `sitemap.xml` use it (a test keeps them in step). The sitemap lists only the landing page: the app is `noindex`, and so is the privacy page whenever it is marked as a draft. Set `SITE_URL` to build with another address.
 
 ## Project layout
 
