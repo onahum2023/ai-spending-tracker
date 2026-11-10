@@ -64,3 +64,8 @@ export function normalizeDescriptor(merchant: string): string {
 export function referenceKey(merchant: string): string {
   return (tidy(merchantPart(merchant), false) || merchant.trim()).toUpperCase();
 }
+
+/** True when the description carries a reference code that the charge type key drops ("ACME* PLAN ABC123", not "ACME* PLAN"). */
+export function hasReference(merchant: string): boolean {
+  return referenceKey(merchant) !== normalizeDescriptor(merchant);
+}

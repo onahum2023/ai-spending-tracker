@@ -101,7 +101,8 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
   // by chance, so they are left out: they aren't a single recurring charge.
   const perMonth = new Map<string, number>();
   const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
-  for (const r of rows) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
+  // Charges only: a refund in a month is not another top-up (two subscriptions plus a refund must not read as usage).
+  for (const r of rows) if (r.amountCents > 0) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
   // Every charge of a descriptor, heavy months included, for the coverage check below.
   const streamTotal = new Map<string, number>();
@@ -195,7 +196,7 @@ export function detectProvisional<T extends LedgerRow>(
   for (const p of patterns) for (const c of p.charges) taken.add(c);
   const perMonth = new Map<string, number>();
   const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
-  for (const r of rows) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
+  for (const r of rows) if (r.amountCents > 0) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
   const out: RecurringPattern<T>[] = [];
   // Oldest-ending first, so results stay deterministic.

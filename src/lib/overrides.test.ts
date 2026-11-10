@@ -202,7 +202,7 @@ describe('monthly subscription', () => {
     const after = analyze(data, '2026-12-07', [{ provider: 'Anthropic', merchant: 'ANTHROPIC* CLAUDE SUB', kind: 'monthly' }]).report;
     expect(after.monthlyCents).toBe(10890);
     expect(after.stopped).toEqual([]);
-    expect(after.priceChanges[0]).toMatchObject({ kind: 'step', fromCents: 2178, toCents: 10890 });
+    expect(after.priceChanges[0]).toMatchObject({ kind: 'plan', fromCents: 2178, toCents: 10890 }); // reported as automatic detection reports it
   });
 
   it('ignores refunds when building the stream', () => {
