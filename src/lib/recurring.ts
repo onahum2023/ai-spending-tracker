@@ -60,6 +60,8 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   provisional?: boolean;
   /** For a provisional pattern: the monthly pattern it continues. */
   replaces?: RecurringPattern<T>;
+  /** Its plan-switch link was dropped on purpose (the pattern it replaced came back): it must not look for another predecessor. */
+  noSwitch?: boolean;
   /**
    * A stand-in for charges of a type you confirmed that detection could not place. It counts in the run-rate but is never
    * paired with another pattern as a plan switch: it says nothing about what replaced what.

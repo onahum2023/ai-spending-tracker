@@ -170,10 +170,24 @@ function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>): (r: LedgerR
  */
 export const RENEWAL_AMOUNT_TOLERANCE = 0.6;
 
-/** Can this leftover charge continue this pattern? See `placeConfirmed`. `replaced` holds the patterns a plan switch already continued. */
-function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replaced: Set<RecurringPattern<T>>): boolean {
-  if (p.standalone || replaced.has(p) || p.provider !== c.provider || p.lastDate >= c.date) return false;
+/** How far a charge's billing day is from a pattern's (both near month-end counts as the same day). */
+function billingDayGap<T extends LedgerRow>(p: RecurringPattern<T>, c: T): number {
+  const day = dayOf(c.date);
+  return day >= 27 && p.typicalDay >= 27 ? 0 : Math.abs(day - p.typicalDay);
+}
+
+/**
+ * Can this leftover charge continue this pattern? See `placeConfirmed`. `replacerOf` maps a pattern to the one a plan switch
+ * already continued it with.
+ */
+function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replacerOf: Map<RecurringPattern<T>, RecurringPattern<T>>): boolean {
+  if (p.standalone || p.provider !== c.provider || p.lastDate >= c.date) return false;
   if (!daysClose(dayOf(c.date), p.typicalDay)) return false;
+  // A pattern that a plan switch already continued is not revived by a charge that fits its replacer as well: that would split one
+  // schedule in two. But a replacer on another billing day (a stray charge read as a new price) does not own the charge, and a
+  // charge on the replaced pattern's own day is its return.
+  const replacer = replacerOf.get(p);
+  if (replacer && billingDayGap(p, c) >= billingDayGap(replacer, c)) return false;
   if (p.active) {
     // A pattern that is still on schedule is only continued by its next monthly renewal (the charge after a revival is exactly
     // that), at a plausible amount; a charge in the same month near its day is noise or another schedule.
@@ -188,25 +202,32 @@ function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replaced
   return p.charges.some((x) => streamKey(x.provider, x.merchant) === type);
 }
 
+/** How a leftover charge ranks against a pattern it can continue; lower is better. See `fit`. */
+type Fit = [known: number, implausible: number, dayGap: number, moneyGap: number, date: string, patternEnd: string];
+
 /**
  * How well a leftover charge fits a pattern it can continue; lower is better, compared in order:
- * 0/1  a reference it carries that the pattern has never shown (a charge WITHOUT a reference says nothing about which
- *      subscription it is, so it never counts for or against a pattern),
+ * 0/1  whether the charge carries a reference that this pattern has shown before. Only a MATCH counts, as an identity: a charge
+ *      without a reference, or with one the pattern has never shown (a subscription renewing under a new code), says nothing
+ *      against the pattern, so it must never lose to a charge that merely has no reference,
+ * 0/1  whether the amount is far from the pattern's last one (beyond the renewal tolerance): a stray a fraction of the price must
+ *      not beat the real renewal because it happens to land on the exact day (a pattern that has stopped can still come back at
+ *      any price when nothing plausible competes),
  * the distance between billing days, the distance between amounts, then the earlier charge, then the pattern that ended latest.
  */
-function fit<T extends LedgerRow>(p: RecurringPattern<T>, c: T): [number, number, number, string, string] {
+function fit<T extends LedgerRow>(p: RecurringPattern<T>, c: T): Fit {
   const reference = referenceKey(c.merchant);
-  const strangeReference = hasReference(c.merchant) && !p.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
-  const day = dayOf(c.date);
-  const dayGap = day >= 27 && p.typicalDay >= 27 ? 0 : Math.abs(day - p.typicalDay);
-  const moneyGap = Math.abs(c.amountCents - p.charges[p.charges.length - 1].amountCents);
-  return [strangeReference, dayGap, moneyGap, c.date, p.lastDate];
+  const known = hasReference(c.merchant) && p.charges.some((x) => referenceKey(x.merchant) === reference) ? 0 : 1;
+  const last = p.charges[p.charges.length - 1].amountCents;
+  const moneyGap = Math.abs(c.amountCents - last);
+  const implausible = moneyGap > RENEWAL_AMOUNT_TOLERANCE * Math.max(c.amountCents, last) ? 1 : 0;
+  return [known, implausible, billingDayGap(p, c), moneyGap, c.date, p.lastDate];
 }
 
-function betterFit(a: [number, number, number, string, string], b: [number, number, number, string, string]): boolean {
-  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return (a[i] as number) < (b[i] as number);
+function betterFit(a: Fit, b: Fit): boolean {
+  for (let i = 0; i < 4; i++) if (a[i] !== b[i]) return (a[i] as number) < (b[i] as number);
   // The earlier charge first, then the pattern that ended latest (the live one, not the one that was already continued).
-  return a[3] !== b[3] ? a[3] < b[3] : a[4] > b[4];
+  return a[4] !== b[4] ? a[4] < b[4] : a[5] > b[5];
 }
 
 /**
@@ -214,40 +235,51 @@ function betterFit(a: [number, number, number, string, string], b: [number, numb
  * Detection itself ran on everything that could be a monthly subscription (confirmed or not, together), so confirming never
  * cuts a chain in two and never disagrees with what the app already counted. For the leftovers:
  *   - they are matched to patterns they can continue (`canContinue`) by best fit, best pair first, not in date order: an early
- *     stray charge must not take the slot of the renewal that fits exactly (`fit`). A matched charge is added to its pattern;
+ *     stray charge must not take the slot of the renewal that fits exactly, whatever reference either carries (`fit`). A matched
+ *     charge is added to its pattern;
  *   - the rest of a charge type that no active pattern covers are one subscription counted from its latest charge (irregular
  *     days or amounts), as a stand-in that takes no part in plan-switch matching;
  *   - the rest of a charge type that an active pattern does cover are left out: they are noise within a subscription.
  */
 function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], confirmed: Set<T>, latestDate: string): void {
   const explained = new Set(patterns.flatMap((p) => p.charges));
+  // All the leftovers compete together, whatever their charge type: matching one type first would move a pattern's last date past
+  // an earlier charge of another type, which could then no longer continue it.
+  let leftover = [...confirmed].filter((c) => c.amountCents > 0 && !explained.has(c));
+  for (;;) {
+    const replacerOf = new Map(patterns.flatMap((p) => (p.replaces ? [[p.replaces, p] as const] : [])));
+    let best: { p: RecurringPattern<T>; c: T; score: Fit } | null = null;
+    for (const c of leftover) {
+      for (const p of patterns) {
+        if (!canContinue(p, c, replacerOf)) continue;
+        const score = fit(p, c);
+        if (!best || betterFit(score, best.score)) best = { p, c, score };
+      }
+    }
+    if (!best) break;
+    const grown = forcedPattern([...best.p.charges, best.c], 'monthly', latestDate);
+    if (!grown) break;
+    // Grow it in place: plan-switch links (`replaces`) point at these very objects.
+    const { forced: _f, cadence: _c, ...fields } = grown;
+    Object.assign(best.p, fields);
+    // A pattern that comes back on its own billing day was not replaced after all: drop the plan-switch claim, so it is counted
+    // again alongside the pattern that was read as its new price.
+    const replacer = replacerOf.get(best.p);
+    if (replacer) {
+      delete replacer.replaces;
+      replacer.noSwitch = true;
+    }
+    const placed = best.c;
+    leftover = leftover.filter((c) => c !== placed);
+  }
+  // What no pattern could take: per charge type.
   const byType = new Map<string, T[]>();
   for (const c of confirmed) {
     const k = streamKey(c.provider, c.merchant);
     byType.set(k, [...(byType.get(k) ?? []), c]);
   }
   for (const typeCharges of byType.values()) {
-    let leftover = typeCharges.filter((c) => c.amountCents > 0 && !explained.has(c));
-    for (;;) {
-      const replaced = new Set(patterns.flatMap((p) => (p.replaces ? [p.replaces] : [])));
-      let best: { p: RecurringPattern<T>; c: T; score: [number, number, number, string, string] } | null = null;
-      for (const c of leftover) {
-        for (const p of patterns) {
-          if (!canContinue(p, c, replaced)) continue;
-          const score = fit(p, c);
-          if (!best || betterFit(score, best.score)) best = { p, c, score };
-        }
-      }
-      if (!best) break;
-      const grown = forcedPattern([...best.p.charges, best.c], 'monthly', latestDate);
-      if (!grown) break;
-      // Grow it in place: plan-switch links (`replaces`) point at these very objects.
-      const { forced: _f, cadence: _c, ...fields } = grown;
-      Object.assign(best.p, fields);
-      const placed = best.c;
-      leftover = leftover.filter((c) => c !== placed);
-    }
-    if (leftover.length === 0) continue;
+    if (!leftover.some((c) => typeCharges.includes(c))) continue;
     const covered = patterns.some((p) => p.active && p.charges.some((c) => typeCharges.includes(c)));
     if (covered) continue;
     const one = forcedPattern(typeCharges, 'monthly', latestDate);
@@ -291,7 +323,7 @@ function planSwitches<T extends LedgerRow>(
   const out: { change: PriceChange | null; from: RecurringPattern<T>; to: RecurringPattern<T> }[] = [];
   for (const to of monthly) {
     let from: RecurringPattern<T> | null = to.replaces ?? null;
-    for (const cand of from ? [] : monthly) {
+    for (const cand of from || to.noSwitch ? [] : monthly) {
       if (cand === to || cand.provider !== to.provider) continue;
       if (cand.lastDate >= to.firstDate) continue;
       const gap = monthDiff(monthOf(cand.lastDate), monthOf(to.firstDate));

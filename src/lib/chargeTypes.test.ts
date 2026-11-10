@@ -377,4 +377,82 @@ describe('confirming never disagrees with what automatic detection already count
     expect(r.active).toHaveLength(1);
     expect(r.monthlyCents).toBe(7000); // not 3: the stray is not the renewal
   });
+
+  it('lets an exact renewal under a new reference beat a reference-less stray', () => {
+    // ABC123: 20 on the 5th Jan-Mar. After the gap: a 3 with no reference on Sep 3, and the real 20 on Sep 5 under a NEW reference.
+    const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN ABC123', 'Acme'));
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    for (const renewal of ['ACME* PLAN DEF456', 'ACME* PLAN']) {
+      const rows = [...a, c('2026-09-03', 300, 'ACME* PLAN', 'Acme'), c('2026-09-05', 2000, renewal, 'Acme')];
+      const r = analyze(rows, '2026-09-06', confirm).report;
+      expect(r.monthlyCents).toBe(2000);
+      expect(r.active[0]).toMatchObject({ lastDate: '2026-09-05', billedCents: 2000 });
+      expect(r.priceChanges).toEqual([]);
+    }
+  });
+
+  it('still uses a reference the pattern has shown to tell two close schedules apart', () => {
+    // A (ref AAA111) 20 on the 5th and B (ref BBB222) 20 on the 7th, same amounts. B's charge on Sep 6 with its own reference is B's.
+    const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN AAA111', 'Acme'));
+    const b = ['2026-01-07', '2026-02-07', '2026-03-07'].map((d) => c(d, 2000, 'ACME* PLAN BBB222', 'Acme'));
+    const rows = [...a, ...b, c('2026-09-06', 2000, 'ACME* PLAN BBB222', 'Acme')];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    const r = analyze(rows, '2026-09-07', confirm);
+    const revived = r.patterns.find((p) => p.active);
+    expect(revived).toBeDefined();
+    expect(revived!.charges.some((x) => x.merchant.includes('BBB222') && x.date < '2026-04-01')).toBe(true); // it went to B's pattern
+    expect(revived!.charges.some((x) => x.merchant.includes('AAA111'))).toBe(false);
+  });
+
+  it('revives a stopped schedule with its own return even when a stray on another billing day was read as its new price', () => {
+    // 70 on the 8th Apr-Jun (stopped). A lone 80 on Aug 18 (another schedule's charge) is read by plan-switch detection as the new price
+    // of that plan. The real 70 comes back on Sep 8, on the plan's own day and at its own price: it is the plan's return.
+    const rows = [
+      ...['2026-04-08', '2026-05-08', '2026-06-08'].map((d, i) => c(d, 7000, `ACME* PLAN R${i}3X9Z`, 'Acme')),
+      c('2026-08-18', 8000, 'ACME* PLAN R51X9Z', 'Acme'),
+      c('2026-09-08', 7000, 'ACME* PLAN', 'Acme'),
+      c('2026-09-18', 100, 'OTHER', 'Other'),
+    ];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    const a = analyze(rows, '2026-09-18', confirm);
+    const back = a.patterns.find((p) => p.charges.some((x) => x.date === '2026-09-08'));
+    expect(back).toBeDefined();
+    expect(back!.active).toBe(true);
+    expect(back!.charges.some((x) => x.date === '2026-04-08')).toBe(true); // it joined the 70 schedule's history
+    expect(a.report.active.some((s) => s.billedCents === 7000 && s.lastDate === '2026-09-08')).toBe(true);
+  });
+
+  it('still does not split one schedule in two when the charge fits its replacing pattern as well', () => {
+    // 70 on the 6th Jan-Mar, back in May at the same price (a plan switch picks it up), then Jun 6: it is the continuation, not a revival
+    const rows = [...['2026-01-06', '2026-02-06', '2026-03-06', '2026-05-06', '2026-06-06'].map((d) => c(d, 7000, 'ACME* RENEWAL', 'Acme'))];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
+    const a = analyze(rows, '2026-06-08', confirm);
+    expect(a.report.active).toHaveLength(1);
+    expect(a.report.monthlyCents).toBe(7000);
+  });
+
+  it('lets all confirmed charge types compete for the same pattern, so a later stray of one cannot shut out an earlier return of another', () => {
+    // 70 on the 6th Feb-Apr alternating RENEWAL / PLAN (stopped). The PLAN returns on Sep 6 under a new reference. A stray 3 on
+    // the RENEWAL type comes much later (Jan 7). Matching RENEWAL first would move the pattern past Sep 6, losing the return.
+    const rows = [
+      c('2026-02-06', 7000, 'ACME* RENEWAL', 'Acme'), c('2026-03-06', 7000, 'ACME* PLAN', 'Acme'), c('2026-04-06', 7000, 'ACME* RENEWAL', 'Acme'),
+      c('2026-09-06', 7000, 'ACME* PLAN N0W7Q1', 'Acme'), c('2027-01-07', 300, 'ACME* RENEWAL', 'Acme'), c('2027-01-09', 100, 'OTHER', 'Other'),
+    ];
+    const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
+    const a = analyze(rows, '2027-01-09', both);
+    expect(a.patterns.some((p) => p.charges.some((x) => x.date === '2026-09-06'))).toBe(true); // the return is in a pattern
+    expect(a.patterns.some((p) => p.charges.some((x) => x.date === '2026-09-06') && p.charges.some((x) => x.date === '2026-02-06'))).toBe(true); // the schedule's own
+  });
+
+  it('ranks a plausible amount above an exact billing day: the real return beats a stray that lands on the exact day', () => {
+    // 20 on the 3rd May-Jul (stopped). In January a 3 lands on the 3rd (exact day, 85% off) and the real 20 comes on the 5th (2 days off).
+    const rows = [
+      ...['2026-05-03', '2026-06-03', '2026-07-03'].map((d, i) => c(d, 2000, i % 2 ? 'ACME* RENEWAL' : 'ACME* PLAN', 'Acme')),
+      c('2027-01-03', 300, 'ACME* RENEWAL', 'Acme'), c('2027-01-05', 2000, 'ACME* RENEWAL N1W7Q0', 'Acme'), c('2027-01-06', 100, 'OTHER', 'Other'),
+    ];
+    const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
+    const r = analyze(rows, '2027-01-06', both).report;
+    expect(r.monthlyCents).toBe(2000);
+    expect(r.active[0]).toMatchObject({ lastDate: '2027-01-05', billedCents: 2000 });
+  });
 });

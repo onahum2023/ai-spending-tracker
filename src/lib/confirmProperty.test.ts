@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { dayOf } from './dates';
 import { analyze, RENEWAL_AMOUNT_TOLERANCE } from './insights';
-import type { Override } from './overrides';
+import { streamKey, type Override } from './overrides';
 import type { LedgerRow } from './types';
 
 /*
@@ -13,6 +14,9 @@ import type { LedgerRow } from './types';
  *   - latest amount and date: the confirmed one's latest charge is not older, and its amount is within the renewal tolerance of the
  *     amount automatic detection had (a renewal at a real price change or discount is accepted; a stray charge a fraction of the
  *     amount does not take its place).
+ *   - a genuine return is not lost to a stray: when automatic detection has a stopped pattern of the same charge type, billing day
+ *     and amount, the return ends up in a confirmed pattern. (This covers stopped schedules that come back, which the checks above,
+ *     about active ones, do not.)
  * A charge a few days from a schedule's billing day, at a plausible amount, in the month after it, cannot be told from a discounted
  * renewal; if it is really another schedule's charge, Confirm will show the lower amount. That is the one case this does not rule out.
  * It is built to bite:
@@ -31,6 +35,8 @@ function rng(seed: number) {
 const pad = (n: number) => String(n).padStart(2, '0');
 const date = (m: number, d: number) => `${2026 + Math.floor(m / 12)}-${pad((m % 12) + 1)}-${pad(d)}`;
 const NAMES = ['ACME* PLAN', 'ACME* RENEWAL', 'ACME* SERVICE'];
+/** The genuine returns and renewals after a gap, which the generator knows are real (a stray is never one). */
+const RETURNS = new WeakSet<LedgerRow>();
 
 function ledger(seed: number): LedgerRow[] {
   const r = rng(seed);
@@ -52,9 +58,14 @@ function ledger(seed: number): LedgerRow[] {
     }
     if (r() < 0.3) {
       const back = start + length + 2 + Math.floor(r() * 5);
-      // comes back, sometimes without the reference it used to carry
-      const backRef = ref && ref !== 'CHANGING' && r() < 0.6 ? ` ${ref}` : '';
-      rows.push({ provider: 'Acme', merchant: `${nameA}${backRef}`, date: date(back, day), amountCents: amount });
+      // comes back with the reference it had, without one, or under a NEW one (a subscription renewing with a new code)
+      const pick = r();
+      const backRef = ref && ref !== 'CHANGING' && pick < 0.4 ? ` ${ref}` : pick < 0.7 ? ` N${k}W7Q${Math.floor(r() * 9)}` : '';
+      const comeBack: LedgerRow = { provider: 'Acme', merchant: `${nameA}${backRef}`, date: date(back, day), amountCents: amount };
+      RETURNS.add(comeBack);
+      rows.push(comeBack);
+      // a stray with no reference in the same month, a couple of days before the real return
+      if (r() < 0.5) rows.push({ provider: 'Acme', merchant: nameA, date: date(back, Math.max(1, day - 2)), amountCents: 300 });
       if (r() < 0.5) rows.push({ provider: 'Acme', merchant: `${nameA}${backRef}`, date: date(back + 1, day), amountCents: r() < 0.5 ? amount : amount + 1000 }); // and renews
     }
     // small stray charges close to the billing day, even before the real renewal in the same month (they can crowd it)
@@ -103,6 +114,23 @@ describe('confirming never splits, drops or swaps a schedule that is already cou
         if (Math.abs(after.amountCents - before.amountCents) > RENEWAL_AMOUNT_TOLERANCE * Math.max(after.amountCents, before.amountCents)) {
           failures.push(`seed ${seed}: the latest amount ${after.amountCents} is not a plausible renewal of ${before.amountCents}`);
         }
+      }
+      // A genuine return is not lost to a stray: when automatic detection has a stopped pattern of the same charge type, billing day
+      // and amount, and the type is confirmed, the return ends up in some confirmed pattern (stopped schedules that come back, which
+      // the checks above, about active ones, do not cover).
+      const chosenTypes = new Set(chosen.map((m) => streamKey('Acme', m)));
+      const placed = new Set(confirmedAnalysis.patterns.flatMap((q) => q.charges));
+      for (const ret of rows.filter((x) => RETURNS.has(x) && chosenTypes.has(streamKey('Acme', x.merchant)))) {
+        const stopped = automatic.patterns.find(
+          (q) =>
+            q.provider === 'Acme' &&
+            !q.active &&
+            q.lastDate < ret.date &&
+            Math.abs(dayOf(ret.date) - q.typicalDay) <= 2 &&
+            q.charges.some((x) => streamKey('Acme', x.merchant) === streamKey('Acme', ret.merchant)) &&
+            q.charges[q.charges.length - 1].amountCents === ret.amountCents,
+        );
+        if (stopped && !placed.has(ret)) failures.push(`seed ${seed}: the return ${ret.date} ${ret.amountCents} was left out although its stopped schedule exists`);
       }
     }
     expect(failures).toEqual([]);
