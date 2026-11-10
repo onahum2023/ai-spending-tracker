@@ -345,4 +345,36 @@ describe('confirming never disagrees with what automatic detection already count
     const same = analyze(back([['2026-10-05', 2000]]).filter((r) => r.provider === 'Acme'), '2026-10-06', confirm);
     expect(same.report.active[0].pattern.nextExpected).toBe('2026-11-05');
   });
+
+  it('gives the renewal slot to the charge that fits exactly, not to an early stray one', () => {
+    // 20 on the 5th Jan-Mar, then a 5 on Apr 3, the real 20 on Apr 5 and a 3 on Apr 7: three charges in one month on one descriptor
+    const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN', 'Acme')), c('2026-04-03', 500, 'ACME* PLAN', 'Acme'), c('2026-04-05', 2000, 'ACME* PLAN', 'Acme'), c('2026-04-07', 300, 'ACME* PLAN', 'Acme')];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    expect(analyze(rows, '2026-04-08').report.monthlyCents).toBe(2000); // automatic
+    const r = analyze(rows, '2026-04-08', confirm).report;
+    expect(r.monthlyCents).toBe(2000);
+    expect(r.active[0]).toMatchObject({ lastDate: '2026-04-05', billedCents: 2000 });
+    expect(r.priceChanges).toEqual([]);
+  });
+
+  it('does not count a missing reference as matching a pattern that also has none', () => {
+    // ABC123: 20 on the 5th Jan-Mar. No reference: 50 on the 7th Jan-Jun. Both return without a reference: 20 on Sep 5, 50 on Sep 7.
+    const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN ABC123', 'Acme'));
+    const b = ['2026-01-07', '2026-02-07', '2026-03-07', '2026-04-07', '2026-05-07', '2026-06-07'].map((d) => c(d, 5000, 'ACME* PLAN', 'Acme'));
+    const rows = [...a, ...b, c('2026-09-05', 2000, 'ACME* PLAN', 'Acme'), c('2026-09-07', 5000, 'ACME* PLAN', 'Acme')];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    const r = analyze(rows, '2026-09-08', confirm).report;
+    expect(r.monthlyCents).toBe(7000);
+    expect(r.priceChanges).toEqual([]); // no swapped histories
+    expect(r.active.map((s) => [s.billedCents, s.lastDate]).sort()).toEqual([[2000, '2026-09-05'], [5000, '2026-09-07']]);
+  });
+
+  it('does not revive a pattern that a plan switch already continued, and takes no tiny stray for a renewal', () => {
+    // 70 on the 6th Jan-Mar, then back in May at the same price (a plan switch picks it up), then a 40 on Jun 10 and a 3 on Jun 8
+    const rows = [...['2026-01-06', '2026-02-06', '2026-03-06', '2026-05-06', '2026-06-06'].map((d) => c(d, 7000, 'ACME* RENEWAL', 'Acme')), c('2026-06-08', 300, 'ACME* RENEWAL', 'Acme')];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
+    const r = analyze(rows, '2026-06-09', confirm).report;
+    expect(r.active).toHaveLength(1);
+    expect(r.monthlyCents).toBe(7000); // not 3: the stray is not the renewal
+  });
 });

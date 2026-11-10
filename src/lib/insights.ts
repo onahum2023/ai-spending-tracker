@@ -164,48 +164,57 @@ function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>): (r: LedgerR
     : (r) => r.provider === p.provider && streamKey(r.provider, r.merchant) === streamKey(p.provider, p.merchant);
 }
 
-/** The pattern a leftover charge of a confirmed charge type most plausibly continues: see `placeConfirmed`. */
-function homePattern<T extends LedgerRow>(patterns: RecurringPattern<T>[], c: T): RecurringPattern<T> | undefined {
+/**
+ * How different the amount of a renewal of a pattern that is still on schedule may be: 60% of the larger of the two. A real price
+ * change (20 to 30) or a discount passes; a stray charge a fraction of the amount does not take the renewal's place.
+ */
+export const RENEWAL_AMOUNT_TOLERANCE = 0.6;
+
+/** Can this leftover charge continue this pattern? See `placeConfirmed`. `replaced` holds the patterns a plan switch already continued. */
+function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replaced: Set<RecurringPattern<T>>): boolean {
+  if (p.standalone || replaced.has(p) || p.provider !== c.provider || p.lastDate >= c.date) return false;
+  if (!daysClose(dayOf(c.date), p.typicalDay)) return false;
+  if (p.active) {
+    // A pattern that is still on schedule is only continued by its next monthly renewal (the charge after a revival is exactly
+    // that), at a plausible amount; a charge in the same month near its day is noise or another schedule.
+    if (monthDiff(monthOf(p.lastDate), monthOf(c.date)) !== 1) return false;
+    const last = p.charges[p.charges.length - 1].amountCents;
+    if (Math.abs(c.amountCents - last) > RENEWAL_AMOUNT_TOLERANCE * Math.max(c.amountCents, last)) return false;
+  }
+  // A pattern that has stopped can be revived, at any price.
+  // It has to share the charge type: two subscriptions that bill a few days apart under different descriptions are not each
+  // other's continuation.
   const type = streamKey(c.provider, c.merchant);
+  return p.charges.some((x) => streamKey(x.provider, x.merchant) === type);
+}
+
+/**
+ * How well a leftover charge fits a pattern it can continue; lower is better, compared in order:
+ * 0/1  a reference it carries that the pattern has never shown (a charge WITHOUT a reference says nothing about which
+ *      subscription it is, so it never counts for or against a pattern),
+ * the distance between billing days, the distance between amounts, then the earlier charge, then the pattern that ended latest.
+ */
+function fit<T extends LedgerRow>(p: RecurringPattern<T>, c: T): [number, number, number, string, string] {
   const reference = referenceKey(c.merchant);
-  return patterns
-    .filter(
-      (p) =>
-        !p.standalone &&
-        // A pattern that has stopped can be revived. One that is still on schedule is only continued by its next monthly renewal
-        // (the charge after a revival is exactly that); a charge in the same month, near its day, is noise or another schedule,
-        // and adopting it would replace the pattern's latest charge.
-        (!p.active || monthDiff(monthOf(p.lastDate), monthOf(c.date)) === 1) &&
-        p.provider === c.provider &&
-        p.lastDate < c.date &&
-        daysClose(dayOf(c.date), p.typicalDay) &&
-        // It has to share the charge type: two subscriptions that bill a few days apart under different descriptions are not
-        // each other's continuation.
-        p.charges.some((x) => streamKey(x.provider, x.merchant) === type),
-    )
-    .sort((a, b) => {
-      // The same reference first, then the closest billing day (two schedules a couple of days apart must not swap charges),
-      // then the closest amount, then the one that ended latest.
-      const refA = a.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
-      const refB = b.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
-      const dayOfCharge = dayOf(c.date);
-      const gap = (p: RecurringPattern<T>) => (dayOfCharge >= 27 && p.typicalDay >= 27 ? 0 : Math.abs(dayOfCharge - p.typicalDay));
-      const money = (p: RecurringPattern<T>) => Math.abs(c.amountCents - p.charges[p.charges.length - 1].amountCents);
-      return (
-        refB - refA ||
-        gap(a) - gap(b) ||
-        money(a) - money(b) ||
-        (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0)
-      );
-    })[0];
+  const strangeReference = hasReference(c.merchant) && !p.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
+  const day = dayOf(c.date);
+  const dayGap = day >= 27 && p.typicalDay >= 27 ? 0 : Math.abs(day - p.typicalDay);
+  const moneyGap = Math.abs(c.amountCents - p.charges[p.charges.length - 1].amountCents);
+  return [strangeReference, dayGap, moneyGap, c.date, p.lastDate];
+}
+
+function betterFit(a: [number, number, number, string, string], b: [number, number, number, string, string]): boolean {
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return (a[i] as number) < (b[i] as number);
+  // The earlier charge first, then the pattern that ended latest (the live one, not the one that was already continued).
+  return a[3] !== b[3] ? a[3] < b[3] : a[4] > b[4];
 }
 
 /**
  * What to do with the charges of charge types you confirmed as monthly that detection could not place in a pattern.
  * Detection itself ran on everything that could be a monthly subscription (confirmed or not, together), so confirming never
  * cuts a chain in two and never disagrees with what the app already counted. For the leftovers:
- *   - one that keeps the billing day of a pattern that has the same charge type, and comes after it, continues that pattern:
- *     a STOPPED one is revived (a subscription that came back after a long gap), an active one only by its next monthly renewal, so it is added to it (the same reference first, then the latest);
+ *   - they are matched to patterns they can continue (`canContinue`) by best fit, best pair first, not in date order: an early
+ *     stray charge must not take the slot of the renewal that fits exactly (`fit`). A matched charge is added to its pattern;
  *   - the rest of a charge type that no active pattern covers are one subscription counted from its latest charge (irregular
  *     days or amounts), as a stand-in that takes no part in plan-switch matching;
  *   - the rest of a charge type that an active pattern does cover are left out: they are noise within a subscription.
@@ -218,22 +227,27 @@ function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], co
     byType.set(k, [...(byType.get(k) ?? []), c]);
   }
   for (const typeCharges of byType.values()) {
-    const leftover = typeCharges
-      .filter((c) => c.amountCents > 0 && !explained.has(c))
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-    const unplaced: T[] = [];
-    for (const c of leftover) {
-      const home = homePattern(patterns, c);
-      const grown = home ? forcedPattern([...home.charges, c], 'monthly', latestDate) : null;
-      if (home && grown) {
-        // Grow it in place: plan-switch links (`replaces`) point at these very objects.
-        const { forced: _f, cadence: _c, ...fields } = grown;
-        Object.assign(home, fields);
-      } else {
-        unplaced.push(c);
+    let leftover = typeCharges.filter((c) => c.amountCents > 0 && !explained.has(c));
+    for (;;) {
+      const replaced = new Set(patterns.flatMap((p) => (p.replaces ? [p.replaces] : [])));
+      let best: { p: RecurringPattern<T>; c: T; score: [number, number, number, string, string] } | null = null;
+      for (const c of leftover) {
+        for (const p of patterns) {
+          if (!canContinue(p, c, replaced)) continue;
+          const score = fit(p, c);
+          if (!best || betterFit(score, best.score)) best = { p, c, score };
+        }
       }
+      if (!best) break;
+      const grown = forcedPattern([...best.p.charges, best.c], 'monthly', latestDate);
+      if (!grown) break;
+      // Grow it in place: plan-switch links (`replaces`) point at these very objects.
+      const { forced: _f, cadence: _c, ...fields } = grown;
+      Object.assign(best.p, fields);
+      const placed = best.c;
+      leftover = leftover.filter((c) => c !== placed);
     }
-    if (unplaced.length === 0) continue;
+    if (leftover.length === 0) continue;
     const covered = patterns.some((p) => p.active && p.charges.some((c) => typeCharges.includes(c)));
     if (covered) continue;
     const one = forcedPattern(typeCharges, 'monthly', latestDate);
