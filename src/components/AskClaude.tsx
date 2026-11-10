@@ -4,8 +4,8 @@ import { formatEUR } from '../lib/money';
 import { SERVICE_TYPE_LABELS } from '../lib/extract/types';
 import type { Classified } from '../lib/extract/classify';
 import { payloadFor, type Verdict } from '../lib/extract/review';
+import { forgetApiKey, KEY_STORE } from '../lib/localPrefs';
 
-const KEY_STORE = 'ai-spending-tracker.anthropic-key';
 
 function readKey(): string {
   try {
@@ -34,7 +34,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
   const saveKey = (key: string, keep: boolean) => {
     try {
       if (keep && key) localStorage.setItem(KEY_STORE, key);
-      else localStorage.removeItem(KEY_STORE);
+      else forgetApiKey();
     } catch {
       /* storage blocked: key just isn't remembered */
     }
@@ -121,9 +121,10 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
         <button className="btn btn-sm btn-ghost" onClick={() => setOpen(false)} disabled={!!busy}>Close</button>
       </div>
       <p className="small secondary">
-        Only these lines leave your browser, sent directly to Anthropic's API with your key: date, amount, merchant name,
-        your bank's short name, foreign amount, country and why the rules were unsure. No file names, references or
-        addresses. Claude's answers appear on each line; you can still change them. Usually costs a few cents.
+        Only these lines leave your browser, sent directly to Anthropic's API with your key: date, amount, the line's description
+        exactly as your bank wrote it (it can include a city or a payment reference), your bank's short name, foreign amount,
+        country and why the rules were unsure. No file names or other columns. Check the preview first and leave out any line
+        you would rather not send. Claude's answers appear on each line; you can still change them. Usually costs a few cents.
       </p>
       <div className="row wrap" style={{ gap: 8 }}>
         <input
@@ -137,7 +138,15 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           onChange={(e) => setApiKey(e.target.value)}
         />
         <label className="row small secondary" style={{ gap: 6 }}>
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => {
+              setRemember(e.target.checked);
+              // Unticking forgets a stored key straight away, not at the next request.
+              if (!e.target.checked) forgetApiKey();
+            }}
+          />
           Remember on this device
         </label>
         <button className="btn btn-sm btn-ghost" onClick={() => (preview ? setPreview(null) : showPreview())}>

@@ -1,9 +1,10 @@
 import { dataSpan, type MonthlyStackRow } from './analytics';
-import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category } from './categories';
+import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category, type ProviderCategory } from './categories';
 import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
 import { STALE_AFTER_DAYS } from './forecast';
 import { formatEUR, medianCents } from './money';
 import {
+  chargeOverrideMap,
   importedKind,
   overrideMap,
   overrideOf,
@@ -11,10 +12,11 @@ import {
   streamKey,
   type Cadence,
   type ChargeKind,
+  type ChargeOverride,
   type Override,
   type TypeInfo,
 } from './overrides';
-import { detectRecurring, GRACE_DAYS, type RecurringPattern } from './recurring';
+import { detectProvisional, detectRecurring, GRACE_DAYS, type RecurringPattern } from './recurring';
 import type { LedgerRow } from './types';
 
 /*
@@ -187,8 +189,8 @@ function planSwitches<T extends LedgerRow>(
   const monthly = patterns.filter((p) => p.cadence !== 'yearly');
   const out: { change: PriceChange | null; from: RecurringPattern<T>; to: RecurringPattern<T> }[] = [];
   for (const to of monthly) {
-    let from: RecurringPattern<T> | null = null;
-    for (const cand of monthly) {
+    let from: RecurringPattern<T> | null = to.replaces ?? null;
+    for (const cand of from ? [] : monthly) {
       if (cand === to || cand.provider !== to.provider) continue;
       if (cand.lastDate >= to.firstDate) continue;
       const gap = monthDiff(monthOf(cand.lastDate), monthOf(to.firstDate));
@@ -261,15 +263,24 @@ function forcedPattern<T extends LedgerRow>(charges: T[], cadence: Cadence, late
 
 /**
  * Runs pattern detection once and derives everything the Subscriptions view needs.
- * `overrides` are the user's corrections: a stream set to usage or one-time / other is left
+ * `overrides` are the user's corrections (`chargeOverrides` the same for single charges, and they win): a stream set to usage or one-time / other is left
  * out of detection, and a stream set to monthly or yearly becomes a subscription whether
  * or not detection agrees.
  */
-export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides: Override[] = []): Analysis<T> {
+export function analyze<T extends LedgerRow & { id?: number }>(
+  rows: T[],
+  today: string,
+  overrides: Override[] = [],
+  chargeOverrides: ChargeOverride[] = [],
+  providerCategories: ProviderCategory[] = [],
+): Analysis<T> {
   const span = dataSpan(rows);
   const latestDate = span?.lastDate ?? today;
   const asOf = latestDate > today ? latestDate : today;
   const ov = overrideMap(overrides);
+  const cov = chargeOverrideMap(chargeOverrides);
+  // A correction on the charge itself beats the one on its stream.
+  const kindFor = (r: T) => (r.id !== undefined ? cov.get(r.id) : undefined) ?? overrideOf(ov, r);
 
   const forcedStreams = new Map<string, { cadence: Cadence; charges: T[] }>();
   const auto: T[] = [];
@@ -277,19 +288,21 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   for (const r of rows) {
     const key = streamKey(r.provider, r.merchant);
     if (r.amountCents > 0) counts.set(key, (counts.get(key) ?? 0) + 1);
-    const kind = overrideOf(ov, r);
+    const kind = kindFor(r);
     if (!kind) auto.push(r);
     else if (kind === 'monthly' || kind === 'yearly') {
-      const f = forcedStreams.get(key) ?? { cadence: kind === 'yearly' ? ('yearly' as const) : ('monthly' as const), charges: [] };
+      const groupKey = `${key}\u0000${kind}`;
+      const f = forcedStreams.get(groupKey) ?? { cadence: kind === 'yearly' ? ('yearly' as const) : ('monthly' as const), charges: [] };
       f.charges.push(r);
-      forcedStreams.set(key, f);
+      forcedStreams.set(groupKey, f);
     }
   }
   const forced = [...forcedStreams.values()]
     .map((f) => forcedPattern(f.charges, f.cadence, latestDate))
     .filter((p): p is RecurringPattern<T> => p !== null);
+  const detected = span ? detectRecurring(auto, latestDate) : [];
   const patterns = span
-    ? [...detectRecurring(auto, latestDate), ...forced].sort(
+    ? [...detected, ...detectProvisional(auto, detected, latestDate), ...forced].sort(
         (a, b) =>
           Number(b.active) - Number(a.active) ||
           (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0) ||
@@ -301,7 +314,7 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   const inPattern = new Set<T>();
   for (const p of patterns) if (!p.forced) for (const c of p.charges) inPattern.add(c);
   const typeOf = (row: T): TypeInfo => {
-    const o = overrideOf(ov, row);
+    const o = kindFor(row);
     if (o) return overrideToInfo(o);
     if (inPattern.has(row)) return { kind: 'subscription', cadence: 'monthly', source: 'pattern' };
     const imported = importedKind(row.type);
@@ -325,7 +338,11 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   const fixed = new Set<T>();
   for (const r of rows) if (typeOf(r).kind === 'subscription') fixed.add(r);
 
-  const category = (row: T) => {
+  const ownCategory = new Map(providerCategories.map((c) => [c.provider, c.category]));
+  const category = (row: T): Category => {
+    // The user's category for a provider beats the built-in map and the charge's type.
+    const own = ownCategory.get(row.provider);
+    if (own) return own;
     const info = typeOf(row);
     if (info.source === 'you') {
       // The user's word beats the charge's own Type: a stream they call usage is API-style usage.
@@ -346,7 +363,7 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
 
   // ---- active subscriptions
   const active: Subscription<T>[] = patterns
-    .filter((p) => p.active)
+    .filter((p) => p.active && !superseded.has(p))
     .map((p) => {
       const last = lastOf(p.charges);
       const yearly = p.cadence === 'yearly';
@@ -385,6 +402,10 @@ export function analyze<T extends LedgerRow>(rows: T[], today: string, overrides
   // ---- notes on active subscriptions
   for (const s of active) {
     if (s.pattern.forced) s.notes.push(`You marked this as a ${s.cadence} subscription`);
+    if (s.pattern.provisional) {
+      const n = s.pattern.charges.length;
+      s.notes.push(`New price seen ${n === 1 ? 'once' : 'twice'}: counted as the same subscription until three charges confirm it`);
+    }
     const group = overlaps.find((o) => o.category === s.category);
     if (group) {
       const others = group.members.filter((m) => m.provider !== s.provider).map((m) => m.provider);

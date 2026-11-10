@@ -1,6 +1,6 @@
 import { OverridesCard } from '../components/OverridesCard';
 import { TreatAs } from '../components/TreatAs';
-import { Card, Delta, EmptyState, Kpi, ProviderLink } from '../components/ui';
+import { Card, Delta, EmptyState, Kpi, ProviderLink, StreamName } from '../components/ui';
 import { CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort } from '../lib/dates';
 import { STALE_AFTER_DAYS } from '../lib/forecast';
@@ -102,7 +102,7 @@ function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
                 <tr key={s.provider + s.pattern.firstDate}>
                   <td>
                     <ProviderLink provider={s.provider} />
-                    <div className="small muted merchant-line">{s.merchant.trim().replace(/\s{2,}/g, ' · ')}</div>
+                    <StreamName provider={s.provider} merchant={s.merchant} />
                     {s.renewal && (
                       <div className={`small ${s.renewal.overdue ? 'secondary' : 'muted'}`}>
                         {s.renewal.overdue
@@ -113,7 +113,7 @@ function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
                     {s.notes.map((n) => (
                       <div key={n} className="small muted">{n}</div>
                     ))}
-                    <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} /></div>
+                    <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} editLabel /></div>
                   </td>
                   <td className="hide-sm"><CategoryChip category={s.category} /></td>
                   <td className="amount">
@@ -160,6 +160,7 @@ function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcoming: Upco
               </span>
               <span>
                 <ProviderLink provider={u.provider} />
+                <StreamName provider={u.provider} merchant={u.merchant} labelOnly />
                 {u.cadence === 'yearly' && (
                   <div className="small muted">
                     {u.overdue ? 'Yearly renewal, not seen yet' : u.estimated ? 'Yearly renewal, date estimated' : 'Yearly renewal'}
@@ -260,8 +261,9 @@ function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
                   <tr key={s.provider + s.pattern.firstDate}>
                     <td>
                       <ProviderLink provider={s.provider} />
+                      <StreamName provider={s.provider} merchant={s.merchant} labelOnly />
                       {s.cadence === 'yearly' && <div className="small muted">Yearly subscription, no renewal seen</div>}
-                      <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} /></div>
+                      <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} editLabel /></div>
                     </td>
                     <td className="num nowrap">
                       {formatEUR(s.lastCents)}

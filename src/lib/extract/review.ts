@@ -15,7 +15,10 @@ export interface Verdict {
   reason: string;
 }
 
-/** Exactly what leaves the browser for one line: no file names, references, addresses or free-text details. */
+/**
+ * Exactly what leaves the browser for one line. `merchant` is the line's description as the bank wrote it, so it can
+ * carry whatever the bank put there (a city, a payment reference). No file names and no other columns or free-text details.
+ */
 export function payloadFor(c: Classified, id: string) {
   return {
     id,

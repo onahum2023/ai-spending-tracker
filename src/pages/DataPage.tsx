@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
 import { Card, ConfirmDialog } from '../components/ui';
@@ -6,6 +7,7 @@ import { exportCsv } from '../lib/download';
 import { StatementImport } from '../components/StatementImport';
 import { dateLabel } from '../lib/dates';
 import { clearAll } from '../lib/db';
+import { clearLocalPrefs } from '../lib/localPrefs';
 import { formatEUR, sumCents } from '../lib/money';
 import { useLedger } from '../store';
 
@@ -19,6 +21,7 @@ export function DataPage() {
     setBusy(true);
     try {
       await clearAll();
+      clearLocalPrefs(); // a remembered API key and the demo flag
       await reload();
       window.location.hash = '#/';
     } finally {
@@ -80,7 +83,7 @@ export function DataPage() {
           </div>
           <p className="small muted" style={{ marginTop: 10 }}>
             Exports use the import format (Merchant, Provider, Amount, Date, plus Type and Tag when used), so an export can be re-imported
-            or loaded on another device. Budgets are not part of the export.
+            or loaded on another device. The file holds transactions only: budgets, corrections, labels, categories, tag rules and the import history are not in it.
           </p>
         </Card>
       </div>
@@ -135,6 +138,8 @@ export function DataPage() {
         </Card>
       </div>
 
+      <AboutCard />
+
       {confirming && (
         <ConfirmDialog
           title="Delete all local data?"
@@ -146,7 +151,7 @@ export function DataPage() {
         >
           <p>
             This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}), their tags, your budgets,
-            your corrections and the import history from this browser. It can't be undone.
+            your corrections, labels, categories and tag rules, a remembered Anthropic API key, and the import history from this browser. It can't be undone.
           </p>
           <button className="btn btn-sm" onClick={() => exportCsv(transactions)}>
             Export a backup first

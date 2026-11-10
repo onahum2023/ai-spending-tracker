@@ -2,6 +2,7 @@
   "name": "ai-spending-tracker",
   "private": true,
   "version": "1.0.0",
+  "author": "NuCielo ICT B.V.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "demo:data": "node scripts/generate-demo-data.ts"
+    "demo:data": "node scripts/generate-demo-data.ts",
+    "licenses": "node scripts/licenses.ts",
+    "licenses:check": "node scripts/licenses.ts --check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.3.0",

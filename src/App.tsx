@@ -14,6 +14,8 @@ import { Subscriptions } from './pages/Subscriptions';
 import { Providers } from './pages/Providers';
 import { Transactions } from './pages/Transactions';
 import { Trends } from './pages/Trends';
+import { PRIVACY_PATH, PRIVACY_SENTENCE } from './content/privacy';
+import { COPYRIGHT } from './content/site';
 import { href, useRoute } from './router';
 import { LedgerProvider, useLedger } from './store';
 
@@ -133,6 +135,11 @@ function Shell() {
           {showPeriod && <PeriodPicker />}
         </div>
         {page}
+        <footer className="app-foot">
+          <a href={PRIVACY_PATH}>Privacy</a>
+          <a href={href(['data'])}>About</a>
+          <span className="app-foot-owner">{COPYRIGHT}</span>
+        </footer>
       </main>
     </div>
   );
@@ -170,8 +177,8 @@ function Welcome() {
           <h1>AI Spending Tracker</h1>
         </div>
         <p className="secondary">
-          See what you spend on AI tools and services, which providers it goes to, and how it changes month to month.
-          Everything runs in your browser: your data is never uploaded.
+          See what you spend on AI tools and services, which providers it goes to, and how it changes month to month.{' '}
+          {PRIVACY_SENTENCE} <a href={PRIVACY_PATH} style={{ textDecoration: 'underline' }}>Privacy statement</a>
         </p>
         <div className="welcome-demo">
           <div>

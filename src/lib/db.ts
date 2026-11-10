@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { ParsedRow } from './csv';
+import { applyTagRules, type TagRule } from './tags';
 import { planImport } from './dedupe';
 import type { ImportRecord, Transaction } from './types';
 
@@ -45,6 +46,8 @@ export interface CommitResult {
   importRecord: ImportRecord;
   added: number;
   skippedDuplicates: number;
+  /** Added charges that got their tag from a tag rule. */
+  taggedByRule: number;
 }
 
 /**
@@ -57,6 +60,7 @@ export async function commitImport(
   rows: ParsedRow[],
   rowsInFile: number,
   invalid: number,
+  tagRules: TagRule[] = [],
 ): Promise<CommitResult> {
   const d = await db();
   const tx = d.transaction(['transactions', 'imports'], 'readwrite');
@@ -73,7 +77,9 @@ export async function commitImport(
     invalid,
   };
   const importId = await tx.objectStore('imports').add(record as ImportRecord);
-  for (const r of plan.toAdd) {
+  // A tag in the file wins; charges that arrive without one get their provider's rule.
+  const { rows: toAdd, tagged } = applyTagRules(plan.toAdd, tagRules);
+  for (const r of toAdd) {
     await txStore.add({
       merchant: r.merchant,
       provider: r.provider,
@@ -90,6 +96,7 @@ export async function commitImport(
     importRecord: { ...record, id: importId },
     added: plan.toAdd.length,
     skippedDuplicates: plan.duplicates.length,
+    taggedByRule: tagged,
   };
 }
 
@@ -115,7 +122,7 @@ export async function saveSetting(key: string, value: unknown): Promise<void> {
   await (await db()).put('settings', value, key);
 }
 
-/** Removes everything: transactions, import history, tags and budgets. */
+/** Removes everything: transactions, import history, tags, budgets, corrections, labels, categories and tag rules. */
 export async function clearAll(): Promise<void> {
   const d = await db();
   const tx = d.transaction(['transactions', 'imports', 'settings'], 'readwrite');
