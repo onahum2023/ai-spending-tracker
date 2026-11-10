@@ -59,7 +59,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_COMMIT__: JSON.stringify(buildCommit()),
     __APP_BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
-    // Empty until a license has been chosen and added to package.json.
+    // From package.json (Apache-2.0).
     __APP_LICENSE__: JSON.stringify((pkg as { license?: string }).license ?? ''),
   },
   server: { port: 5173 },

@@ -3,8 +3,8 @@ export const PRODUCTION_URL = 'https://ai-spend-tracker.neotixhq.com';
 
 /*
  * Who owns this app. One source for the landing footer, the privacy page, the About card, the app footer and the README.
- * The brand is NeotixHQ; it is legally owned by NuCielo ICT B.V. This is ownership, not a licence: which licence the code is
- * released under is a separate decision (see issue #17).
+ * The brand is NeotixHQ; it is legally owned by NuCielo ICT B.V. The code is released under the Apache License 2.0 (LICENSE, NOTICE, "license" in
+ * package.json): ownership stays with the company, and the licence does not cover the NeotixHQ name or logo.
  * NuCielo ICT B.V. is the only legal entity. NeotixHQ is a brand of it, not a separate legal entity, so the company is the
  * party that is responsible (the data controller named on the privacy page), trading as NeotixHQ.
  */

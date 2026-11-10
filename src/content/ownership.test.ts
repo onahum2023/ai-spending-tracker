@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderLandingBody } from './landing';
 import { renderPrivacyBody } from './privacy';
-import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site';
+import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, COPYRIGHT_YEAR, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site';
 
 const root = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -58,7 +58,13 @@ describe('ownership', () => {
     expect(read('README.md')).toContain('(https://nucielo.io/)');
   });
 
-  it('does not choose a licence', () => {
-    expect(read('package.json')).not.toMatch(/"license"/);
+  it('is released under Apache-2.0, with the copyright holder in NOTICE and the brand kept out of the licence', () => {
+    expect(JSON.parse(read('package.json')).license).toBe('Apache-2.0');
+    expect(read('LICENSE')).toMatch(/^\s*Apache License\s+Version 2\.0, January 2004/);
+    expect(read('LICENSE')).toContain('END OF TERMS AND CONDITIONS');
+    expect(read('NOTICE')).toContain(`Copyright ${COPYRIGHT_YEAR} ${OWNER}`);
+    expect(read('NOTICE')).toMatch(/not licensed for use\s+as trademarks/);
+    // the version info in the app and on the landing page picks it up from package.json
+    expect(read('vite.config.ts')).toContain('(pkg as { license?: string }).license');
   });
 });
