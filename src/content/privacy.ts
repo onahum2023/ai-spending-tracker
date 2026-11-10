@@ -13,7 +13,7 @@
  * search engines not to index it. Set it to false only after review (see issue #19).
  */
 
-import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site.ts';
+import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, OWNER, OWNER_URL, TRADING_AS } from './site.ts';
 
 export const PRIVACY_IS_DRAFT = true;
 export const PRIVACY_UPDATED = '2026-11-10';
@@ -21,9 +21,10 @@ export const PRIVACY_UPDATED = '2026-11-10';
 export const PRIVACY_PATH = '/privacy.html';
 
 /**
- * How long Vercel keeps the runtime (request) logs for this site: its default for the Pro plan, which we have not changed
- * (no Observability Plus). Source: Vercel's runtime-logs documentation, retention by plan (Hobby 1 hour, Pro 1 day,
- * Pro with Observability Plus 30 days, Enterprise 3 days), checked 2026-11-10. Update this if the plan or the setting changes.
+ * How long Vercel keeps the RUNTIME LOGS it shows us for this site: its documented period for the Pro plan, which we have not
+ * changed (no Observability Plus). Source: https://vercel.com/docs/logs/runtime, "Limits" (Hobby 1 hour, Pro 1 day, Pro with
+ * Observability Plus 30 days, Enterprise 3 days), checked 2026-11-10. This is not a promise about everything Vercel keeps:
+ * Vercel's privacy notice gives no period for its other technical data, so the text says so. Update this if the plan changes.
  */
 export const LOG_RETENTION = 'one day';
 
@@ -36,10 +37,10 @@ export const PRIVACY_SENTENCE =
   'Everything runs in your browser and your data is never uploaded, unless you choose to ask Claude about statement lines with your own Anthropic API key.';
 
 export const SUMMARY: string[] = [
-  'Your spending data stays in this browser. It is not uploaded to us or to anyone else.',
-  'There is no account and no backend. The site sets no cookies and has no analytics, ads or trackers.',
-  'One optional feature, Ask Claude, sends the statement lines you choose to Anthropic. It only happens when you press the button, and only with your own Anthropic API key.',
-  'You can export or delete everything at any time.',
+  'Your spending data stays in this browser. The app has no backend and does not upload it to us.',
+  'There is no account. The app sets no cookies and contains no analytics, ads or trackers. Our web host, Vercel, keeps ordinary technical server logs (see Hosting).',
+  'One optional feature, Ask Claude, sends the statement lines you choose to Anthropic. It only happens when you press the button, and only with your own Anthropic API key. Anthropic’s own terms apply to that data, not this statement.',
+  'You can export your transactions or delete everything stored in this browser at any time. Deleting here does not delete anything Anthropic has already received.',
 ];
 
 /** Third-party documents this statement points to. */
@@ -76,67 +77,80 @@ export const SECTIONS: Section[] = [
   {
     id: 'where-data-lives',
     title: 'Where your data lives',
-    paragraphs: ['The app has no backend and no account. Everything you import or set stays on your device, in your browser:'],
+    paragraphs: ['The app has no backend and no account. What you import or set is stored in your browser, on your device, in IndexedDB (a database built into the browser):'],
     items: [
-      'Imported transactions, import history, tags, budgets, charge types you corrected, labels, categories and tag rules are stored in this browser’s IndexedDB.',
+      'Imported transactions (date, amount, the description from your statement, provider, type and tag), the import history (including the names of the files you imported), budgets, charge types you corrected, labels, categories and tag rules.',
       'Demo data is made up on the fly, in memory, and never stored. The browser keeps a small flag in localStorage that says you are exploring the demo, so a reload keeps you there.',
+      'Statements you drop into the app (Excel, CSV or PDF) are read in your browser. They are not uploaded, and the files themselves are not stored, only the lines you choose to import.',
       'Exports (CSV) are created in your browser and saved by it. They are not sent anywhere.',
-      'Statements you drop into the app (Excel, CSV or PDF) are read in your browser. They are not uploaded.',
+    ],
+    after: [
+      'The app does not encrypt this data. Anyone who can use this browser profile on this device, and browser extensions or other software that are allowed to read this site’s data, can read it.',
+      'The address in your browser can show your current view after the “#” (for example a provider, tag, search text or dates). Browsers do not send that part of an address to the web server, but it is kept in your browser history and is included if you copy the link.',
     ],
   },
   {
     id: 'not-collected',
-    title: 'What is not collected',
+    title: 'What the app does not do',
     paragraphs: [
-      'The site does not set cookies. It has no analytics, advertising or tracking scripts, no fingerprinting, and it loads no fonts, scripts or images from other sites. A content security policy enforces this: the page can only talk to its own address, and to Anthropic for the optional feature below.',
-      'We receive none of your financial data, so there is nothing to sell or share.',
+      'The app does not set cookies. It contains no analytics, advertising or tracking code, and it loads no fonts, scripts or images from other sites. It has no logging or error-reporting service.',
+      'A content security policy, set by the web server and enforced by your browser, limits the app’s pages to their own address and to Anthropic’s API (api.anthropic.com, used only by the optional feature below). This limits what the app itself can do. It does not control browser extensions you have installed.',
+      'We do not receive your financial data through the app, so there is nothing for us to sell or share.',
     ],
   },
   {
     id: 'ask-claude',
     title: 'The one optional network feature: Ask Claude',
     paragraphs: [
-      'When the app is unsure whether a statement line is AI spending, you can press Ask Claude. This needs your own Anthropic API key. Nothing is sent until you press the button, and a preview (“Show exactly what is sent”) lets you see it first.',
-      'For each line you choose, the app sends this straight from your browser to Anthropic’s API (api.anthropic.com):',
+      'This is the only feature where data leaves your browser. When the app is unsure whether a statement line is AI spending, you can press Ask Claude. It needs your own Anthropic API key. Nothing is sent until you press the button, and “Show exactly what is sent” lets you preview it first.',
+      'For each line you choose, your browser sends this directly to Anthropic’s API (api.anthropic.com). It does not pass through our servers:',
     ],
     items: ASK_CLAUDE_SENT,
     after: [
       `It does not send: ${ASK_CLAUDE_NOT_SENT.join('; ')}.`,
+      'Together with the lines, your browser sends fixed instructions that tell Claude what to do (they contain none of your data), your API key (to authenticate the request, which ties it to your Anthropic account), and what any web request carries: your IP address and standard details such as your browser and the version of Anthropic’s code library the app uses.',
       'Because the description goes exactly as your bank wrote it, check the preview first. If a line’s description contains something you would rather not send, leave that line out.',
-      'We do not see this traffic. Anthropic handles it under its own terms and privacy policy: see Anthropic’s privacy policy and commercial terms (links at the end of this page). You pay Anthropic directly for the use of your key.',
-      'Your API key is kept in memory only, and is gone when you close or reload the tab. If you tick “Remember on this device”, it is stored in this browser’s localStorage instead. Unticking the box removes it immediately, and so does Data → Clear local data. Anyone who can use this browser profile could read a stored key, so do not tick it on a shared computer.',
+      'We do not see this traffic, and what we say in this statement about our own handling does not describe how Anthropic handles it. Anthropic decides how long it keeps the data and what it may be used for, under its own terms. Anthropic’s privacy policy says it does not cover content processed for its business and API customers; that is covered by Anthropic’s customer agreements, usually its commercial terms (links at the end of this page). Read them before you use this feature. You pay Anthropic directly for the use of your key.',
+      'Deleting data in this app does not delete anything that was already sent to Anthropic. For that, contact Anthropic.',
+    ],
+  },
+  {
+    id: 'api-key',
+    title: 'Your Anthropic API key',
+    paragraphs: [
+      'By default your key is kept in memory only. It is gone when you close or reload the tab. This is the safer choice, and we recommend it where practical: paste the key each time you use Ask Claude.',
+      'If you tick “Remember on this device”, the key is saved as plain text in this browser’s localStorage when you press Ask Claude. Anything running on this site’s address can read localStorage, and so can browser extensions and other software that are allowed to read this site’s data, and anyone who can use this browser profile. The content security policy above limits which scripts the app’s pages can run, but it cannot stop a malicious extension. Someone who got hold of a stored key could make requests with it on your Anthropic account, at your cost.',
+      'Do not tick it on a shared computer. If you do tick it, consider creating a separate key for this app, so you can revoke it in the Anthropic Console without affecting anything else.',
+      'Unticking the box removes the stored key immediately. So does Data → Clear local data (available once you have stored transactions), and so does clearing this site’s data in your browser settings.',
     ],
   },
   {
     id: 'hosting',
     title: 'Hosting and third parties',
     paragraphs: [
-      'The site is served by Vercel. Like any web host, Vercel handles ordinary technical data to deliver the site and keep it secure: for example your IP address, browser type and the address you requested. This is Vercel’s processing, under Vercel’s privacy notice (link at the end of this page). None of your ledger data reaches the server, because the app never sends it.',
-      'There are no other third parties. This site does not use analytics. If that ever changes, this statement will say exactly what is collected, and how to opt out, before it is switched on.',
+      'The site is served by Vercel. Like any web host, Vercel processes technical data when your browser asks for a page: for example your IP address, the address you requested, the time and your browser type. This is Vercel’s processing, to deliver the site and keep it secure, under Vercel’s privacy notice (link at the end of this page). None of your ledger data is in it, because the app does not send it to the server.',
+      `Vercel shows us runtime logs of the site for a limited time. On our plan Vercel documents ${LOG_RETENTION} of retention for them, and we have not extended it. This is not a promise about everything Vercel keeps: Vercel may keep other technical data (for example for security, usage or billing) for other periods, and its privacy notice does not state a fixed period.`,
+      'Apart from Vercel, the only third party the app can talk to is Anthropic, and only when you use Ask Claude. The app does not use analytics. If that ever changes, this statement will say exactly what is collected, and how to opt out, before it is switched on.',
     ],
   },
   {
     id: 'your-control',
-    title: 'Your control',
+    title: 'Export, deletion and losing your data',
     items: [
-      'See and export your transactions: Data → Export all as CSV. The file holds every transaction, with its type and tag when used. It does not include budgets, corrections, labels, categories, tag rules or the import history.',
-      'Delete everything: Data → Clear local data. It removes transactions, import history, tags, budgets, corrections, labels, categories, tag rules and a remembered API key from this browser. You can also clear this site’s data in your browser settings.',
-      'Your data is not synced between devices, and it is lost if you clear your browser’s data. Export your transactions now and then as a backup. Your budgets, corrections, labels, categories and tag rules are not in that file and would have to be set again.',
+      'Export: Data → Export all as CSV, or Export a quarter (one quarter, optionally one tag). The file holds your transactions only: merchant, provider, amount and date, plus type and tag when you have used them. It does not include budgets, corrections, labels, categories, tag rules or the import history. There is no full backup or restore: importing the CSV again brings back the transactions only.',
+      'Delete: Data → Clear local data removes transactions, import history, tags, budgets, corrections, labels, categories, tag rules and a remembered API key from this browser. It is available once you have stored transactions. You can also clear this site’s data in your browser settings.',
+      'Deleting here only affects this device. It does not remove anything already sent to Anthropic (see Ask Claude), and it does not change Vercel’s server logs, which expire on Vercel’s schedule.',
+      'Your data is stored per browser and per device. It is not synced, so another browser, profile or device starts empty. It is lost if you clear your browser’s data, and a browser can also remove site data when storage is low or when a private window closes. The app asks your browser to keep the data when you import, but the browser decides.',
     ],
   },
   {
     id: 'controller',
-    title: 'Who is responsible, and your rights',
+    title: 'Who runs this app, and your rights',
     paragraphs: [
-      `Controller: ${CONTROLLER}. Contact: ${CONTACT}.`,
-      'Because the app processes your data on your own device, the operator receives none of it. The only personal data an operator could see is the ordinary web-server data described above, which is processed to deliver the site and keep it secure (legal basis: legitimate interest, Article 6(1)(f) GDPR).',
-      `If you are in the EU or UK you have the right to access, correct and erase your personal data, to restrict or object to its processing, and to data portability. You also have the right to complain to your national data protection authority. For data held only in your browser, you can exercise these rights yourself with the controls above. The web-server logs for this site are kept by Vercel for ${LOG_RETENTION}, which is its standard period for our plan; we have not extended it. Vercel may process other technical data under its own privacy notice.`,
+      `Operator: ${CONTROLLER}. Contact for privacy questions: ${CONTACT}. ${BRAND_NOTE}`,
+      'We cannot see the data stored in your browser. The personal data we can see is limited to the technical data in hosting logs described above, which is processed to deliver the site and keep it secure (legal basis: legitimate interest, Article 6(1)(f) GDPR).',
+      'If data protection law such as the GDPR applies to you, you may have rights to access, correct and erase your personal data, to restrict or object to its processing, to data portability, and to complain to your data protection authority. For data stored only in your browser you can use the controls above yourself. For anything else about this app, contact us at the address above. For data you sent to Anthropic, contact Anthropic.',
     ],
-  },
-  {
-    id: 'ownership',
-    title: 'Who owns this app',
-    paragraphs: [OWNERSHIP_LINE, BRAND_NOTE, `The app, its name, logo and text are the property of ${OWNER}`, COPYRIGHT],
   },
   {
     id: 'other',
@@ -150,8 +164,8 @@ export const SECTIONS: Section[] = [
 
 export const LINK_LIST: { label: string; href: string }[] = [
   { label: 'Vercel privacy notice', href: LINKS.vercel },
-  { label: 'Anthropic privacy policy', href: LINKS.anthropicPrivacy },
-  { label: 'Anthropic commercial terms', href: LINKS.anthropicTerms },
+  { label: 'Anthropic privacy policy (general; excludes API customer content)', href: LINKS.anthropicPrivacy },
+  { label: 'Anthropic commercial terms (API use)', href: LINKS.anthropicTerms },
   { label: `${BRAND} website`, href: BRAND_URL },
   { label: `${OWNER} website`, href: OWNER_URL },
 ];

@@ -117,12 +117,68 @@ describe('privacy statement matches the app', () => {
     expect(read('src/pages/DataPage.tsx')).toMatch(/transactions only/);
   });
 
-  it('states the log retention instead of leaving it open, in step with the README', () => {
+  it('states the runtime-log retention without promising more than Vercel documents, in step with the README', () => {
     const body = renderPrivacyBody();
     expect(LOG_RETENTION).toBe('one day');
-    expect(body).toContain('kept by Vercel for one day');
-    expect(body).not.toMatch(/period to be confirmed/);
+    expect(body).toContain('Vercel documents one day of retention');
+    // it is a period for the runtime logs only: other Vercel data is said to follow other periods
+    expect(body).toMatch(/not a promise about everything Vercel keeps/);
+    expect(body).not.toMatch(/period to be confirmed|kept by Vercel for one day/);
     expect(read('README.md')).toMatch(/for one day on the Pro plan/);
+  });
+
+  it('keeps the API key in memory unless "Remember on this device" is ticked, and never in a URL', () => {
+    const ask = read('src/components/AskClaude.tsx');
+    // not ticked by default: it starts ticked only when a key is already stored
+    expect(ask).toMatch(/const \[remember, setRemember\] = useState\(\(\) => readKey\(\) !== ''\)/);
+    // the key is saved at the moment Ask Claude runs, and only when the box is ticked
+    expect(ask).toMatch(/saveKey\(apiKey\.trim\(\), remember\)/);
+    expect(ask).toMatch(/if \(keep && key\) localStorage\.setItem\(KEY_STORE, key\)/);
+    // unticking forgets it at once
+    expect(ask).toMatch(/if \(!e\.target\.checked\) forgetApiKey\(\)/);
+    // the key only ever goes into the SDK client (a request header), never into a URL, the history or the router
+    expect(app.filter((f) => /apiKey|KEY_STORE/.test(f.text)).map((f) => f.file).sort()).toEqual([
+      'src/components/AskClaude.tsx',
+      'src/lib/extract/claude.ts',
+      'src/lib/localPrefs.ts',
+    ]);
+    expect(read('src/lib/extract/claude.ts')).toMatch(/new Anthropic\(\{ apiKey, dangerouslyAllowBrowser: true/);
+  });
+
+  it('has no logging or error reporting that could carry a key or a statement line', () => {
+    const forbidden = /\bconsole\.|window\.onerror|addEventListener\(\s*['"](?:error|unhandledrejection)|reportError|ErrorBoundary|componentDidCatch/;
+    expect(app.filter((f) => forbidden.test(f.text)).map((f) => f.file)).toEqual([]);
+  });
+
+  it('describes deletion and storage the way the app behaves', () => {
+    const data = read('src/pages/DataPage.tsx');
+    // "Clear local data" is only available once there are stored transactions (the text says so)
+    expect(data).toMatch(/className="btn btn-danger"[\s\S]{0,120}disabled=\{!transactions\.length\}/);
+    // and it wipes the three stores plus the two localStorage keys
+    expect(read('src/lib/db.ts')).toMatch(/\['transactions', 'imports', 'settings'\]/);
+    expect(data).toMatch(/clearLocalPrefs\(\)/);
+    // the app asks the browser to keep the data when something is imported
+    for (const f of ['src/components/StatementImport.tsx', 'src/components/ImportPanel.tsx']) expect(read(f)).toMatch(/navigator\.storage\?\.persist\?\.\(\)/);
+    // both exports are CSV in the ledger format: transactions only
+    expect(read('src/components/QuarterExport.tsx')).toMatch(/exportCsv\(report\.rows/);
+    expect(read('src/lib/csv.ts')).toMatch(/\[\.\.\.REQUIRED_COLUMNS, \.\.\.\(withType \? \[TYPE_COLUMN\] : \[\]\), \.\.\.\(withTag \? \[TAG_COLUMN\] : \[\]\)\]/);
+    const body = renderPrivacyBody();
+    expect(body).toContain('There is no full backup or restore');
+    expect(body).toContain('does not remove anything already sent to Anthropic');
+  });
+
+  it('explains the stored-key risk and the difference from session use', () => {
+    const body = renderPrivacyBody();
+    expect(body).toContain('kept in memory only');
+    expect(body).toContain('saved as plain text in this browser’s localStorage');
+    expect(body).toMatch(/malicious extension/);
+    expect(body).toMatch(/Anthropic’s privacy policy says it does not cover content processed for its business and API customers/);
+  });
+
+  it('keeps ownership and licensing out of the privacy statement', () => {
+    const text = renderPrivacyBody().replace(/<[^>]+>/g, ' ');
+    expect(text).not.toMatch(/property of|©|Who owns|licen[cs]e/i);
+    expect(SECTIONS.map((s) => s.id)).not.toContain('ownership');
   });
 
   it('says the same sentence everywhere it is repeated', () => {
