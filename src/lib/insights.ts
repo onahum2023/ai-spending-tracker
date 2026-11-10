@@ -172,9 +172,10 @@ function homePattern<T extends LedgerRow>(patterns: RecurringPattern<T>[], c: T)
     .filter(
       (p) =>
         !p.standalone &&
-        // Only a pattern that has stopped can be revived. One that is still on schedule is not continued by a charge near its
-        // day: that charge is noise, or another schedule, and adopting it would replace the pattern's latest charge.
-        !p.active &&
+        // A pattern that has stopped can be revived. One that is still on schedule is only continued by its next monthly renewal
+        // (the charge after a revival is exactly that); a charge in the same month, near its day, is noise or another schedule,
+        // and adopting it would replace the pattern's latest charge.
+        (!p.active || monthDiff(monthOf(p.lastDate), monthOf(c.date)) === 1) &&
         p.provider === c.provider &&
         p.lastDate < c.date &&
         daysClose(dayOf(c.date), p.typicalDay) &&
@@ -183,9 +184,19 @@ function homePattern<T extends LedgerRow>(patterns: RecurringPattern<T>[], c: T)
         p.charges.some((x) => streamKey(x.provider, x.merchant) === type),
     )
     .sort((a, b) => {
+      // The same reference first, then the closest billing day (two schedules a couple of days apart must not swap charges),
+      // then the closest amount, then the one that ended latest.
       const refA = a.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
       const refB = b.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
-      return refB - refA || (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0);
+      const dayOfCharge = dayOf(c.date);
+      const gap = (p: RecurringPattern<T>) => (dayOfCharge >= 27 && p.typicalDay >= 27 ? 0 : Math.abs(dayOfCharge - p.typicalDay));
+      const money = (p: RecurringPattern<T>) => Math.abs(c.amountCents - p.charges[p.charges.length - 1].amountCents);
+      return (
+        refB - refA ||
+        gap(a) - gap(b) ||
+        money(a) - money(b) ||
+        (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0)
+      );
     })[0];
 }
 
@@ -193,8 +204,8 @@ function homePattern<T extends LedgerRow>(patterns: RecurringPattern<T>[], c: T)
  * What to do with the charges of charge types you confirmed as monthly that detection could not place in a pattern.
  * Detection itself ran on everything that could be a monthly subscription (confirmed or not, together), so confirming never
  * cuts a chain in two and never disagrees with what the app already counted. For the leftovers:
- *   - one that keeps the billing day of a STOPPED pattern that has the same charge type, and comes after it, continues that
- *     pattern (a subscription that came back after a long gap), so it is added to it (the same reference first, then the latest);
+ *   - one that keeps the billing day of a pattern that has the same charge type, and comes after it, continues that pattern:
+ *     a STOPPED one is revived (a subscription that came back after a long gap), an active one only by its next monthly renewal, so it is added to it (the same reference first, then the latest);
  *   - the rest of a charge type that no active pattern covers are one subscription counted from its latest charge (irregular
  *     days or amounts), as a stand-in that takes no part in plan-switch matching;
  *   - the rest of a charge type that an active pattern does cover are left out: they are noise within a subscription.

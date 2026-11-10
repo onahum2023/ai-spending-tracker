@@ -322,4 +322,27 @@ describe('confirming never disagrees with what automatic detection already count
     const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
     expect(analyze(rows, '2026-04-07', confirm).report.monthlyCents).toBe(analyze(rows, '2026-04-07').report.monthlyCents);
   });
+
+  it('follows a revived subscription through its next renewals, with the latest amount and dates', () => {
+    const back = (extra: [string, number][]) => [
+      ...['2026-01-05', '2026-02-05', '2026-03-05', '2026-09-05'].map((d) => c(d, 2000, 'ACME* PLAN ABC123', 'Acme')),
+      ...extra.map(([d, cents]) => c(d, cents, 'ACME* PLAN ABC123', 'Acme')),
+      c('2026-12-20', 100, 'OTHER', 'Other'),
+    ];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    // one renewal after the revival: 30 on Oct 5, judged on Oct 6
+    const one = analyze(back([['2026-10-05', 3000]]).filter((r) => r.provider === 'Acme'), '2026-10-06', confirm);
+    expect(one.report.monthlyCents).toBe(3000);
+    expect(one.report.active[0]).toMatchObject({ lastDate: '2026-10-05', billedCents: 3000 });
+    expect(one.report.active[0].pattern.nextExpected).toBe('2026-11-05');
+    expect(one.report.priceChanges[0]).toMatchObject({ kind: 'step', fromCents: 2000, toCents: 3000 }); // 20 -> 30 is a real price change
+    // two and three renewals after it
+    const three = analyze(back([['2026-10-05', 3000], ['2026-11-05', 3000], ['2026-12-05', 3000]]).filter((r) => r.provider === 'Acme'), '2026-12-06', confirm);
+    expect(three.report.monthlyCents).toBe(3000);
+    expect(three.report.active[0]).toMatchObject({ lastDate: '2026-12-05', billedCents: 3000 });
+    expect(three.report.active[0].pattern.nextExpected).toBe('2027-01-05');
+    // unchanged amount: the dates must still move on
+    const same = analyze(back([['2026-10-05', 2000]]).filter((r) => r.provider === 'Acme'), '2026-10-06', confirm);
+    expect(same.report.active[0].pattern.nextExpected).toBe('2026-11-05');
+  });
 });
