@@ -292,4 +292,34 @@ describe('confirming never disagrees with what automatic detection already count
     expect(a.report.monthlyCents).toBe(2000);
     expect(a.report.active).toHaveLength(1);
   });
+
+  it('does not cut a chain in two when only some of its charge types are confirmed', () => {
+    // 20 on the 5th, Jan-Jun, alternating PLAN and RENEWAL: one chain. Confirming only PLAN must not split it.
+    const chain = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-04-05', '2026-05-05', '2026-06-05'].map((d, i) => c(d, 2000, i % 2 ? 'ACME* RENEWAL' : 'ACME* PLAN', 'Acme'));
+    const rows = [...chain, c('2026-06-21', 100, 'OTHER', 'Other')]; // the ledger runs to Jun 21, so a missing Jun charge would show
+    expect(analyze(rows, '2026-06-21').report.monthlyCents).toBe(2000); // automatic
+    expect(analyze(rows, '2026-06-21', [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' }]).report.monthlyCents).toBe(2000);
+    expect(analyze(rows, '2026-06-21', [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' }]).report.monthlyCents).toBe(2000);
+    const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
+    expect(analyze(rows, '2026-06-21', both).report.monthlyCents).toBe(2000);
+  });
+
+  it('attaches a returning charge to the subscription of its own charge type, not one that bills a few days from it', () => {
+    // PLAN: 20 on the 5th Jan-Mar, back on Sep 5. SERVICE: 50 on the 7th Jan-Aug. Different charge types, nearby billing days.
+    const plan = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN', 'Acme')), c('2026-09-05', 2000, 'ACME* PLAN', 'Acme')];
+    const service = ['2026-01-07', '2026-02-07', '2026-03-07', '2026-04-07', '2026-05-07', '2026-06-07', '2026-07-07', '2026-08-07'].map((d) => c(d, 5000, 'ACME* SERVICE', 'Acme'));
+    const rows = [...plan, ...service];
+    expect(analyze(rows, '2026-09-06').report.monthlyCents).toBe(5000); // automatic keeps SERVICE
+    const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* SERVICE', kind: 'monthly' as const }];
+    const r = analyze(rows, '2026-09-06', both).report;
+    expect(r.monthlyCents).toBe(7000); // PLAN is back (20), SERVICE (50) is still there
+    expect(r.priceChanges).toEqual([]); // no invented downgrade
+  });
+
+  it('does not let a charge near an active pattern replace its latest charge', () => {
+    // 90 on the 4th Feb-Apr (active), and a 80 on Apr 6 from nowhere in particular: noise, not the same subscription at a new price
+    const rows = [...['2026-02-04', '2026-03-04', '2026-04-04'].map((d) => c(d, 9000, 'ACME* PLAN R71X9Z', 'Acme')), c('2026-04-06', 8000, 'ACME* PLAN R18X9Z', 'Acme')];
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    expect(analyze(rows, '2026-04-07', confirm).report.monthlyCents).toBe(analyze(rows, '2026-04-07').report.monthlyCents);
+  });
 });

@@ -164,32 +164,45 @@ function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>): (r: LedgerR
     : (r) => r.provider === p.provider && streamKey(r.provider, r.merchant) === streamKey(p.provider, p.merchant);
 }
 
+/** The pattern a leftover charge of a confirmed charge type most plausibly continues: see `placeConfirmed`. */
+function homePattern<T extends LedgerRow>(patterns: RecurringPattern<T>[], c: T): RecurringPattern<T> | undefined {
+  const type = streamKey(c.provider, c.merchant);
+  const reference = referenceKey(c.merchant);
+  return patterns
+    .filter(
+      (p) =>
+        !p.standalone &&
+        // Only a pattern that has stopped can be revived. One that is still on schedule is not continued by a charge near its
+        // day: that charge is noise, or another schedule, and adopting it would replace the pattern's latest charge.
+        !p.active &&
+        p.provider === c.provider &&
+        p.lastDate < c.date &&
+        daysClose(dayOf(c.date), p.typicalDay) &&
+        // It has to share the charge type: two subscriptions that bill a few days apart under different descriptions are not
+        // each other's continuation.
+        p.charges.some((x) => streamKey(x.provider, x.merchant) === type),
+    )
+    .sort((a, b) => {
+      const refA = a.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
+      const refB = b.charges.some((x) => referenceKey(x.merchant) === reference) ? 1 : 0;
+      return refB - refA || (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0);
+    })[0];
+}
+
 /**
- * The subscriptions you confirmed as monthly or yearly.
- *
- * Yearly: each charge type is one subscription counted from its latest charge, because one renewal a year cannot be detected.
- *
- * Monthly: `charges` are all the charges of ONE provider whose charge type you confirmed as monthly. Detection runs on them
- * together, as it does for unconfirmed charges (patterns, then plan switches), so confirming never disagrees with what the app
- * already counted, and a subscription whose description alternates between two charge types is seen whole. Charges that
- * detection could not place are then dealt with one by one:
- *   - one that keeps the billing day of a pattern and comes after it continues that pattern (a subscription that came back
- *     after a long gap), so it is added to it;
- *   - the rest of a charge type that no active pattern covers are one subscription counted from the latest charge (irregular
+ * What to do with the charges of charge types you confirmed as monthly that detection could not place in a pattern.
+ * Detection itself ran on everything that could be a monthly subscription (confirmed or not, together), so confirming never
+ * cuts a chain in two and never disagrees with what the app already counted. For the leftovers:
+ *   - one that keeps the billing day of a STOPPED pattern that has the same charge type, and comes after it, continues that
+ *     pattern (a subscription that came back after a long gap), so it is added to it (the same reference first, then the latest);
+ *   - the rest of a charge type that no active pattern covers are one subscription counted from its latest charge (irregular
  *     days or amounts), as a stand-in that takes no part in plan-switch matching;
  *   - the rest of a charge type that an active pattern does cover are left out: they are noise within a subscription.
  */
-function forcedPatternsFor<T extends LedgerRow>(charges: T[], cadence: Cadence, latestDate: string): RecurringPattern<T>[] {
-  if (cadence === 'yearly') {
-    const one = forcedPattern(charges, cadence, latestDate);
-    return one ? [one] : [];
-  }
-  const found = detectRecurring(charges, latestDate);
-  const patterns: RecurringPattern<T>[] = [...found, ...detectProvisional(charges, found, latestDate)];
+function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], confirmed: Set<T>, latestDate: string): void {
   const explained = new Set(patterns.flatMap((p) => p.charges));
-
   const byType = new Map<string, T[]>();
-  for (const c of charges) {
+  for (const c of confirmed) {
     const k = streamKey(c.provider, c.merchant);
     byType.set(k, [...(byType.get(k) ?? []), c]);
   }
@@ -199,10 +212,7 @@ function forcedPatternsFor<T extends LedgerRow>(charges: T[], cadence: Cadence, 
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const unplaced: T[] = [];
     for (const c of leftover) {
-      // The pattern whose billing day it keeps and that it came after: the latest such one.
-      const home = patterns
-        .filter((p) => p.lastDate < c.date && daysClose(dayOf(c.date), p.typicalDay))
-        .sort((a, b) => (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0))[0];
+      const home = homePattern(patterns, c);
       const grown = home ? forcedPattern([...home.charges, c], 'monthly', latestDate) : null;
       if (home && grown) {
         // Grow it in place: plan-switch links (`replaces`) point at these very objects.
@@ -215,13 +225,9 @@ function forcedPatternsFor<T extends LedgerRow>(charges: T[], cadence: Cadence, 
     if (unplaced.length === 0) continue;
     const covered = patterns.some((p) => p.active && p.charges.some((c) => typeCharges.includes(c)));
     if (covered) continue;
-    // Nothing active covers this charge type: it is one subscription counted from its latest charge, whatever the spacing.
     const one = forcedPattern(typeCharges, 'monthly', latestDate);
     if (one) patterns.push({ ...one, standalone: true });
   }
-  // Mark in place: plan-switch links (`replaces`) point at these very objects.
-  for (const p of patterns) p.forced = true;
-  return patterns;
 }
 
 function stepChanges<T extends LedgerRow>(p: RecurringPattern<T>): PriceChange[] {
@@ -349,38 +355,42 @@ export function analyze<T extends LedgerRow>(
   const ov = overrideMap(overrides);
   const kindFor = (r: T) => overrideOf(ov, r);
 
-  const forcedStreams = new Map<string, { cadence: Cadence; charges: T[] }>();
-  const auto: T[] = [];
+  // Detection runs ONCE, on everything that could be a monthly subscription: charges you have not classified and charges of types
+  // you confirmed as monthly, together. (A charge type set to Usage or One-time, or confirmed as yearly, is left out.)
+  const pool: T[] = [];
+  const confirmed = new Set<T>();
+  const yearly = new Map<string, T[]>();
   const counts = new Map<string, number>();
   for (const r of rows) {
     const key = streamKey(r.provider, r.merchant);
     if (r.amountCents > 0) counts.set(key, (counts.get(key) ?? 0) + 1);
     const kind = kindFor(r);
-    if (!kind) auto.push(r);
-    else if (kind === 'monthly' || kind === 'yearly') {
-      // Monthly: one group per provider, so a subscription whose description alternates between two charge types is seen whole.
-      // Yearly: one per charge type (a single renewal a year cannot be detected, so each charge type is one subscription).
-      const groupKey = kind === 'monthly' ? `${r.provider}\u0000monthly` : `${key}\u0000yearly`;
-      const f = forcedStreams.get(groupKey) ?? { cadence: kind === 'yearly' ? ('yearly' as const) : ('monthly' as const), charges: [] };
-      f.charges.push(r);
-      forcedStreams.set(groupKey, f);
+    if (!kind) pool.push(r);
+    else if (kind === 'monthly') {
+      pool.push(r);
+      confirmed.add(r);
+    } else if (kind === 'yearly') {
+      // A single renewal a year cannot be detected, so each yearly charge type is one subscription from its latest charge.
+      yearly.set(key, [...(yearly.get(key) ?? []), r]);
     }
   }
-  const forced = [...forcedStreams.values()]
-    .flatMap((f) => forcedPatternsFor(f.charges, f.cadence, latestDate));
-  const detected = span ? detectRecurring(auto, latestDate) : [];
-  const patterns = span
-    ? [...detected, ...detectProvisional(auto, detected, latestDate), ...forced].sort(
-        (a, b) =>
-          Number(b.active) - Number(a.active) ||
-          (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0) ||
-          b.typicalCents - a.typicalCents,
-      )
-    : [];
+  const found = span ? detectRecurring(pool, latestDate) : [];
+  const monthlyPatterns = span ? [...found, ...detectProvisional(pool, found, latestDate)] : [];
+  if (span) placeConfirmed(monthlyPatterns, confirmed, latestDate);
+  // A pattern that contains charges of a type you confirmed is marked as yours ("You marked this as a monthly subscription").
+  for (const p of monthlyPatterns) if (p.charges.some((c) => confirmed.has(c))) p.forced = true;
+  const yearlyPatterns = span ? [...yearly.values()].flatMap((charges) => forcedPattern(charges, 'yearly', latestDate) ?? []) : [];
+  const patterns = [...monthlyPatterns, ...yearlyPatterns].sort(
+    (a, b) =>
+      Number(b.active) - Number(a.active) ||
+      (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0) ||
+      b.typicalCents - a.typicalCents,
+  );
 
   // ---- the type of every charge
   const inPattern = new Set<T>();
-  for (const p of patterns) if (!p.forced) for (const c of p.charges) inPattern.add(c);
+  // Your setting for a charge type comes first in `typeOf`, so charges of confirmed types can be listed here harmlessly.
+  for (const p of patterns) for (const c of p.charges) inPattern.add(c);
   const typeOf = (row: T): TypeInfo => {
     const o = kindFor(row);
     if (o) return overrideToInfo(o);
