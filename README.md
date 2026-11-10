@@ -212,7 +212,7 @@ What stays private:
 - Page filters live after the `#`, which browsers never send to the server.
 - `vercel.json` sends a strict **Content-Security-Policy**: the page can only load scripts and workers from its own origin, and can only make requests to its own origin plus `api.anthropic.com` (used solely by the opt-in Ask Claude button), so even a bug or injected script can't send data anywhere else. It also sends `Referrer-Policy: no-referrer` and related headers. `npm run preview` uses the same headers, so you can check a production build locally.
 - After a successful import the app asks the browser to keep its storage (`navigator.storage.persist()`). Browsers may decline; Safari can still clear storage for sites not visited in a while.
-- Vercel keeps normal request logs (IP address, requested file). Those never include CSV contents. Don't add analytics or session-replay tools that record page content.
+- Vercel keeps normal request logs (IP address, requested file) for one day on the Pro plan, its default, which has not been changed (Vercel documents 1 hour on Hobby, 1 day on Pro, 3 days on Enterprise and 30 days with Observability Plus; checked 2026-11-10). Those never include CSV contents. Don't add analytics or session-replay tools that record page content.
 - Only `public/` and the built app are deployed. The repo holds no real financial data; tests use a synthetic fixture. A test fails if any CSV other than the synthetic pack appears in `public/`.
 
 ## Synthetic demo data pack

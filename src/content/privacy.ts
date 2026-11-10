@@ -8,8 +8,8 @@
  *     localStorage keys, cookies, third-party hosts). If you change what the app stores or sends,
  *     that test fails until this text and the code agree again.
  *
- * DRAFT: the text has not been reviewed by someone qualified, the legal basis and the log retention period are
- * still to be confirmed, and it is not legal advice. While PRIVACY_IS_DRAFT is true the page says so and asks
+ * DRAFT: the text has not been reviewed by someone qualified, the legal basis is still to be confirmed, and it is
+ * not legal advice. While PRIVACY_IS_DRAFT is true the page says so and asks
  * search engines not to index it. Set it to false only after review (see issue #19).
  */
 
@@ -19,6 +19,13 @@ export const PRIVACY_IS_DRAFT = true;
 export const PRIVACY_UPDATED = '2026-11-10';
 /** Where the page lives. An absolute file path works from the landing page and the app, in the dev server, the build and on Vercel (cleanUrls redirects it). */
 export const PRIVACY_PATH = '/privacy.html';
+
+/**
+ * How long Vercel keeps the runtime (request) logs for this site: its default for the Pro plan, which we have not changed
+ * (no Observability Plus). Source: Vercel's runtime-logs documentation, retention by plan (Hobby 1 hour, Pro 1 day,
+ * Pro with Observability Plus 30 days, Enterprise 3 days), checked 2026-11-10. Update this if the plan or the setting changes.
+ */
+export const LOG_RETENTION = 'one day';
 
 /** NuCielo ICT B.V. is the only legal entity; NeotixHQ is its brand. */
 export const CONTROLLER = TRADING_AS;
@@ -123,7 +130,7 @@ export const SECTIONS: Section[] = [
     paragraphs: [
       `Controller: ${CONTROLLER}. Contact: ${CONTACT}.`,
       'Because the app processes your data on your own device, the operator receives none of it. The only personal data an operator could see is the ordinary web-server data described above, which is processed to deliver the site and keep it secure (legal basis to be confirmed: this draft assumes legitimate interest, Article 6(1)(f) GDPR).',
-      'If you are in the EU or UK you have the right to access, correct and erase your personal data, to restrict or object to its processing, and to data portability. You also have the right to complain to your national data protection authority. For data held only in your browser, you can exercise these rights yourself with the controls above. Server logs are kept for [period to be confirmed].',
+      `If you are in the EU or UK you have the right to access, correct and erase your personal data, to restrict or object to its processing, and to data portability. You also have the right to complain to your national data protection authority. For data held only in your browser, you can exercise these rights yourself with the controls above. The web-server logs for this site are kept by Vercel for ${LOG_RETENTION}, which is its standard period for our plan; we have not extended it. Vercel may process other technical data under its own privacy notice.`,
     ],
   },
   {
@@ -156,7 +163,7 @@ export function renderPrivacyBody(): string {
   out.push(`<p class="muted">AI Spending Tracker · last updated ${esc(PRIVACY_UPDATED)}</p>`);
   if (PRIVACY_IS_DRAFT) {
     out.push(
-      '<p class="notice"><strong>Draft.</strong> This text has not yet been reviewed by someone qualified and is not legal advice. The legal basis and the log retention period are still to be confirmed.</p>',
+      '<p class="notice"><strong>Draft.</strong> This text has not yet been reviewed by someone qualified and is not legal advice. The legal basis is still to be confirmed.</p>',
     );
   }
   out.push(`<p class="lead">${esc(PRIVACY_SENTENCE)}</p>`);

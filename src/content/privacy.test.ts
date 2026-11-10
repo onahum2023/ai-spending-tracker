@@ -7,6 +7,7 @@ import {
   ASK_CLAUDE_SENT,
   CONTACT,
   CONTROLLER,
+  LOG_RETENTION,
   LINK_LIST,
   PRIVACY_IS_DRAFT,
   PRIVACY_SENTENCE,
@@ -113,6 +114,14 @@ describe('privacy statement matches the app', () => {
     expect(body).toMatch(/does not include budgets, corrections, labels, categories, tag rules/);
     expect(read('src/content/landing.ts')).not.toMatch(/export a backup now/);
     expect(read('src/pages/DataPage.tsx')).toMatch(/transactions only/);
+  });
+
+  it('states the log retention instead of leaving it open, in step with the README', () => {
+    const body = renderPrivacyBody();
+    expect(LOG_RETENTION).toBe('one day');
+    expect(body).toContain('kept by Vercel for one day');
+    expect(body).not.toMatch(/period to be confirmed/);
+    expect(read('README.md')).toMatch(/for one day on the Pro plan/);
   });
 
   it('says the same sentence everywhere it is repeated', () => {
