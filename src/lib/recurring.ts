@@ -1,3 +1,4 @@
+import { normalizeDescriptor } from './chargeTypes';
 import { addDays, addOneMonthToDate, dayOf, monthDiff, monthOf } from './dates';
 import { medianCents } from './money';
 import type { LedgerRow } from './types';
@@ -200,9 +201,10 @@ export function detectProvisional<T extends LedgerRow>(
   // Oldest-ending first, so results stay deterministic.
   const monthly = patterns.filter((p) => p.cadence !== 'yearly' && !p.forced).sort((a, b) => (a.lastDate < b.lastDate ? -1 : a.lastDate > b.lastDate ? 1 : 0));
   for (const old of monthly) {
-    const merchants = new Set(old.charges.map((c) => c.merchant));
+    // The same charge type (cleaned description), so a case or city difference does not make it a different service.
+    const types = new Set(old.charges.map((c) => normalizeDescriptor(c.merchant)));
     const sameStream = (r: LedgerRow) =>
-      r.provider === old.provider && (merchants.size > 1 || r.merchant === old.merchant);
+      r.provider === old.provider && (types.size > 1 || normalizeDescriptor(r.merchant) === normalizeDescriptor(old.merchant));
     const candidates = rows.filter((r) => {
       if (taken.has(r) || r.amountCents <= 0 || !sameStream(r)) return false;
       if ((perMonth.get(usageKey(r)) ?? 0) >= USAGE_CHARGES_PER_MONTH) return false;

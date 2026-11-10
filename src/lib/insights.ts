@@ -1,4 +1,5 @@
 import { dataSpan, type MonthlyStackRow } from './analytics';
+import { referenceKey } from './chargeTypes';
 import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category, type ProviderCategory } from './categories';
 import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
 import { STALE_AFTER_DAYS } from './forecast';
@@ -145,12 +146,33 @@ export interface Analysis<T extends LedgerRow = LedgerRow> {
 
 const lastOf = <T,>(xs: T[]): T => xs[xs.length - 1];
 
-/** Same stream = same descriptor, unless the descriptor changes every time (then the provider is the stream). */
+/**
+ * Same stream = same charge type (the cleaned description, so "ACME* PLAN" and "Acme* Plan" are one), unless the pattern runs
+ * across several charge types (then the provider is the stream: the description changes every time).
+ */
 function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>): (r: LedgerRow) => boolean {
-  const merchants = new Set(p.charges.map((c) => c.merchant));
-  return merchants.size > 1
+  const types = new Set(p.charges.map((c) => streamKey(c.provider, c.merchant)));
+  return types.size > 1
     ? (r) => r.provider === p.provider
-    : (r) => r.provider === p.provider && r.merchant === p.merchant;
+    : (r) => r.provider === p.provider && streamKey(r.provider, r.merchant) === streamKey(p.provider, p.merchant);
+}
+
+/**
+ * The charges of a charge type you marked as a subscription, split into one lane per subscription: charges that carry the same
+ * reference are one subscription, so two plans under one charge type ("ACME* PLAN ABC123", "ACME* PLAN XYZ456") are both counted.
+ * Charges that each carry a different reference (a renewal code that changes every time) are one subscription together.
+ */
+function subscriptionLanes<T extends LedgerRow>(charges: T[]): T[][] {
+  const byReference = new Map<string, T[]>();
+  for (const c of charges) {
+    const k = referenceKey(c.merchant);
+    byReference.set(k, [...(byReference.get(k) ?? []), c]);
+  }
+  const lanes: T[][] = [];
+  const loose: T[] = [];
+  for (const group of byReference.values()) (group.filter((c) => c.amountCents > 0).length >= 2 ? lanes.push(group) : loose.push(...group));
+  if (loose.length) lanes.push(loose);
+  return lanes;
 }
 
 function stepChanges<T extends LedgerRow>(p: RecurringPattern<T>): PriceChange[] {
@@ -293,7 +315,7 @@ export function analyze<T extends LedgerRow>(
     }
   }
   const forced = [...forcedStreams.values()]
-    .map((f) => forcedPattern(f.charges, f.cadence, latestDate))
+    .flatMap((f) => subscriptionLanes(f.charges).map((lane) => forcedPattern(lane, f.cadence, latestDate)))
     .filter((p): p is RecurringPattern<T> => p !== null);
   const detected = span ? detectRecurring(auto, latestDate) : [];
   const patterns = span
@@ -319,14 +341,21 @@ export function analyze<T extends LedgerRow>(
       ? { kind: 'usage', source: 'repeats' }
       : { kind: 'other', source: 'single' };
   };
+  // The type of a charge type is judged by its most recent real charge: a refund after three subscription charges is not
+  // a one-time charge, so refunds only count when there is nothing else.
   const newest = new Map<string, T>();
+  const newestAny = new Map<string, T>();
   for (const r of rows) {
     const k = streamKey(r.provider, r.merchant);
+    const anyPrev = newestAny.get(k);
+    if (!anyPrev || r.date >= anyPrev.date) newestAny.set(k, r);
+    if (r.amountCents <= 0) continue;
     const prev = newest.get(k);
     if (!prev || r.date >= prev.date) newest.set(k, r);
   }
   const streamInfo = (provider: string, merchant: string): TypeInfo | null => {
-    const r = newest.get(streamKey(provider, merchant));
+    const k = streamKey(provider, merchant);
+    const r = newest.get(k) ?? newestAny.get(k);
     return r ? typeOf(r) : null;
   };
 

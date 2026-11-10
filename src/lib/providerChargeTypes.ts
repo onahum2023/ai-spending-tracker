@@ -60,6 +60,9 @@ export function listChargeTypes<T extends LedgerRow>(
     for (const r of list) raw.set(r.merchant, (raw.get(r.merchant) ?? 0) + 1);
     const merchant = [...raw.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
     const newest = list.reduce((a, b) => (b.date >= a.date ? b : a));
+    // Judge it by the most recent real charge, not a refund that came after (see analyze's streamInfo).
+    const real = list.filter((r) => r.amountCents > 0);
+    const judged = real.length ? real.reduce((a, b) => (b.date >= a.date ? b : a)) : newest;
     const label = labelOf(names, newest.provider, merchant);
     const descriptor = cleanDescriptor(merchant);
     out.push({
@@ -75,7 +78,7 @@ export function listChargeTypes<T extends LedgerRow>(
       firstDate: list.reduce((a, r) => (r.date < a ? r.date : a), list[0].date),
       lastDate: newest.date,
       setting: set.get(key) ?? null,
-      guess: typeOf(newest),
+      guess: typeOf(judged),
     });
   }
   return out.sort((a, b) => b.totalCents - a.totalCents || b.count - a.count || a.name.localeCompare(b.name));
