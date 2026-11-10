@@ -3,10 +3,9 @@ import { dateLabel } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
 import { typeLabel, WHY } from '../lib/overrides';
 import type { Transaction } from '../lib/types';
-import { navigate } from '../router';
+import { navigate, providerHref } from '../router';
 import { useLedger } from '../store';
 import { TagInput } from './TagEditor';
-import { TreatAs } from './TreatAs';
 import { EmptyState, ProviderLink, SortHeader, type SortDir } from './ui';
 
 export type TxSortKey = 'date' | 'merchant' | 'provider' | 'type' | 'tag' | 'amount';
@@ -93,11 +92,9 @@ export function TransactionTable({
                   </td>
                 )}
                 <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
-                  {editableTags ? (
-                    <TreatAs provider={t.provider} merchant={t.merchant} />
-                  ) : (
-                    <span className="chip" title={WHY[analysis.typeOf(t).source]}>{typeText(t)}</span>
-                  )}
+                  <a className="chip" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
+                    {typeText(t)}
+                  </a>
                 </td>
                 {showTag && (
                   <td onClick={(e) => e.stopPropagation()}>

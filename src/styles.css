@@ -393,3 +393,4 @@ details.explain li { margin: 3px 0; }
 .app-foot a:hover { color: var(--ink); text-decoration: underline; }
 .app-foot-owner { margin-left: auto; }
 .label-input { width: 100%; max-width: 240px; }
+.notice-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; }
