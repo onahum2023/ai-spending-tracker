@@ -8,12 +8,12 @@
  *     localStorage keys, cookies, third-party hosts). If you change what the app stores or sends,
  *     that test fails until this text and the code agree again.
  *
- * DRAFT: the text has not been reviewed by someone qualified, the legal basis is still to be confirmed, and it is
- * not legal advice. While PRIVACY_IS_DRAFT is true the page says so and asks
+ * DRAFT: the text has not been reviewed by a legal professional and is not legal advice. (The legal basis for the
+ * web-server logs is settled for now as legitimate interest.) While PRIVACY_IS_DRAFT is true the page says so and asks
  * search engines not to index it. Set it to false only after review (see issue #19).
  */
 
-import { BRAND_NOTE, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNERSHIP_LINE, TRADING_AS } from './site';
+import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site';
 
 export const PRIVACY_IS_DRAFT = true;
 export const PRIVACY_UPDATED = '2026-11-10';
@@ -129,7 +129,7 @@ export const SECTIONS: Section[] = [
     title: 'Who is responsible, and your rights',
     paragraphs: [
       `Controller: ${CONTROLLER}. Contact: ${CONTACT}.`,
-      'Because the app processes your data on your own device, the operator receives none of it. The only personal data an operator could see is the ordinary web-server data described above, which is processed to deliver the site and keep it secure (legal basis to be confirmed: this draft assumes legitimate interest, Article 6(1)(f) GDPR).',
+      'Because the app processes your data on your own device, the operator receives none of it. The only personal data an operator could see is the ordinary web-server data described above, which is processed to deliver the site and keep it secure (legal basis: legitimate interest, Article 6(1)(f) GDPR).',
       `If you are in the EU or UK you have the right to access, correct and erase your personal data, to restrict or object to its processing, and to data portability. You also have the right to complain to your national data protection authority. For data held only in your browser, you can exercise these rights yourself with the controls above. The web-server logs for this site are kept by Vercel for ${LOG_RETENTION}, which is its standard period for our plan; we have not extended it. Vercel may process other technical data under its own privacy notice.`,
     ],
   },
@@ -152,6 +152,8 @@ export const LINK_LIST: { label: string; href: string }[] = [
   { label: 'Vercel privacy notice', href: LINKS.vercel },
   { label: 'Anthropic privacy policy', href: LINKS.anthropicPrivacy },
   { label: 'Anthropic commercial terms', href: LINKS.anthropicTerms },
+  { label: `${BRAND} website`, href: BRAND_URL },
+  { label: `${OWNER} website`, href: OWNER_URL },
 ];
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -163,7 +165,7 @@ export function renderPrivacyBody(): string {
   out.push(`<p class="muted">AI Spending Tracker · last updated ${esc(PRIVACY_UPDATED)}</p>`);
   if (PRIVACY_IS_DRAFT) {
     out.push(
-      '<p class="notice"><strong>Draft.</strong> This text has not yet been reviewed by someone qualified and is not legal advice. The legal basis is still to be confirmed.</p>',
+      '<p class="notice"><strong>Draft.</strong> This text has not yet been reviewed by a legal professional and is not legal advice.</p>',
     );
   }
   out.push(`<p class="lead">${esc(PRIVACY_SENTENCE)}</p>`);

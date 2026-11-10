@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderLandingBody } from './landing';
 import { renderPrivacyBody } from './privacy';
-import { BRAND, BRAND_NOTE, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNERSHIP_LINE, TRADING_AS } from './site';
+import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site';
 
 const root = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -17,12 +17,13 @@ describe('ownership', () => {
   });
 
   it('shows up on the landing page, the privacy page, the About card, the app footer and the README', () => {
-    expect(renderLandingBody({ version: '1', commit: '', license: '' })).toContain(`${COPYRIGHT} · ${OWNERSHIP_LINE}`);
+    // the footer text, with its two company links read as plain text
+    expect(renderLandingBody({ version: '1', commit: '', license: '' }).replace(/<[^>]+>/g, '')).toContain(`${COPYRIGHT} · ${OWNERSHIP_LINE}`);
     expect(renderPrivacyBody()).toContain(OWNERSHIP_LINE);
     expect(renderPrivacyBody()).toContain(COPYRIGHT);
     expect(read('src/components/AboutCard.tsx')).toMatch(/COPYRIGHT[\s\S]*BRAND[\s\S]*OWNER/);
     expect(read('src/App.tsx')).toContain('{COPYRIGHT}');
-    expect(read('README.md')).toContain('legally owned by **NuCielo ICT B.V.**');
+    expect(read('README.md')).toContain('legally owned by **[NuCielo ICT B.V.](https://nucielo.io/)**');
   });
 
   it('has no doubled full stops in any of it', () => {
@@ -39,6 +40,22 @@ describe('ownership', () => {
     expect(body).toContain(BRAND_NOTE);
     expect(body).not.toMatch(/Controller name: to be decided|Contact email: to be decided/);
     expect(renderLandingBody({ version: '1', commit: '', license: '' })).toContain('href="mailto:info@neotixhq.com"');
+  });
+
+  it('links to the NeotixHQ and NuCielo websites from the landing footer, the privacy page, the About card and the README', () => {
+    expect(BRAND_URL).toBe('https://neotixhq.com/');
+    expect(OWNER_URL).toBe('https://nucielo.io/');
+    const landing = renderLandingBody({ version: '1', commit: '', license: '' });
+    expect(landing).toContain(`<a href="${BRAND_URL}" rel="noopener noreferrer">${BRAND}</a>`);
+    expect(landing).toContain(`<a href="${OWNER_URL}" rel="noopener noreferrer">${OWNER}</a>`);
+    const privacy = renderPrivacyBody();
+    expect(privacy).toContain(`href="${BRAND_URL}"`);
+    expect(privacy).toContain(`href="${OWNER_URL}"`);
+    const about = read('src/components/AboutCard.tsx');
+    expect(about).toContain('href={BRAND_URL}');
+    expect(about).toContain('href={OWNER_URL}');
+    expect(read('README.md')).toContain('(https://neotixhq.com/)');
+    expect(read('README.md')).toContain('(https://nucielo.io/)');
   });
 
   it('does not choose a licence', () => {

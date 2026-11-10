@@ -10,6 +10,9 @@ export const PRODUCTION_URL = 'https://ai-spend-tracker.neotixhq.com';
  */
 export const BRAND = 'NeotixHQ';
 export const OWNER = 'NuCielo ICT B.V.';
+/** The two company websites. */
+export const BRAND_URL = 'https://neotixhq.com/';
+export const OWNER_URL = 'https://nucielo.io/';
 /** First year of the work. */
 export const COPYRIGHT_YEAR = 2026;
 /** How the company is named where it is the responsible party. */
