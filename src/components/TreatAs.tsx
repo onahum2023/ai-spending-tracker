@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { labelMap, labelOf, MAX_LABEL_LENGTH } from '../lib/labels';
 import { OVERRIDE_LABELS, overrideMap, overrideOf, streamSize, typeLabel, WHY, type OverrideKind } from '../lib/overrides';
-import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
 
 const OPTIONS: { value: '' | OverrideKind; label: string }[] = [
@@ -48,9 +47,8 @@ function LabelInput({ provider, merchant }: { provider: string; merchant: string
   );
 }
 
-export function TreatAs({ provider, merchant, charge, editLabel = false }: { provider: string; merchant: string; charge?: Transaction; editLabel?: boolean }) {
-  const { overrides, setOverride, transactions, analysis, chargeOverrides, setChargeOverride } = useLedger();
-  const own = charge ? chargeOverrides.find((o) => o.id === charge.id)?.kind ?? '' : '';
+export function TreatAs({ provider, merchant, editLabel = false }: { provider: string; merchant: string; editLabel?: boolean }) {
+  const { overrides, setOverride, transactions, analysis } = useLedger();
   const current = overrideOf(overrideMap(overrides), { provider, merchant }) ?? '';
   const n = streamSize(transactions, provider, merchant);
   const guess = current === '' ? analysis.streamInfo(provider, merchant) : null;
@@ -70,30 +68,9 @@ export function TreatAs({ provider, merchant, charge, editLabel = false }: { pro
         ))}
       </select>
       {editLabel && <LabelInput provider={provider} merchant={merchant} />}
-      {guess && !own && (
+      {guess && (
         <div className="small muted" title={WHY[guess.source]}>
           {typeLabel(guess)}
-        </div>
-      )}
-      {charge && (
-        <select
-          className={`select input-sm treat-as${own ? ' treat-as-own' : ''}`}
-          value={own}
-          aria-label={`Type of this charge only: ${provider}, ${charge.date}`}
-          title="Applies to this one charge and beats the type of its stream. Totals never change."
-          onChange={(e) => void setChargeOverride(charge.id, (e.target.value || null) as OverrideKind | null)}
-        >
-          <option value="">Just this charge…</option>
-          {OPTIONS.filter((o) => o.value).map((o) => (
-            <option key={o.value} value={o.value}>
-              This charge: {o.label}
-            </option>
-          ))}
-        </select>
-      )}
-      {own && (
-        <div className="small" style={{ color: 'var(--accent-ink)' }} title="This charge differs from the rest of its stream">
-          Differs from its stream
         </div>
       )}
     </div>

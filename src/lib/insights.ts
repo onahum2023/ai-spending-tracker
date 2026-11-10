@@ -4,7 +4,6 @@ import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDif
 import { STALE_AFTER_DAYS } from './forecast';
 import { formatEUR, medianCents } from './money';
 import {
-  chargeOverrideMap,
   importedKind,
   overrideMap,
   overrideOf,
@@ -12,7 +11,6 @@ import {
   streamKey,
   type Cadence,
   type ChargeKind,
-  type ChargeOverride,
   type Override,
   type TypeInfo,
 } from './overrides';
@@ -263,24 +261,21 @@ function forcedPattern<T extends LedgerRow>(charges: T[], cadence: Cadence, late
 
 /**
  * Runs pattern detection once and derives everything the Subscriptions view needs.
- * `overrides` are the user's corrections (`chargeOverrides` the same for single charges, and they win): a stream set to usage or one-time / other is left
+ * `overrides` are the user's corrections: a charge type set to usage or one-time / other is left
  * out of detection, and a stream set to monthly or yearly becomes a subscription whether
  * or not detection agrees.
  */
-export function analyze<T extends LedgerRow & { id?: number }>(
+export function analyze<T extends LedgerRow>(
   rows: T[],
   today: string,
   overrides: Override[] = [],
-  chargeOverrides: ChargeOverride[] = [],
   providerCategories: ProviderCategory[] = [],
 ): Analysis<T> {
   const span = dataSpan(rows);
   const latestDate = span?.lastDate ?? today;
   const asOf = latestDate > today ? latestDate : today;
   const ov = overrideMap(overrides);
-  const cov = chargeOverrideMap(chargeOverrides);
-  // A correction on the charge itself beats the one on its stream.
-  const kindFor = (r: T) => (r.id !== undefined ? cov.get(r.id) : undefined) ?? overrideOf(ov, r);
+  const kindFor = (r: T) => overrideOf(ov, r);
 
   const forcedStreams = new Map<string, { cadence: Cadence; charges: T[] }>();
   const auto: T[] = [];

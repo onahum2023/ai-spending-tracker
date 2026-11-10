@@ -51,7 +51,7 @@ describe('a category you choose for a provider', () => {
     const none = analyze(data, TODAY);
     expect(none.categoryOf(data[0])).toBe('other');
     expect(none.categoryOf(data[1])).toBe('coding');
-    const own = analyze(data, TODAY, [], [], [{ provider: 'Mystery AI', category: 'media' }, { provider: 'Cursor', category: 'writing' }]);
+    const own = analyze(data, TODAY, [], [{ provider: 'Mystery AI', category: 'media' }, { provider: 'Cursor', category: 'writing' }]);
     expect(own.categoryOf(data[0])).toBe('media');
     expect(own.categoryOf(data[1])).toBe('writing');
   });
@@ -63,7 +63,7 @@ describe('a category you choose for a provider', () => {
     ];
     const months = ['2026-10'];
     const before = analyze(data, '2026-10-20');
-    const after = analyze(data, '2026-10-20', [], [], [{ provider: 'Mystery AI', category: 'coding' }]);
+    const after = analyze(data, '2026-10-20', [], [{ provider: 'Mystery AI', category: 'coding' }]);
     expect(before.report.overlaps).toEqual([]);
     expect(after.report.overlaps[0]).toMatchObject({ category: 'coding', combinedMonthlyCents: 4000 });
     expect(after.report.overlaps[0].members.map((m) => m.provider).sort()).toEqual(['Cursor', 'Mystery AI']);

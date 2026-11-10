@@ -11,12 +11,9 @@ import { loadAll, loadSetting, saveSetting, setTags as storeTags } from './lib/d
 import { generateDemo } from './lib/demoData';
 import { analyze, type Analysis } from './lib/insights';
 import {
-  normalizeChargeOverrides,
   normalizeOverrides,
-  withChargeOverride,
   withOverride,
   type ChargeKind,
-  type ChargeOverride,
   type Override,
   type OverrideKind,
 } from './lib/overrides';
@@ -63,10 +60,6 @@ interface Ledger {
   labels: Label[];
   /** Sets the label of one stream; an empty text removes it. Saved in this browser; in demo mode kept in memory only. */
   setLabel: (provider: string, merchant: string, text: string | null) => Promise<void>;
-  /** Corrections to single charges, by charge id. They beat the correction on the charge's stream. */
-  chargeOverrides: ChargeOverride[];
-  /** Sets the type of one charge, or with null puts it back to following its stream. */
-  setChargeOverride: (id: number, kind: OverrideKind | null) => Promise<void>;
   budgets: Budgets;
   /** Saved in this browser; in demo mode kept in memory only. */
   setBudgets: (b: Budgets) => Promise<void>;
@@ -131,8 +124,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [demoTags, setDemoTags] = useState<Record<number, string>>({});
   const [storedOverrides, setStoredOverrides] = useState<Override[]>([]);
   const [demoOverrides, setDemoOverrides] = useState<Override[]>([]);
-  const [storedChargeOverrides, setStoredChargeOverrides] = useState<ChargeOverride[]>([]);
-  const [demoChargeOverrides, setDemoChargeOverrides] = useState<ChargeOverride[]>([]);
   const [storedLabels, setStoredLabels] = useState<Label[]>([]);
   const [demoLabels, setDemoLabels] = useState<Label[]>([]);
   const [storedCategories, setStoredCategories] = useState<ProviderCategory[]>([]);
@@ -146,11 +137,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
-      const [data, budgets, overrides, chargeOverrides, labels, categories, tagRules] = await Promise.all([
+      const [data, budgets, overrides, labels, categories, tagRules] = await Promise.all([
         loadAll(),
         loadSetting('budgets'),
         loadSetting('overrides'),
-        loadSetting('chargeOverrides'),
         loadSetting('labels'),
         loadSetting('providerCategories'),
         loadSetting('tagRules'),
@@ -159,7 +149,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       setImports(data.imports);
       setStoredBudgets(normalizeBudgets(budgets));
       setStoredOverrides(normalizeOverrides(overrides));
-      setStoredChargeOverrides(normalizeChargeOverrides(chargeOverrides));
       setStoredLabels(normalizeLabels(labels));
       setStoredCategories(normalizeProviderCategories(categories));
       setStoredTagRules(normalizeTagRules(tagRules));
@@ -193,7 +182,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const transactions = mode === 'demo' ? demoRows : stored;
   const budgets = mode === 'demo' ? demoBudgets : storedBudgets;
   const overrides = mode === 'demo' ? demoOverrides : storedOverrides;
-  const chargeOverrides = mode === 'demo' ? demoChargeOverrides : storedChargeOverrides;
   const labels = mode === 'demo' ? demoLabels : storedLabels;
   const providerCategories = mode === 'demo' ? demoCategories : storedCategories;
   const tagRules = mode === 'demo' ? demoTagRules : storedTagRules;
@@ -206,16 +194,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       setStoredOverrides(next);
     },
     [mode, overrides],
-  );
-
-  const setChargeOverride = useCallback(
-    async (id: number, kind: OverrideKind | null) => {
-      const next = normalizeChargeOverrides(withChargeOverride(chargeOverrides, id, kind));
-      if (mode === 'demo') return setDemoChargeOverrides(next);
-      await saveSetting('chargeOverrides', next);
-      setStoredChargeOverrides(next);
-    },
-    [mode, chargeOverrides],
   );
 
   const setLabel = useCallback(
@@ -287,7 +265,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
     setDemoOverrides([]);
-    setDemoChargeOverrides([]);
     setDemoLabels([]);
     setDemoCategories([]);
     setDemoTagRules([]);
@@ -299,7 +276,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     setDemoBudgets(EMPTY_BUDGETS);
     setDemoTags({});
     setDemoOverrides([]);
-    setDemoChargeOverrides([]);
     setDemoLabels([]);
     setDemoCategories([]);
     setDemoTagRules([]);
@@ -309,8 +285,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const span = useMemo(() => dataSpan(transactions), [transactions]);
-  const analysis = useMemo(() => analyze(transactions, today, overrides, chargeOverrides, providerCategories),
-    [transactions, today, overrides, chargeOverrides, providerCategories],);
+  const analysis = useMemo(() => analyze(transactions, today, overrides, providerCategories),
+    [transactions, today, overrides, providerCategories],);
   const providers = useMemo(() => summarizeProviders(transactions), [transactions]);
   const colors = useMemo(
     () => buildProviderColors(providers.map((p) => p.provider), scheme),
@@ -349,8 +325,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     setProviderCategory,
     labels,
     setLabel,
-    chargeOverrides,
-    setChargeOverride,
     budgets,
     setBudgets,
     setTags,

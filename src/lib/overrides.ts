@@ -1,3 +1,4 @@
+import { normalizeDescriptor } from './chargeTypes';
 import type { ServiceType } from './extract/types';
 import type { LedgerRow } from './types';
 
@@ -14,11 +15,10 @@ import type { LedgerRow } from './types';
  * monthly subscription. A yearly one is always your call, because one renewal a year
  * cannot be told from a one-off charge.
  *
- * A correction applies to a stream: every charge with the same provider and merchant
- * descriptor, which is how detection chains charges too. A single charge can carry its own
- * correction, which beats the stream's (a plan and its credit top-ups sharing one
- * descriptor). Precedence: this charge > its stream > detection > import > repeats > single.
- * A correction never changes a charge or a total, only how the charge is read.
+ * A correction applies to a charge type: every charge with the same provider and the same cleaned
+ * description (see chargeTypes.ts), past and future. Precedence: your setting for the charge type >
+ * detection > import > repeats > single. A correction never changes a charge or a total, only how the
+ * charge is read.
  */
 
 export type ChargeKind = 'subscription' | 'usage' | 'other';
@@ -30,12 +30,6 @@ export type OverrideKind = 'monthly' | 'yearly' | 'usage' | 'other';
 export interface Override {
   provider: string;
   merchant: string;
-  kind: OverrideKind;
-}
-
-/** A correction to one charge, by its stored id. It beats the correction on the charge's stream. */
-export interface ChargeOverride {
-  id: number;
   kind: OverrideKind;
 }
 
@@ -101,7 +95,8 @@ export function importedKind(type: ServiceType | undefined): ChargeKind | null {
   return 'other';
 }
 
-export const streamKey = (provider: string, merchant: string) => `${provider}\u0000${merchant}`;
+/** One charge type: a provider plus its cleaned description. Settings stored under a raw description still match. */
+export const streamKey = (provider: string, merchant: string) => `${provider}\u0000${normalizeDescriptor(merchant)}`;
 
 export type OverrideMap = Map<string, OverrideKind>;
 
@@ -118,10 +113,11 @@ export function withOverride(list: Override[], provider: string, merchant: strin
   return kind ? [...rest, { provider, merchant, kind }] : rest;
 }
 
-/** How many charges share this stream, so the UI can say what a change affects. */
+/** How many charges share this charge type, so the UI can say what a change affects. */
 export function streamSize(rows: Pick<LedgerRow, 'provider' | 'merchant'>[], provider: string, merchant: string): number {
+  const key = streamKey(provider, merchant);
   let n = 0;
-  for (const r of rows) if (r.provider === provider && r.merchant === merchant) n++;
+  for (const r of rows) if (streamKey(r.provider, r.merchant) === key) n++;
   return n;
 }
 
@@ -141,25 +137,4 @@ export function normalizeOverrides(raw: unknown): Override[] {
     out.set(streamKey(r.provider, r.merchant), { provider: r.provider, merchant: r.merchant, kind });
   }
   return [...out.values()].sort((a, b) => a.provider.localeCompare(b.provider) || a.merchant.localeCompare(b.merchant));
-}
-
-export type ChargeOverrideMap = Map<number, OverrideKind>;
-
-export const chargeOverrideMap = (list: ChargeOverride[]): ChargeOverrideMap => new Map(list.map((o) => [o.id, o.kind]));
-
-/** Sets the correction for one charge, or with null removes it (back to its stream's type). */
-export function withChargeOverride(list: ChargeOverride[], id: number, kind: OverrideKind | null): ChargeOverride[] {
-  const rest = list.filter((o) => o.id !== id);
-  return kind ? [...rest, { id, kind }] : rest;
-}
-
-/** Cleans anything read from storage. */
-export function normalizeChargeOverrides(raw: unknown): ChargeOverride[] {
-  if (!Array.isArray(raw)) return [];
-  const out = new Map<number, ChargeOverride>();
-  for (const r of raw as Record<string, unknown>[]) {
-    if (typeof r?.id !== 'number' || !Number.isInteger(r.id) || typeof r.kind !== 'string' || !KINDS.includes(r.kind)) continue;
-    out.set(r.id, { id: r.id, kind: r.kind as OverrideKind });
-  }
-  return [...out.values()].sort((a, b) => a.id - b.id);
 }
