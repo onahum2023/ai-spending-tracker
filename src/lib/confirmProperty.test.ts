@@ -15,7 +15,8 @@ import type { LedgerRow } from './types';
  *     amount automatic detection had (a renewal at a real price change or discount is accepted; a stray charge a fraction of the
  *     amount does not take its place).
  *   - a genuine return is not lost to a stray: when automatic detection has a stopped pattern of the same charge type, billing day
- *     and amount, the return ends up in a confirmed pattern. (This covers stopped schedules that come back, which the checks above,
+ *     and amount (and no later pattern of that type picked up at its price: then the pair is one subscription), the return ends up in a
+ *     confirmed pattern. (This covers stopped schedules that come back, which the checks above,
  *     about active ones, do not.)
  * A charge a few days from a schedule's billing day, at a plausible amount, in the month after it, cannot be told from a discounted
  * renewal; if it is really another schedule's charge, Confirm will show the lower amount. That is the one case this does not rule out.
@@ -130,10 +131,67 @@ describe('confirming never splits, drops or swaps a schedule that is already cou
             q.charges.some((x) => streamKey('Acme', x.merchant) === streamKey('Acme', ret.merchant)) &&
             q.charges[q.charges.length - 1].amountCents === ret.amountCents,
         );
-        if (stopped && !placed.has(ret)) failures.push(`seed ${seed}: the return ${ret.date} ${ret.amountCents} was left out although its stopped schedule exists`);
+        // A stopped schedule that a later pattern of the same charge type picked up at the same price is not "waiting to come back":
+        // automatic detection counts the pair once (a missed month or a drifted billing day looks like that), and so must Confirm.
+        const successor =
+          stopped &&
+          automatic.patterns.some(
+            (q) =>
+              q !== stopped &&
+              q.provider === 'Acme' &&
+              q.firstDate > stopped.lastDate &&
+              Math.abs(q.charges[0].amountCents - stopped.charges[stopped.charges.length - 1].amountCents) <= 0.02 * stopped.charges[stopped.charges.length - 1].amountCents &&
+              q.charges.some((x) => stopped.charges.some((y) => streamKey('Acme', x.merchant) === streamKey('Acme', y.merchant))),
+          );
+        if (stopped && !successor && !placed.has(ret)) failures.push(`seed ${seed}: the return ${ret.date} ${ret.amountCents} was left out although its stopped schedule exists`);
       }
     }
     expect(failures).toEqual([]);
     expect(active / judged).toBeGreaterThan(0.3); // not vacuous
   });
 });
+
+/*
+ * One subscription is one subscription. The ledgers above keep each schedule's billing day fixed; real ones drift (the 5th, then the
+ * 7th after a weekend, then the 5th again), skip months and come back. For a single schedule at a single price, Confirm must never
+ * count more subscriptions, or a higher run-rate, than automatic detection (a reviewer found one schedule counted twice when one
+ * charge landed two days off and the next went back to the usual day).
+ */
+function drifting(seed: number): LedgerRow[] {
+  const r = rng(seed * 31 + 5);
+  const day = 4 + Math.floor(r() * 20);
+  const amount = 1000 * (1 + Math.floor(r() * 9));
+  const ref = r() < 0.5 ? ' ABC123' : '';
+  const rows: LedgerRow[] = [];
+  const months = 4 + Math.floor(r() * 8);
+  for (let m = 0; m < months; m++) {
+    if (r() < 0.2) continue; // a missed month
+    const drift = r() < 0.35 ? (r() < 0.5 ? -1 : 1) * (1 + Math.floor(r() * 3)) : 0;
+    rows.push({ provider: 'Acme', merchant: `ACME* PLAN${ref && r() < 0.8 ? ref : ''}`, date: date(m, day + drift), amountCents: amount });
+  }
+  return rows;
+}
+
+describe('confirming one subscription with drifting billing days', () => {
+  it('never counts it twice, on 3000 generated ledgers', () => {
+    const failures: string[] = [];
+    let counted = 0;
+    for (let seed = 1; seed <= 3000; seed++) {
+      const full = drifting(seed);
+      if (full.length < 3) continue;
+      const r = rng(seed);
+      const dates = [...new Set(full.map((x) => x.date))].sort();
+      const cut = dates[Math.floor(r() * dates.length)];
+      const rows = full.filter((x) => x.date <= cut);
+      const asOf = date(Number(cut.slice(5, 7)) - 1 + (Number(cut.slice(0, 4)) - 2026) * 12, Math.min(28, Number(cut.slice(8)) + 1));
+      const auto = analyze(rows, asOf).report;
+      const confirmed = analyze(rows, asOf, [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' }]).report;
+      if (auto.active.length > 0) counted++;
+      if (confirmed.active.length > Math.max(1, auto.active.length)) failures.push(`seed ${seed}: ${confirmed.active.length} active, automatic ${auto.active.length}`);
+      if (auto.monthlyCents > 0 && confirmed.monthlyCents > auto.monthlyCents) failures.push(`seed ${seed}: run-rate ${confirmed.monthlyCents} > ${auto.monthlyCents}`);
+    }
+    expect(failures).toEqual([]);
+    expect(counted).toBeGreaterThan(300);
+  });
+});
+

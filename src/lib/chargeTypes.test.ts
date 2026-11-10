@@ -378,6 +378,40 @@ describe('confirming never disagrees with what automatic detection already count
     expect(r.monthlyCents).toBe(7000); // not 3: the stray is not the renewal
   });
 
+  it('keeps one subscription as one when a charge lands two days off its billing day and the next goes back (the replacer owns it)', () => {
+    // 20 on the 5th Jan-Mar, then May 7 (read as the plan's new price by plan-switch detection) and Jun 5 (back on the usual day).
+    const rows = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-05-07', '2026-06-05'].map((d) => c(d, 2000, 'ACME* PLAN ABC123', 'Acme'));
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    const auto = analyze(rows, '2026-06-06').report;
+    const r = analyze(rows, '2026-06-06', confirm).report;
+    expect(auto.active).toHaveLength(1);
+    expect(r.active).toHaveLength(1);
+    expect(r.monthlyCents).toBe(2000);
+    expect(r.active[0]).toMatchObject({ lastDate: '2026-06-05' });
+    // and at a higher price the run-rate is the price once, not twice
+    const dear = rows.map((x) => (x.date >= '2026-05-01' ? { ...x, amountCents: 5000 } : x));
+    expect(analyze(dear, '2026-06-06', confirm).report.active).toHaveLength(1);
+    expect(analyze(dear, '2026-06-06', confirm).report.monthlyCents).toBe(5000);
+  });
+
+  it('counts one subscription once when its billing day drifts or a month is missed, however many stopped runs detection saw', () => {
+    const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
+    const run = (dates: string[], asOf: string) => {
+      const rows = dates.map((d) => c(d, 2000, 'ACME* PLAN ABC123', 'Acme'));
+      return { auto: analyze(rows, asOf).report, conf: analyze(rows, asOf, confirm).report };
+    };
+    // the 15th, then the 12th after a missed month, then the 17th (a drift of 5 days, which detection reads as a plan switch)
+    const drift = run(['2026-01-18', '2026-02-15', '2026-03-15', '2026-04-15', '2026-06-12', '2026-07-17'], '2026-07-18');
+    expect(drift.auto.active).toHaveLength(1);
+    expect(drift.conf.active).toHaveLength(1);
+    expect(drift.conf.monthlyCents).toBe(drift.auto.monthlyCents);
+    // two stopped runs of one schedule (a missed month between them) and a later charge: one subscription, not three
+    const split = run(['2026-01-23', '2026-02-24', '2026-03-22', '2026-04-22', '2026-05-22', '2026-06-19', '2026-08-21', '2026-09-22'], '2026-09-23');
+    expect(split.auto.active).toHaveLength(1);
+    expect(split.conf.active).toHaveLength(1);
+    expect(split.conf.monthlyCents).toBe(2000);
+  });
+
   it('lets an exact renewal under a new reference beat a reference-less stray', () => {
     // ABC123: 20 on the 5th Jan-Mar. After the gap: a 3 with no reference on Sep 3, and the real 20 on Sep 5 under a NEW reference.
     const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN ABC123', 'Acme'));

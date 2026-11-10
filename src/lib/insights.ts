@@ -177,25 +177,46 @@ function billingDayGap<T extends LedgerRow>(p: RecurringPattern<T>, c: T): numbe
 }
 
 /**
+ * Could this leftover charge be the next charge of this pattern, looking only at the pattern (its dates and amount)?
+ * A pattern that has stopped can be revived at any price; one still on schedule is only continued by its next monthly renewal
+ * (the charge after a revival is exactly that), at a plausible amount. A charge in the same month near its day is noise or
+ * another schedule.
+ */
+function followsOn<T extends LedgerRow>(p: RecurringPattern<T>, c: T): boolean {
+  if (p.standalone || p.provider !== c.provider || p.lastDate >= c.date) return false;
+  if (!daysClose(dayOf(c.date), p.typicalDay)) return false;
+  if (!p.active) return true;
+  if (monthDiff(monthOf(p.lastDate), monthOf(c.date)) !== 1) return false;
+  const last = p.charges[p.charges.length - 1].amountCents;
+  return Math.abs(c.amountCents - last) <= RENEWAL_AMOUNT_TOLERANCE * Math.max(c.amountCents, last);
+}
+
+/**
+ * Did a later pattern of the same charge type pick up at the price `p` ended on (within 2%)? Then it is the same subscription
+ * carrying on (a billing day that drifted, or a missed month, reads exactly like that), not a stopped one waiting to come back,
+ * and a charge must not revive it next to its successor: automatic detection counts the pair once, so Confirm must too.
+ */
+function isSuperseded<T extends LedgerRow>(p: RecurringPattern<T>, patterns: RecurringPattern<T>[]): boolean {
+  const was = p.charges[p.charges.length - 1].amountCents;
+  const types = new Set(p.charges.map((x) => streamKey(x.provider, x.merchant)));
+  return patterns.some((q) => {
+    if (q === p || q.standalone || q.provider !== p.provider || q.firstDate <= p.lastDate) return false;
+    const now = q.charges[0].amountCents;
+    return Math.abs(now - was) <= 0.02 * Math.max(now, was) && q.charges.some((x) => types.has(streamKey(x.provider, x.merchant)));
+  });
+}
+
+/**
  * Can this leftover charge continue this pattern? See `placeConfirmed`. `replacerOf` maps a pattern to the one a plan switch
  * already continued it with.
  */
-function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replacerOf: Map<RecurringPattern<T>, RecurringPattern<T>>): boolean {
-  if (p.standalone || p.provider !== c.provider || p.lastDate >= c.date) return false;
-  if (!daysClose(dayOf(c.date), p.typicalDay)) return false;
-  // A pattern that a plan switch already continued is not revived by a charge that fits its replacer as well: that would split one
-  // schedule in two. But a replacer on another billing day (a stray charge read as a new price) does not own the charge, and a
-  // charge on the replaced pattern's own day is its return.
+function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replacerOf: Map<RecurringPattern<T>, RecurringPattern<T>>, superseded: Set<RecurringPattern<T>>): boolean {
+  if (!followsOn(p, c) || superseded.has(p)) return false;
+  // A pattern that a plan switch already continued is not revived by a charge that its replacer can take as its own next
+  // renewal, nor by one that sits no closer to its billing day than to its replacer's. Only a charge the replacer cannot take and
+  // that keeps the old billing day is the old pattern's return. (A superseded pattern is not revived at all: see `isSuperseded`.)
   const replacer = replacerOf.get(p);
-  if (replacer && billingDayGap(p, c) >= billingDayGap(replacer, c)) return false;
-  if (p.active) {
-    // A pattern that is still on schedule is only continued by its next monthly renewal (the charge after a revival is exactly
-    // that), at a plausible amount; a charge in the same month near its day is noise or another schedule.
-    if (monthDiff(monthOf(p.lastDate), monthOf(c.date)) !== 1) return false;
-    const last = p.charges[p.charges.length - 1].amountCents;
-    if (Math.abs(c.amountCents - last) > RENEWAL_AMOUNT_TOLERANCE * Math.max(c.amountCents, last)) return false;
-  }
-  // A pattern that has stopped can be revived, at any price.
+  if (replacer && (followsOn(replacer, c) || billingDayGap(p, c) >= billingDayGap(replacer, c))) return false;
   // It has to share the charge type: two subscriptions that bill a few days apart under different descriptions are not each
   // other's continuation.
   const type = streamKey(c.provider, c.merchant);
@@ -248,10 +269,11 @@ function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], co
   let leftover = [...confirmed].filter((c) => c.amountCents > 0 && !explained.has(c));
   for (;;) {
     const replacerOf = new Map(patterns.flatMap((p) => (p.replaces ? [[p.replaces, p] as const] : [])));
+    const superseded = new Set(patterns.filter((p) => isSuperseded(p, patterns)));
     let best: { p: RecurringPattern<T>; c: T; score: Fit } | null = null;
     for (const c of leftover) {
       for (const p of patterns) {
-        if (!canContinue(p, c, replacerOf)) continue;
+        if (!canContinue(p, c, replacerOf, superseded)) continue;
         const score = fit(p, c);
         if (!best || betterFit(score, best.score)) best = { p, c, score };
       }
