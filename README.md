@@ -201,6 +201,8 @@ When a visitor imports their own CSV (from the banner's **Use my own data** or t
 
 The app is a static site: Vercel only serves the files in `dist/`. There are no server functions, and no data is sent anywhere.
 
+**Production domain.** `https://ai-spend-tracker.neotixhq.com` is attached to the production deployment only; previews keep their `*.vercel.app` addresses and name the production domain as canonical. Checked on 2026-11-10: HTTP/2 over a Let's Encrypt certificate that Vercel issues and renews, and the strict security headers from `vercel.json` are present. Vercel itself sends `Strict-Transport-Security: max-age=63072000`, so `vercel.json` does not set one (a shorter value would weaken it). The `www.` name has no site behind it yet; whether to redirect it, and the old `*.vercel.app` production address, is a Vercel setting. Still to record: who owns the domain and when it renews (open item in issue #18).
+
 1. Import the GitHub repo in Vercel. `vercel.json` sets the Vite framework, `npm run build` and the `dist` output, so no other settings are needed.
 2. Deploy. The hash-based routes (`#/providers`) need no rewrites.
 
