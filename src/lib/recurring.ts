@@ -1,3 +1,4 @@
+import { normalizeDescriptor } from './chargeTypes';
 import { addDays, addOneMonthToDate, dayOf, monthDiff, monthOf } from './dates';
 import { medianCents } from './money';
 import type { LedgerRow } from './types';
@@ -59,9 +60,17 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   provisional?: boolean;
   /** For a provisional pattern: the monthly pattern it continues. */
   replaces?: RecurringPattern<T>;
+  /** Its plan-switch link was dropped on purpose (the pattern it replaced came back): it must not look for another predecessor. */
+  noSwitch?: boolean;
+  /**
+   * A stand-in for charges of a type you confirmed that detection could not place. It counts in the run-rate but is never
+   * paired with another pattern as a plan switch: it says nothing about what replaced what.
+   */
+  standalone?: boolean;
 }
 
-function daysClose(a: number, b: number): boolean {
+/** Two days of the month are the same billing day (a few days apart, or both near month-end). */
+export function daysClose(a: number, b: number): boolean {
   return Math.abs(a - b) <= DAY_TOLERANCE || (a >= 27 && b >= 27);
 }
 
@@ -100,7 +109,8 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
   // by chance, so they are left out: they aren't a single recurring charge.
   const perMonth = new Map<string, number>();
   const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
-  for (const r of rows) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
+  // Charges only: a refund in a month is not another top-up (two subscriptions plus a refund must not read as usage).
+  for (const r of rows) if (r.amountCents > 0) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
   // Every charge of a descriptor, heavy months included, for the coverage check below.
   const streamTotal = new Map<string, number>();
@@ -181,7 +191,7 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
  * Plan switches, before there are three charges at the new price.
  * After a monthly pattern ends, a charge on the same descriptor (the same provider, when the
  * descriptor changes every time) in the next month, or the one after, is read as the same
- * subscription at a new price. It is reported as a provisional pattern of 1 or 2 charges and
+ * subscription at a new price, when it lands at or near the day the old one was next expected. It is reported as a provisional pattern of 1 or 2 charges and
  * only while it is still running; a lone charge that nothing followed stays a one-off.
  * `patterns` are the ones `detectRecurring` found on the same `rows`.
  */
@@ -194,20 +204,24 @@ export function detectProvisional<T extends LedgerRow>(
   for (const p of patterns) for (const c of p.charges) taken.add(c);
   const perMonth = new Map<string, number>();
   const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
-  for (const r of rows) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
+  for (const r of rows) if (r.amountCents > 0) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
   const out: RecurringPattern<T>[] = [];
   // Oldest-ending first, so results stay deterministic.
   const monthly = patterns.filter((p) => p.cadence !== 'yearly' && !p.forced).sort((a, b) => (a.lastDate < b.lastDate ? -1 : a.lastDate > b.lastDate ? 1 : 0));
   for (const old of monthly) {
-    const merchants = new Set(old.charges.map((c) => c.merchant));
+    // The same charge type (cleaned description), so a case or city difference does not make it a different service.
+    const types = new Set(old.charges.map((c) => normalizeDescriptor(c.merchant)));
     const sameStream = (r: LedgerRow) =>
-      r.provider === old.provider && (merchants.size > 1 || r.merchant === old.merchant);
+      r.provider === old.provider && (types.size > 1 || normalizeDescriptor(r.merchant) === normalizeDescriptor(old.merchant));
     const candidates = rows.filter((r) => {
       if (taken.has(r) || r.amountCents <= 0 || !sameStream(r)) return false;
       if ((perMonth.get(usageKey(r)) ?? 0) >= USAGE_CHARGES_PER_MONTH) return false;
       const gap = monthDiff(monthOf(old.lastDate), monthOf(r.date));
-      return r.date > old.lastDate && gap >= 1 && gap <= PROVISIONAL_MAX_GAP;
+      // Only at or near the next expected charge: a charge well before it, while the old pattern is still on schedule, is a
+      // separate charge, not the same subscription at a new price. (A switch part-way through a cycle is recognised once
+      // three charges at the new price confirm it.)
+      return r.date > old.lastDate && gap >= 1 && gap <= PROVISIONAL_MAX_GAP && r.date >= addDays(old.nextExpected, -DAY_TOLERANCE);
     });
     if (candidates.length === 0) continue;
     // An unrelated one-off can come first, so look at every candidate chain, not just the earliest.

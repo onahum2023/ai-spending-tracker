@@ -6,8 +6,8 @@
  *
  * The app itself is at /app (app.html), and keeps working with the same #/ links.
  */
-import { PRIVACY_SENTENCE } from './privacy';
-import { BRAND, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE } from './site';
+import { PRIVACY_SENTENCE } from './privacy.ts';
+import { BRAND, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE } from './site.ts';
 
 /** Where the tracker lives. A plain file path works in the dev server, the build and on Vercel (cleanUrls turns it into /app). */
 export const APP_PATH = '/app.html';

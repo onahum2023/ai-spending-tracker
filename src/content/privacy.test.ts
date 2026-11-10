@@ -53,7 +53,8 @@ describe('privacy statement matches the app', () => {
     }
     expect(read('src/styles.css')).not.toMatch(/url\(\s*['"]?https?:|@import\s+url\(\s*['"]?https?:/);
     // no tracking or analytics vendors (src/lib/analytics.ts is the app's own spending maths)
-    const trackers = /gtag|google-analytics|googletagmanager|plausible|posthog|mixpanel|hotjar|sentry|segment\.(?:com|io)|@vercel\/(?:analytics|speed-insights)|_vercel\/(?:insights|speed-insights)/i;
+    // real vendor signatures (domains, packages, calls), not bare words: "plausible" is also an ordinary English word
+    const trackers = /plausible\.io|googletagmanager|google-analytics|\bgtag\s*\(|posthog|mixpanel|hotjar|sentry\.io|@sentry\/|segment\.(?:com|io)|@vercel\/(?:analytics|speed-insights)|_vercel\/(?:insights|speed-insights)/i;
     expect(app.filter((f) => trackers.test(f.text.replace(/\/\/.*$/gm, ''))).map((f) => f.file)).toEqual([]);
     expect(read('package.json')).not.toMatch(trackers);
   });

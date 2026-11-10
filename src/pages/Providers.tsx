@@ -3,13 +3,16 @@ import { Card, EmptyState, ProviderDot, SearchInput, SortHeader, type SortDir } 
 import { filterPeriod, periodLabel, providerTotals } from '../lib/analytics';
 import { dateLabel } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
+import { reviewCounts } from '../lib/providerChargeTypes';
 import { navigate, providerHref } from '../router';
 import { useLedger } from '../store';
 
 type Key = 'provider' | 'period' | 'total' | 'count' | 'first' | 'last';
 
 export function Providers() {
-  const { transactions, providers, period } = useLedger();
+  const { transactions, providers, period, overrides } = useLedger();
+  const toReview = useMemo(() => reviewCounts(transactions, overrides), [transactions, overrides]);
+  const toReviewTotal = [...toReview.values()].reduce((a, b) => a + b, 0);
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<{ key: Key; dir: SortDir }>({ key: 'period', dir: 'desc' });
 
@@ -43,7 +46,7 @@ export function Providers() {
   return (
     <Card
       title={`${providers.length} providers`}
-      subtitle={`${activeInPeriod} with spending in ${label} · ${formatEUR(sumCents(periodRows))} in ${label} · ${formatEUR(allTotal)} all time`}
+      subtitle={`${activeInPeriod} with spending in ${label} · ${formatEUR(sumCents(periodRows))} in ${label} · ${formatEUR(allTotal)} all time${toReviewTotal ? ` · ${toReviewTotal} charge type${toReviewTotal === 1 ? '' : 's'} to review` : ''}`}
       actions={
         <div style={{ width: 240, maxWidth: '100%' }}>
           <SearchInput value={q} onChange={setQ} placeholder="Search providers" />
@@ -65,6 +68,7 @@ export function Providers() {
                   <SortHeader label="Transactions" k="count" sort={sort} onSort={setSort} className="amount" />
                   <SortHeader label="First charge" k="first" sort={sort} onSort={setSort} defaultDir="asc" />
                   <SortHeader label="Most recent" k="last" sort={sort} onSort={setSort} />
+                  <th title="Charge types you have not confirmed yet. Open the provider to review them.">To review</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,6 +99,13 @@ export function Providers() {
                       <td className="amount">{p.count}</td>
                       <td className="date">{dateLabel(p.firstDate)}</td>
                       <td className="date">{dateLabel(p.lastDate)}</td>
+                      <td>
+                        {toReview.get(p.provider) ? (
+                          <span className="chip chip-warn">{toReview.get(p.provider)} to review</span>
+                        ) : (
+                          <span className="muted" title="Every charge type is confirmed">✓</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -111,6 +122,7 @@ export function Providers() {
                 <span className="num" style={{ fontWeight: 600 }}>{formatEUR(p.totalCents)}</span>
                 <span className="small muted" style={{ gridColumn: '1 / -1' }}>
                   {label}: {p.periodCents ? formatEUR(p.periodCents) : '—'} · {p.count} charges · {dateLabel(p.firstDate)} – {dateLabel(p.lastDate)}
+                  {toReview.get(p.provider) ? ` · ${toReview.get(p.provider)} to review` : ''}
                 </span>
               </a>
             ))}

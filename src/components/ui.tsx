@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
+import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 
@@ -227,5 +228,24 @@ export function StreamName({ provider, merchant, className = 'small muted mercha
     </div>
   ) : (
     <div className={className}>{tidyDescriptor(merchant)}</div>
+  );
+}
+
+/**
+ * The type of a charge type, as text: what it is read as, and whether you confirmed it. Read-only: the Provider page is the one
+ * place to change it, so this links there.
+ */
+export function TypeNote({ provider, merchant }: { provider: string; merchant: string }) {
+  const { analysis, overrides } = useLedger();
+  const info = analysis.streamInfo(provider, merchant);
+  if (!info) return null;
+  const confirmed = overrideOf(overrideMap(overrides), { provider, merchant }) !== undefined;
+  return (
+    <div className="small muted" title={WHY[info.source]}>
+      {typeLabel(info)} · {confirmed ? 'confirmed by you' : 'suggested'} ·{' '}
+      <a href={providerHref(provider)} style={{ textDecoration: 'underline' }}>
+        change on the provider page
+      </a>
+    </div>
   );
 }

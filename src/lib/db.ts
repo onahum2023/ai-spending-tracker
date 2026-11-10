@@ -114,6 +114,21 @@ export async function setTags(ids: number[], tag: string | null): Promise<void> 
   await tx.done;
 }
 
+/** Deletes the given transactions, in one IndexedDB transaction. Unknown ids are ignored. Returns how many were deleted. */
+export async function deleteTransactions(ids: number[]): Promise<number> {
+  const d = await db();
+  const tx = d.transaction('transactions', 'readwrite');
+  const store = tx.objectStore('transactions');
+  let deleted = 0;
+  for (const id of new Set(ids)) {
+    if ((await store.getKey(id)) === undefined) continue;
+    await store.delete(id);
+    deleted++;
+  }
+  await tx.done;
+  return deleted;
+}
+
 export async function loadSetting(key: string): Promise<unknown> {
   return (await db()).get('settings', key);
 }

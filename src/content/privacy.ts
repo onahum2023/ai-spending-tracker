@@ -13,7 +13,7 @@
  * search engines not to index it. Set it to false only after review (see issue #19).
  */
 
-import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site';
+import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site.ts';
 
 export const PRIVACY_IS_DRAFT = true;
 export const PRIVACY_UPDATED = '2026-11-10';

@@ -1,11 +1,11 @@
-import { OverridesCard } from '../components/OverridesCard';
-import { TreatAs } from '../components/TreatAs';
-import { Card, Delta, EmptyState, Kpi, ProviderLink, StreamName } from '../components/ui';
+import { Card, Delta, EmptyState, Kpi, ProviderLink, StreamName, TypeNote } from '../components/ui';
 import { CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort } from '../lib/dates';
 import { STALE_AFTER_DAYS } from '../lib/forecast';
 import { UPCOMING_DAYS, type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type UpcomingCharge } from '../lib/insights';
 import { formatEUR } from '../lib/money';
+import { reviewCounts } from '../lib/providerChargeTypes';
+import { href } from '../router';
 import { useLedger } from '../store';
 
 const weekday = (date: string) =>
@@ -22,8 +22,9 @@ function CategoryChip({ category }: { category: Category }) {
 }
 
 export function Subscriptions() {
-  const { analysis } = useLedger();
+  const { analysis, transactions, overrides } = useLedger();
   const r = analysis.report;
+  const toReview = [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0);
   const recentChanges = r.priceChanges.filter((c) => c.month >= addMonths(monthOf(r.latestDate), -5));
   const cleanStops = r.stopped.filter((s) => s.chargesSince.length === 0).length;
 
@@ -48,8 +49,19 @@ export function Subscriptions() {
       <p className="small muted">
         Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
         so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
-        be told from a one-off charge: set its Type to "Subscription · yearly" yourself.
+        be told from a one-off charge: set its charge type to "Subscription · yearly" on the provider's page. This page only shows
+        what your charge types say; change them on the provider pages.
       </p>
+
+      {toReview > 0 && (
+        <div className="notice-bar" role="status">
+          <span>
+            <strong>{toReview} charge type{toReview === 1 ? '' : 's'} still to review.</strong> What is counted here follows the app's
+            suggestions until you confirm them.
+          </span>
+          <a className="btn btn-sm" href={href(['providers'])}>Review on the Providers page</a>
+        </div>
+      )}
 
       {r.active.length === 0 && r.stopped.length === 0 ? (
         <Card>
@@ -73,8 +85,6 @@ export function Subscriptions() {
           </div>
         </>
       )}
-
-      <OverridesCard />
 
     </div>
   );
@@ -113,7 +123,7 @@ function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
                     {s.notes.map((n) => (
                       <div key={n} className="small muted">{n}</div>
                     ))}
-                    <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} editLabel /></div>
+                    <TypeNote provider={s.provider} merchant={s.merchant} />
                   </td>
                   <td className="hide-sm"><CategoryChip category={s.category} /></td>
                   <td className="amount">
@@ -263,7 +273,7 @@ function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
                       <ProviderLink provider={s.provider} />
                       <StreamName provider={s.provider} merchant={s.merchant} labelOnly />
                       {s.cadence === 'yearly' && <div className="small muted">Yearly subscription, no renewal seen</div>}
-                      <div style={{ marginTop: 4 }}><TreatAs provider={s.provider} merchant={s.merchant} editLabel /></div>
+                      <TypeNote provider={s.provider} merchant={s.merchant} />
                     </td>
                     <td className="num nowrap">
                       {formatEUR(s.lastCents)}

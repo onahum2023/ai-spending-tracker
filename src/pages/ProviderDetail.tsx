@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import { SingleSeriesMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
 import { TagRuleInput, TagSuggestions } from '../components/TagEditor';
-import { TreatAs } from '../components/TreatAs';
-import { Card, EmptyState, Kpi, StreamName } from '../components/ui';
+import { ChargeTypesCard } from '../components/ChargeTypes';
+import { Card, EmptyState, Kpi } from '../components/ui';
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
-import { filterPeriod, merchantBreakdown, periodLabel } from '../lib/analytics';
+import { filterPeriod, periodLabel } from '../lib/analytics';
 import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
 import { href } from '../router';
@@ -33,7 +33,6 @@ export function ProviderDetail({ provider }: { provider: string }) {
   const months = monthsBetween(span.firstMonth, span.lastMonth);
   const activeMonths = new Set(rows.map((r) => monthOf(r.date))).size;
   const rank = providers.findIndex((p) => p.provider === provider) + 1;
-  const merchants = merchantBreakdown(rows);
   const first = rows[0].date;
   const last = rows[rows.length - 1].date;
 
@@ -81,19 +80,11 @@ export function ProviderDetail({ provider }: { provider: string }) {
         </Card>
       </div>
 
-      <div className="grid cols-2">
-        <Card
-          title="Transaction history"
-          subtitle={`${rows.length} transactions · ${formatEUR(total)}`}
-          actions={<a className="btn btn-sm btn-ghost" href={href(['transactions'], { provider })}>Open in Transactions →</a>}
-        >
-          <TransactionTable rows={rows} showProvider={false} />
-        </Card>
-        <Card
-          title="Services"
-          subtitle="Each merchant descriptor is a service, with its own charge type. A provider can have several, such as a plan and usage."
-          actions={
-            <div className="row wrap" style={{ gap: 12 }}>
+      <ChargeTypesCard
+        provider={provider}
+        rows={rows}
+        actions={
+          <>
             <TagRuleInput provider={provider} saved={tagRules.find((r) => r.provider === provider)?.tag ?? ''} />
             <label className="row small" style={{ gap: 6 }} title="Charts, budgets and overlap use this category for every charge from this provider. Totals never change.">
               <span className="secondary">Category</span>
@@ -109,28 +100,17 @@ export function ProviderDetail({ provider }: { provider: string }) {
                 ))}
               </select>
             </label>
-            </div>
-          }
-        >
-          <div className="table-wrap" style={{ maxHeight: 520, overflowY: 'auto' }}>
-            <table className="table">
-              <thead>
-                <tr><th>Descriptor</th><th>Type</th><th className="amount">Charges</th><th className="amount">Total</th></tr>
-              </thead>
-              <tbody>
-                {merchants.map((m) => (
-                  <tr key={m.merchant}>
-                    <td className="merchant"><StreamName provider={provider} merchant={m.merchant} className="merchant" /></td>
-                    <td><TreatAs provider={provider} merchant={m.merchant} editLabel /></td>
-                    <td className="amount">{m.count}</td>
-                    <td className="amount">{formatEUR(m.totalCents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
+          </>
+        }
+      />
+
+      <Card
+        title="Transaction history"
+        subtitle={`${rows.length} transactions · ${formatEUR(total)}`}
+        actions={<a className="btn btn-sm btn-ghost" href={href(['transactions'], { provider })}>Open in Transactions →</a>}
+      >
+        <TransactionTable rows={rows} showProvider={false} />
+      </Card>
     </div>
   );
 }
