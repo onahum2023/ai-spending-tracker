@@ -258,10 +258,38 @@ describe('confirming never disagrees with what automatic detection already count
   });
 
   it('counts a later charge with a reference for a plan that never showed one', () => {
-    const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000)), plan('2026-06-05', 700, 'ABC123'), c('2026-08-01', 100, 'OTHER', 'Other')];
+    const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000)), plan('2026-06-22', 700, 'ABC123'), c('2026-08-01', 100, 'OTHER', 'Other')]; // a different billing day: not the plan coming back
     const stopped = analyze(rows, '2026-08-02', confirm).report.stopped.find((s) => s.lastCents === 2000);
     expect(stopped).toBeDefined();
     expect(stopped!.chargesSince).toHaveLength(1);
     expect(stopped!.chargesSince[0].merchant).toBe('ACME* PLAN ABC123');
+  });
+
+  it('does not let a returning subscription suppress an unrelated active one', () => {
+    // A: 20 on the 5th Jan-Mar, back on Sep 5. B: 50 on the 15th Jan-Aug. Same charge type, different references.
+    const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'A1B2C3'));
+    const b = ['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15', '2026-06-15', '2026-07-15', '2026-08-15'].map((d) => plan(d, 5000, 'X1Y2Z3'));
+    const rows = [...a, plan('2026-09-05', 2000, 'A1B2C3'), ...b];
+    const r = analyze(rows, '2026-09-06', confirm).report;
+    expect(r.monthlyCents).toBe(7000); // A is back (20) and B (50) is still there
+    expect(r.active).toHaveLength(2);
+    expect(r.priceChanges).toEqual([]); // no invented 50 -> 20 downgrade
+  });
+
+  it('counts a returning subscription even when the other subscription has just renewed', () => {
+    const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'A1B2C3'));
+    const b = ['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15', '2026-06-15', '2026-07-15', '2026-08-15', '2026-09-15'].map((d) => plan(d, 5000, 'X1Y2Z3'));
+    const r = analyze([...a, plan('2026-09-05', 2000, 'A1B2C3'), ...b], '2026-09-20', confirm).report;
+    expect(r.monthlyCents).toBe(7000);
+    expect(r.active).toHaveLength(2);
+  });
+
+  it('does not count one subscription twice when its description alternates between two charge types', () => {
+    const rows = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-04-05'].map((d, i) => c(d, 2000, i % 2 ? 'ACME* RENEWAL' : 'ACME* PLAN', 'Acme'));
+    expect(analyze(rows, '2026-04-10').report.monthlyCents).toBe(2000); // automatic
+    const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
+    const a = analyze(rows, '2026-04-10', both); // "Confirm all"
+    expect(a.report.monthlyCents).toBe(2000);
+    expect(a.report.active).toHaveLength(1);
   });
 });

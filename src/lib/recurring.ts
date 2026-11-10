@@ -60,9 +60,15 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   provisional?: boolean;
   /** For a provisional pattern: the monthly pattern it continues. */
   replaces?: RecurringPattern<T>;
+  /**
+   * A stand-in for charges of a type you confirmed that detection could not place. It counts in the run-rate but is never
+   * paired with another pattern as a plan switch: it says nothing about what replaced what.
+   */
+  standalone?: boolean;
 }
 
-function daysClose(a: number, b: number): boolean {
+/** Two days of the month are the same billing day (a few days apart, or both near month-end). */
+export function daysClose(a: number, b: number): boolean {
   return Math.abs(a - b) <= DAY_TOLERANCE || (a >= 27 && b >= 27);
 }
 
