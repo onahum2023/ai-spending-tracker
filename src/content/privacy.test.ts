@@ -140,7 +140,7 @@ describe('privacy page', () => {
     expect(body.replace(/<[^>]+>/g, '')).not.toMatch(/[<>]/);
   });
 
-  it('is marked as a draft until the controller and contact are filled in and a review has happened', () => {
+  it('is marked as a draft until the open points are settled and a review has happened', () => {
     const placeholders = /\[[^\]]*(to be decided|to be confirmed)[^\]]*\]/i;
     const text = body + CONTROLLER + CONTACT;
     if (PRIVACY_IS_DRAFT) {

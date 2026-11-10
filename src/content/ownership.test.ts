@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderLandingBody } from './landing';
 import { renderPrivacyBody } from './privacy';
-import { BRAND, COPYRIGHT, OWNER, OWNERSHIP_LINE } from './site';
+import { BRAND, BRAND_NOTE, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNERSHIP_LINE, TRADING_AS } from './site';
 
 const root = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -30,9 +30,18 @@ describe('ownership', () => {
     for (const t of pages) expect(t).not.toMatch(/B\.V\.\./);
   });
 
-  it('does not claim a licence or name a data controller by the ownership notice alone', () => {
+  it('names NuCielo ICT B.V., trading as NeotixHQ, as the controller, with the contact address, and says NeotixHQ is not a legal entity', () => {
+    expect(TRADING_AS).toBe('NuCielo ICT B.V., trading as NeotixHQ');
+    expect(CONTACT_EMAIL).toBe('info@neotixhq.com');
+    expect(BRAND_NOTE).toBe('NeotixHQ is a brand, not a separate legal entity.');
+    const body = renderPrivacyBody();
+    expect(body).toContain('Controller: NuCielo ICT B.V., trading as NeotixHQ. Contact: info@neotixhq.com.');
+    expect(body).toContain(BRAND_NOTE);
+    expect(body).not.toMatch(/Controller name: to be decided|Contact email: to be decided/);
+    expect(renderLandingBody({ version: '1', commit: '', license: '' })).toContain('href="mailto:info@neotixhq.com"');
+  });
+
+  it('does not choose a licence', () => {
     expect(read('package.json')).not.toMatch(/"license"/);
-    expect(renderPrivacyBody()).toContain('Controller:');
-    expect(renderPrivacyBody()).toMatch(/Controller: \[Controller name: to be decided\]/);
   });
 });

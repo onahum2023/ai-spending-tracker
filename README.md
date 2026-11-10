@@ -243,7 +243,7 @@ Options: `--end YYYY-MM-DD` (default today), `--seed N` (default 2026), `--out D
 
 ## Ownership
 
-AI Spending Tracker is a product of **NeotixHQ**, a brand legally owned by **NuCielo ICT B.V.** © 2026 NuCielo ICT B.V. The wording is set once in `src/content/site.ts` and shown in the landing page footer, the privacy page, the app footer and the About card. This is ownership, not a licence: the code has no `LICENSE` file yet (issue #17), and it does not name the data controller (see the privacy statement).
+AI Spending Tracker is a product of **NeotixHQ**, a brand legally owned by **NuCielo ICT B.V.** © 2026 NuCielo ICT B.V. The wording is set once in `src/content/site.ts` and shown in the landing page footer, the privacy page, the app footer and the About card. NuCielo ICT B.V. is the only legal entity; NeotixHQ is a brand of it, not a separate legal entity, so the privacy statement names "NuCielo ICT B.V., trading as NeotixHQ" as the controller, with `info@neotixhq.com` as the contact. Ownership is not a licence: the code has no `LICENSE` file yet (issue #17).
 
 ## Version and licenses
 

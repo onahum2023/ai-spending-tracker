@@ -8,21 +8,21 @@
  *     localStorage keys, cookies, third-party hosts). If you change what the app stores or sends,
  *     that test fails until this text and the code agree again.
  *
- * DRAFT: the text has not been reviewed by someone qualified, the controller and contact are not
- * decided, and it is not legal advice. While PRIVACY_IS_DRAFT is true the page says so and asks
+ * DRAFT: the text has not been reviewed by someone qualified, the legal basis and the log retention period are
+ * still to be confirmed, and it is not legal advice. While PRIVACY_IS_DRAFT is true the page says so and asks
  * search engines not to index it. Set it to false only after review (see issue #19).
  */
 
-import { COPYRIGHT, OWNER, OWNERSHIP_LINE } from './site';
+import { BRAND_NOTE, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNERSHIP_LINE, TRADING_AS } from './site';
 
 export const PRIVACY_IS_DRAFT = true;
 export const PRIVACY_UPDATED = '2026-11-10';
 /** Where the page lives. An absolute file path works from the landing page and the app, in the dev server, the build and on Vercel (cleanUrls redirects it). */
 export const PRIVACY_PATH = '/privacy.html';
 
-/** Filled in once decided (issue #17 and #19). The page shows these placeholders until then. */
-export const CONTROLLER = '[Controller name: to be decided]';
-export const CONTACT = '[Contact email: to be decided]';
+/** NuCielo ICT B.V. is the only legal entity; NeotixHQ is its brand. */
+export const CONTROLLER = TRADING_AS;
+export const CONTACT = CONTACT_EMAIL;
 
 /** The same sentence on the welcome screen, in the README and at the top of the privacy page. */
 export const PRIVACY_SENTENCE =
@@ -129,7 +129,7 @@ export const SECTIONS: Section[] = [
   {
     id: 'ownership',
     title: 'Who owns this app',
-    paragraphs: [OWNERSHIP_LINE, `The app, its name, logo and text are the property of ${OWNER}`, COPYRIGHT],
+    paragraphs: [OWNERSHIP_LINE, BRAND_NOTE, `The app, its name, logo and text are the property of ${OWNER}`, COPYRIGHT],
   },
   {
     id: 'other',
@@ -156,7 +156,7 @@ export function renderPrivacyBody(): string {
   out.push(`<p class="muted">AI Spending Tracker · last updated ${esc(PRIVACY_UPDATED)}</p>`);
   if (PRIVACY_IS_DRAFT) {
     out.push(
-      '<p class="notice"><strong>Draft.</strong> This text has not yet been reviewed by someone qualified and is not legal advice. The controller and contact details are still to be filled in.</p>',
+      '<p class="notice"><strong>Draft.</strong> This text has not yet been reviewed by someone qualified and is not legal advice. The legal basis and the log retention period are still to be confirmed.</p>',
     );
   }
   out.push(`<p class="lead">${esc(PRIVACY_SENTENCE)}</p>`);
