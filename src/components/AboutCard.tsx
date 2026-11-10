@@ -1,5 +1,6 @@
 import { BUILD_INFO, THIRD_PARTY_NOTICES_URL } from '../buildInfo';
 import { PRIVACY_PATH } from '../content/privacy';
+import { BRAND, COPYRIGHT, OWNER } from '../content/site';
 import { dateLabel } from '../lib/dates';
 import { Card } from './ui';
 
@@ -15,6 +16,10 @@ export function AboutCard() {
         <dd className="num">
           {commit ? `${commit} · ` : ''}
           {dateLabel(date)}
+        </dd>
+        <dt className="muted">Owner</dt>
+        <dd>
+          {COPYRIGHT} · {BRAND} is a brand of {OWNER}
         </dd>
         {license && (
           <>

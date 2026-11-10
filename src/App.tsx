@@ -15,6 +15,7 @@ import { Providers } from './pages/Providers';
 import { Transactions } from './pages/Transactions';
 import { Trends } from './pages/Trends';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './content/privacy';
+import { COPYRIGHT } from './content/site';
 import { href, useRoute } from './router';
 import { LedgerProvider, useLedger } from './store';
 
@@ -137,6 +138,7 @@ function Shell() {
         <footer className="app-foot">
           <a href={PRIVACY_PATH}>Privacy</a>
           <a href={href(['data'])}>About</a>
+          <span className="app-foot-owner">{COPYRIGHT}</span>
         </footer>
       </main>
     </div>

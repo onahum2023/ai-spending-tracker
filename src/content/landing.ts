@@ -7,6 +7,7 @@
  * The app itself is at /app (app.html), and keeps working with the same #/ links.
  */
 import { PRIVACY_SENTENCE } from './privacy';
+import { COPYRIGHT, OWNERSHIP_LINE } from './site';
 
 /** Where the tracker lives. A plain file path works in the dev server, the build and on Vercel (cleanUrls turns it into /app). */
 export const APP_PATH = '/app.html';
@@ -142,6 +143,7 @@ ${FAQ.map((f) => `    <details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p><
 </main>
 <footer class="site-foot wide">
   <p><a href="/privacy.html">Privacy statement</a> · <a href="/third-party-notices.txt">Third-party licenses</a></p>
+  <p class="muted">${esc(COPYRIGHT)} · ${esc(OWNERSHIP_LINE)}</p>
   <p class="muted">${esc(build)}</p>
 </footer>`;
 }

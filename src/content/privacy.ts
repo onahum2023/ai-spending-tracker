@@ -13,8 +13,10 @@
  * search engines not to index it. Set it to false only after review (see issue #19).
  */
 
+import { COPYRIGHT, OWNER, OWNERSHIP_LINE } from './site';
+
 export const PRIVACY_IS_DRAFT = true;
-export const PRIVACY_UPDATED = '2026-11-09';
+export const PRIVACY_UPDATED = '2026-11-10';
 /** Where the page lives. An absolute file path works from the landing page and the app, in the dev server, the build and on Vercel (cleanUrls redirects it). */
 export const PRIVACY_PATH = '/privacy.html';
 
@@ -123,6 +125,11 @@ export const SECTIONS: Section[] = [
       'Because the app processes your data on your own device, the operator receives none of it. The only personal data an operator could see is the ordinary web-server data described above, which is processed to deliver the site and keep it secure (legal basis to be confirmed: this draft assumes legitimate interest, Article 6(1)(f) GDPR).',
       'If you are in the EU or UK you have the right to access, correct and erase your personal data, to restrict or object to its processing, and to data portability. You also have the right to complain to your national data protection authority. For data held only in your browser, you can exercise these rights yourself with the controls above. Server logs are kept for [period to be confirmed].',
     ],
+  },
+  {
+    id: 'ownership',
+    title: 'Who owns this app',
+    paragraphs: [OWNERSHIP_LINE, `The app, its name, logo and text are the property of ${OWNER}`, COPYRIGHT],
   },
   {
     id: 'other',
