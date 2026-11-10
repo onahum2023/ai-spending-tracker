@@ -19,12 +19,13 @@ const CORPORATE_SUFFIX = /^(INC|LLC|LTD|LIMITED|CORP|CORPORATION|CO|BV|B\.V|GMBH
 
 /**
  * A token that is a reference or transaction code rather than a word: letters and digits mixed, or a long number.
- * Right after a "*" (the processor prefix, "NAME-CHEAP.COM* JZSPGX") a short run of capitals with no vowel is one too.
+ * Right after a website name and a "*" (the processor prefix, "NAME-CHEAP.COM* JZSPGX") a short run of capitals is one too,
+ * even without digits. It has to be that structure: "OPENAI* CHATGPT" and "GOOGLE *GEMINI" are words, not codes.
  */
-function looksLikeReference(token: string, afterStar: boolean): boolean {
+function looksLikeReference(token: string, previous: string | undefined): boolean {
   if (/^\d{4,}$/.test(token)) return true;
   if (/^[A-Za-z0-9]{5,16}$/.test(token) && /\d/.test(token) && /[A-Za-z]/.test(token)) return true;
-  return afterStar && /^[A-Z]{5,8}$/.test(token) && !/[AEIOU]/.test(token);
+  return /^[A-Z]{5,8}$/.test(token) && previous !== undefined && /\.[A-Za-z]{2,4}\*$/.test(previous);
 }
 
 /**
@@ -39,7 +40,7 @@ export function cleanDescriptor(merchant: string): string {
   const spaced = head.replace(/\s*\*\s*/g, '* ').trim();
   // Drop reference codes, but never the first word (that is the merchant itself).
   const all = spaced.split(/\s+/);
-  const words = all.filter((w, i) => i === 0 || !looksLikeReference(w.replace(/[*,.]+$/g, ''), all[i - 1]?.endsWith('*') ?? false));
+  const words = all.filter((w, i) => i === 0 || !looksLikeReference(w.replace(/[*,.]+$/g, ''), all[i - 1]));
   // Drop trailing punctuation and company-form words ("GITHUB, INC." -> "GITHUB").
   for (;;) {
     const last = words[words.length - 1];

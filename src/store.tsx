@@ -48,6 +48,8 @@ interface Ledger {
   overrides: Override[];
   /** Sets the treatment of one stream (provider + merchant descriptor), or with null puts it back to automatic. */
   setOverride: (provider: string, merchant: string, kind: OverrideKind | null) => Promise<void>;
+  /** Sets several charge types at once ("confirm all suggestions"), saved in one write. */
+  setOverrides: (changes: { provider: string; merchant: string; kind: OverrideKind }[]) => Promise<void>;
   /** "Tag new charges from this provider as ...": applied when charges are imported, never to charges already stored. */
   tagRules: TagRule[];
   /** Sets the tag rule of one provider; an empty tag removes it. Saved in this browser; in demo mode kept in memory only. */
@@ -196,6 +198,18 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     [mode, overrides],
   );
 
+  const setOverrides = useCallback(
+    async (changes: { provider: string; merchant: string; kind: OverrideKind }[]) => {
+      let next = overrides;
+      for (const c of changes) next = withOverride(next, c.provider, c.merchant, c.kind);
+      next = normalizeOverrides(next);
+      if (mode === 'demo') return setDemoOverrides(next);
+      await saveSetting('overrides', next);
+      setStoredOverrides(next);
+    },
+    [mode, overrides],
+  );
+
   const setLabel = useCallback(
     async (provider: string, merchant: string, text: string | null) => {
       const next = normalizeLabels(withLabel(labels, provider, merchant, text));
@@ -319,6 +333,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     analysis,
     overrides,
     setOverride,
+    setOverrides,
     tagRules,
     setTagRule,
     providerCategories,

@@ -9,7 +9,8 @@ const c = (date: string, cents: number, merchant: string, provider = 'Acme'): Le
 describe('cleaning a description into a charge type', () => {
   it('drops the reference code, the city and the case', () => {
     expect(cleanDescriptor('NAME-CHEAP.COM* PTOOH4  PHOENIX')).toBe('NAME-CHEAP.COM');
-    expect(cleanDescriptor('NAME-CHEAP.COM* JZSPGX  PHOENIX')).toBe('NAME-CHEAP.COM'); // a code with no digit, after the star
+    // codes with no digit, after a website name and a star
+    for (const code of ['JZSPGX', 'BKULRL', 'OIYTRZ']) expect(cleanDescriptor(`NAME-CHEAP.COM* ${code}  PHOENIX`)).toBe('NAME-CHEAP.COM');
     expect(normalizeDescriptor('Anthropic')).toBe('ANTHROPIC');
     expect(normalizeDescriptor('ANTHROPIC')).toBe('ANTHROPIC');
     expect(normalizeDescriptor('CURSOR AI               NEW YORK')).toBe('CURSOR AI');
@@ -29,6 +30,13 @@ describe('cleaning a description into a charge type', () => {
     expect(normalizeDescriptor('Anthropic')).not.toBe(normalizeDescriptor('ANTHROPIC* CLAUDE SUB'));
     expect(normalizeDescriptor('OPENAI* CHATGPT CREDIT  DUBLIN')).not.toBe(normalizeDescriptor('OPENAI *CHATGPT SUBSCR'));
     expect(normalizeDescriptor('OPENAI                  SAN FRANCISCO')).toBe('OPENAI');
+  });
+
+  it('does not mistake a word after a star for a code', () => {
+    expect(normalizeDescriptor('OPENAI* CHATGPT SUBSCR  DUBLIN')).toBe('OPENAI* CHATGPT SUBSCR');
+    expect(normalizeDescriptor('GOOGLE *GEMINI')).toBe('GOOGLE* GEMINI');
+    expect(normalizeDescriptor('PAYPAL *SPOTIFY')).toBe('PAYPAL* SPOTIFY');
+    expect(normalizeDescriptor('ANTHROPIC* CLAUDE SUB')).toBe('ANTHROPIC* CLAUDE SUB');
   });
 
   it('never returns nothing, and never eats the merchant itself', () => {
