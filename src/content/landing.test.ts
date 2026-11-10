@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { APP_PATH, DEMO_PATH, FAQ, FEATURES, META_DESCRIPTION, renderLandingBody, renderLandingMeta, SHOTS, STEPS } from './landing';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
+import { PRODUCTION_URL } from './site';
 
 const root = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -57,6 +58,27 @@ describe('landing page', () => {
   it('puts the version in the footer, and the license only when there is one', () => {
     expect(body).toContain('Version 1.2.3 · build abc1234');
     expect(renderLandingBody({ version: '1', commit: '', license: 'MIT' })).toContain('Version 1 · MIT');
+  });
+});
+
+describe('redirects', () => {
+  const vercel = JSON.parse(read('vercel.json')) as { redirects: { source: string; has?: { type: string; value: string }[]; destination: string; permanent?: boolean }[] };
+
+  it('sends www to the apex domain with the path kept, and only for exactly that host', () => {
+    const www = vercel.redirects.find((r) => r.has?.some((h) => h.value === 'www.ai-spend-tracker.neotixhq.com'))!;
+    expect(www).toBeDefined();
+    expect(www.has).toEqual([{ type: 'host', value: 'www.ai-spend-tracker.neotixhq.com' }]);
+    expect(www.destination).toBe(`${PRODUCTION_URL}/$1`);
+    expect(www.permanent).toBe(true);
+  });
+
+  it('never redirects by a wildcard or a *.vercel.app host, so previews and unrelated projects are untouched', () => {
+    for (const r of vercel.redirects) {
+      for (const h of r.has ?? []) expect(h.value).not.toMatch(/\*|vercel\.app/);
+      expect(r.destination.startsWith(PRODUCTION_URL)).toBe(true);
+      // a rule without a host condition would redirect every deployment, previews included
+      expect(r.has?.some((h) => h.type === 'host')).toBe(true);
+    }
   });
 });
 
