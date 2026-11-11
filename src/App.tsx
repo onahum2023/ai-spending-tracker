@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ImportPanel } from './components/ImportPanel';
 import { PeriodPicker } from './components/PeriodPicker';
 import { dateLabel } from './lib/dates';
@@ -13,10 +13,10 @@ import { ProviderDetail } from './pages/ProviderDetail';
 import { Subscriptions } from './pages/Subscriptions';
 import { Providers } from './pages/Providers';
 import { Transactions } from './pages/Transactions';
-import { Trends } from './pages/Trends';
+import { Insights } from './pages/Insights';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './content/privacy';
 import { COPYRIGHT } from './content/site';
-import { href, useRoute } from './router';
+import { href, navigate, useRoute } from './router';
 import { LedgerProvider, useLedger } from './store';
 
 const icons: Record<string, ReactNode> = {
@@ -24,7 +24,7 @@ const icons: Record<string, ReactNode> = {
   subscriptions: <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" />,
   providers: <path d="M4 6h16M4 12h16M4 18h10" />,
   transactions: <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />,
-  trends: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
+  insights: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
   data: <path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zm0 0v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />,
 };
 
@@ -33,7 +33,7 @@ const NAV = [
   { key: 'subscriptions', label: 'Subscriptions', path: ['subscriptions'] },
   { key: 'providers', label: 'Providers', path: ['providers'] },
   { key: 'transactions', label: 'Transactions', path: ['transactions'] },
-  { key: 'trends', label: 'Trends', path: ['trends'] },
+  { key: 'insights', label: 'Insights', path: ['insights'] },
   { key: 'data', label: 'Data', path: ['data'] },
 ];
 
@@ -55,11 +55,17 @@ function BrandMark() {
   );
 }
 
+/** Pages that moved. Old links and bookmarks land on the page that took over. */
+const MOVED: Record<string, string[]> = { trends: ['insights'] };
+
 function Shell() {
   const route = useRoute();
   const { transactions, span, mode } = useLedger();
   const section = route.path[0] ?? 'overview';
   const providerName = section === 'providers' ? route.path[1] : undefined;
+  useEffect(() => {
+    if (section in MOVED) navigate(MOVED[section], undefined, true);
+  }, [section]);
 
   let title: ReactNode = 'Overview';
   let page: ReactNode = <Overview />;
@@ -91,9 +97,9 @@ function Shell() {
       page = <Transactions route={route} />;
       showPeriod = false;
       break;
-    case 'trends':
-      title = 'Trends';
-      page = <Trends />;
+    case 'insights':
+      title = 'Insights';
+      page = <Insights />;
       showPeriod = false;
       break;
     case 'data':

@@ -2,7 +2,7 @@ import { STALE_AFTER_DAYS } from '../lib/forecast';
 import { dateLabel, monthShort } from '../lib/dates';
 import { UPCOMING_DAYS, type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type UpcomingCharge } from '../lib/insights';
 import { formatEUR } from '../lib/money';
-import { Card, Delta, EmptyState, ProviderLink, StreamName, TypeNote } from './ui';
+import { Card, Delta, EmptyState, ProviderLink, ReadChip, StreamName, TypeNote } from './ui';
 
 const weekday = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' });
@@ -61,7 +61,7 @@ export function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcomin
 
 export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
   return (
-    <Card title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more">
+    <Card title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more" actions={<ReadChip />}>
       {changes.length === 0 ? (
         <EmptyState>No price changes seen.</EmptyState>
       ) : (
@@ -87,7 +87,7 @@ export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
 
 export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
   return (
-    <Card title="Overlap" subtitle="Several recurring charges in the same kind of tool">
+    <Card title="Overlap" subtitle="Several recurring charges in the same kind of tool" actions={<ReadChip />}>
       {groups.length === 0 ? (
         <EmptyState>No overlap: at most one recurring charge per kind of tool.</EmptyState>
       ) : (
@@ -115,7 +115,7 @@ export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
 
 export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
   return (
-    <Card title="Stopped" subtitle="Recurring charges that are no longer appearing, and whether anything still charges from the same merchant">
+    <Card title="Stopped" subtitle="Recurring charges that are no longer appearing, and whether anything still charges from the same merchant" actions={<ReadChip />}>
       {stopped.length === 0 ? (
         <EmptyState>Nothing has stopped.</EmptyState>
       ) : (
@@ -172,7 +172,7 @@ export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
 export function SavingsCard({ subs }: { subs: Subscription[] }) {
   const top = subs.slice(0, 5);
   return (
-    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge. Only you know which ones you still use.">
+    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge. Only you know which ones you still use." actions={<ReadChip />}>
       {top.length === 0 ? (
         <EmptyState>No active recurring charges.</EmptyState>
       ) : (

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
-import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented, StreamName } from '../components/ui';
+import { OverlapCard, PriceChangesCard, SavingsCard, StoppedCard } from '../components/SubscriptionCards';
+import { Card, Delta, Disclosure, EmptyState, ProviderDot, ProviderLink, ReadChip, Segmented, StreamName } from '../components/ui';
 import {
   concentration,
   filterPeriod,
@@ -22,8 +23,8 @@ function rangeLabel(from: string, to: string) {
     : `${monthLabel(from)} – ${monthLabel(to)}`;
 }
 
-export function Trends() {
-  const { transactions, span, today } = useLedger();
+export function Insights() {
+  const { transactions, span, today, analysis } = useLedger();
   if (!span) return null;
   const L = lastCompleteMonth(span, today);
   const byMonth = totalsByMonth(transactions);
@@ -33,32 +34,102 @@ export function Trends() {
   const prev3 = sumCents(rowsInMonths(transactions, addMonths(L, -5), addMonths(L, -3)));
 
   return (
-    <div className="stack">
-      <div className="grid cols-2">
-        <Card title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
-          <MonthlyTrendChart rows={transactions} months={span.months} />
-        </Card>
-        <Card title="At a glance" subtitle="Complete months only, unless noted">
-          <div className="stack" style={{ gap: 14 }}>
-            <Stat label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`} value={formatEUR(last3)} sub={<>vs previous 3: <Delta before={prev3} after={last3} /></>} />
-            <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
-            <Stat label="Highest month" value={formatEUR(byMonth.get(sortedMonths[0]) ?? 0)} sub={monthLabel(sortedMonths[0])} />
-            <Stat label="Lowest complete month" value={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? formatEUR(byMonth.get(low) ?? 0) : '—'; })()} sub={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? monthLabel(low) : ''; })()} />
-          </div>
-        </Card>
-      </div>
+    <div className="stack" style={{ gap: 28 }}>
+      <InsightGroup
+        title="Patterns"
+        lead="What repeats, and how your spending is made up."
+        why={
+          <>
+            Monthly spending and the highlights are sums of recorded charges. The rest is the app's read. Charges from the same provider on a
+            similar day and amount for 3+ consecutive months are shown as recurring-looking patterns: observations, not confirmed
+            subscriptions. A charge's type (subscription, usage or one-time) is the app's suggestion until you confirm it on the provider's
+            page: a charge is a subscription once it has appeared monthly for three months in a row, and usage when the same descriptor is
+            charged three or more times without that rhythm. A yearly subscription can't be told from a one-off charge, so you set it on the
+            provider's page.
+          </>
+        }
+      >
+        <div className="grid cols-2">
+          <Card title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
+            <MonthlyTrendChart rows={transactions} months={span.months} />
+          </Card>
+          <Card title="At a glance" subtitle="Complete months only, unless noted">
+            <div className="stack" style={{ gap: 14 }}>
+              <Stat label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`} value={formatEUR(last3)} sub={<>vs previous 3: <Delta before={prev3} after={last3} /></>} />
+              <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
+              <Stat label="Highest month" value={formatEUR(byMonth.get(sortedMonths[0]) ?? 0)} sub={monthLabel(sortedMonths[0])} />
+              <Stat label="Lowest complete month" value={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? formatEUR(byMonth.get(low) ?? 0) : '—'; })()} sub={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? monthLabel(low) : ''; })()} />
+            </div>
+          </Card>
+        </div>
+        <SpendingTypes />
+        <RecurringCard />
+      </InsightGroup>
 
-      <SpendingTypes />
+      <InsightGroup
+        title="Shifts"
+        lead="Recurring charges that changed price or stopped."
+        why={
+          <>
+            A price change is either one pattern ending and another starting at a different amount within a month (a plan switch, called
+            "likely a plan change" at 25% or more), or the amount inside one pattern moving by 10% or more and staying there. A charge has
+            no plan name, so plan changes are inferred. A stopped charge is a pattern that ran and is no longer appearing, unless a newer
+            pattern at the same provider replaced it. Each is checked for later charges from the same merchant: none means the cancellation
+            looks clean, some are listed as still charging, which often means the stream was usage top-ups rather than a subscription.
+          </>
+        }
+      >
+        <div className="grid cols-2-even">
+          <PriceChangesCard changes={analysis.report.priceChanges} />
+          <StoppedCard stopped={analysis.report.stopped} />
+        </div>
+      </InsightGroup>
 
-      <YearComparison />
+      <InsightGroup
+        title="Suggestions"
+        lead="Things you may want to look at. Only you know what you still use."
+        why={
+          <>
+            Overlap is two or more active recurring charges from different providers in the same category: chat assistants, coding tools,
+            media tools, writing and meeting tools. Hosting and domains are normally plural, so they are not flagged. Overlap is not waste:
+            you may use each one for something different. What ending one would save is its per-year cost from the latest charge.
+          </>
+        }
+      >
+        <div className="grid cols-2-even">
+          <OverlapCard groups={analysis.report.overlaps} />
+          <SavingsCard subs={analysis.report.active} />
+        </div>
+      </InsightGroup>
 
-      <div className="grid cols-2-even">
-        <ChangesCard />
-        <ConcentrationCard />
-      </div>
-
-      <RecurringCard />
+      <InsightGroup title="Comparisons" lead="This period against another, and how spending is spread.">
+        <YearComparison />
+        <div className="grid cols-2-even">
+          <ChangesCard />
+          <ConcentrationCard />
+        </div>
+      </InsightGroup>
     </div>
+  );
+}
+
+/** A named section of the page. `why` is the reasoning behind whatever in it is the app's read, one click away. */
+function InsightGroup({ title, lead, why, children }: { title: string; lead: string; why?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="insight-group" aria-label={title}>
+      <header className="insight-head">
+        <h2>{title}</h2>
+        <p>{lead}</p>
+      </header>
+      <div className="stack">
+        {children}
+        {why && (
+          <Disclosure label="How are these found?">
+            <p className="small muted" style={{ margin: 0 }}>{why}</p>
+          </Disclosure>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -85,10 +156,10 @@ function SpendingTypes() {
   );
   return (
     <div className="grid cols-2">
-      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither">
+      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither" actions={<ReadChip />}>
         <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
-      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
+      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`} actions={<ReadChip />}>
         <div className="stack" style={{ gap: 14 }}>
           <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
           <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
@@ -96,8 +167,7 @@ function SpendingTypes() {
           {sentence && <p className="small secondary">{sentence}</p>}
           <p className="small muted">
             The app guesses each charge's type. A charge is a subscription once it has appeared monthly for three months in a row, and usage
-            when the same descriptor is charged three or more times without that rhythm. Correct any of them with the Type control on the
-            Transactions or Subscriptions page.
+            when the same descriptor is charged three or more times without that rhythm. Correct any of them on the provider's page.
           </p>
         </div>
       </Card>
@@ -302,6 +372,7 @@ function RecurringCard() {
     <Card
       title="Recurring-looking patterns"
       subtitle="Charges from the same provider on a similar day and amount for 3+ consecutive months. These are observations from the data, not confirmed subscriptions."
+      actions={<ReadChip />}
     >
       {patterns.length === 0 ? (
         <EmptyState>No recurring-looking patterns found.</EmptyState>
