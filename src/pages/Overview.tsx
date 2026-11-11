@@ -16,6 +16,7 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
 import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
+import { reviewCounts } from '../lib/providerChargeTypes';
 import type { Period } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
@@ -24,9 +25,10 @@ type ChartView = 'provider' | 'category' | 'type';
 const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
 
 export function Overview() {
-  const { transactions, span, period, setPeriod, today, analysis } = useLedger();
+  const { transactions, span, period, setPeriod, today, analysis, overrides } = useLedger();
   const [view, setView] = useState<ChartView>('provider');
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
+  const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
 
   if (!span) return null;
 
@@ -38,6 +40,12 @@ export function Overview() {
   return (
     <div className="stack">
       <KpiRow period={period} />
+      {toReview > 0 && (
+        <p className="small muted" style={{ margin: '-6px 0 0' }}>
+          {toReview} charge type{toReview === 1 ? '' : 's'} still follow{toReview === 1 ? 's' : ''} the app's suggestion.{' '}
+          <a href={href(['providers'])} style={{ textDecoration: 'underline' }}>Review on the Providers page</a>
+        </p>
+      )}
 
       <div className="grid cols-2">
         <Card

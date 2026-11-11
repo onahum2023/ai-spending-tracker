@@ -63,12 +63,10 @@ function DisclosureRow({
 export function SubscriptionRow({
   s,
   report,
-  reviewPill = false,
   showProvider = true,
 }: {
   s: Subscription;
   report: SubscriptionReport;
-  reviewPill?: boolean;
   /** False on the provider's own page, where the provider is already the heading. */
   showProvider?: boolean;
 }) {
@@ -94,7 +92,6 @@ export function SubscriptionRow({
     pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latestChange.month)}`, cls: up ? 'chip-over' : 'chip-accent' });
   }
   if (group && others.length) pills.push({ text: 'Overlap', cls: '' });
-  if (reviewPill && info && !confirmed) pills.push({ text: 'To review', cls: 'chip-warn' });
 
   const next = report.upcoming.find((u) => u.provider === s.provider && u.merchant === s.merchant);
   const yearOf = (month: string) => (month.slice(0, 4) === report.latestDate.slice(0, 4) ? '' : ` ${month.slice(0, 4)}`);
