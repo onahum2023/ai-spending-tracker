@@ -162,6 +162,7 @@ p { margin: 0; }
   white-space: nowrap;
 }
 .chip-accent { background: var(--accent-wash); color: var(--accent-ink); border-color: transparent; }
+.chip-suggested { background: transparent; color: var(--ink-3); border-style: dashed; font-weight: 500; }
 .chip-warn { background: var(--warn-bg); color: var(--warn-ink); border-color: transparent; }
 .chip-active::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
 .chip-ended::before { content: ''; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--ink-3); box-sizing: border-box; }

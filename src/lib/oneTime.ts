@@ -1,5 +1,5 @@
 import { formatEUR, formatSignedEUR } from './money';
-import type { ChargeKind } from './overrides';
+import type { ChargeKind, TypeSource } from './overrides';
 import type { LedgerRow } from './types';
 
 /*
@@ -7,8 +7,9 @@ import type { LedgerRow } from './types';
  * --------------------------------
  * A comparison of two periods ("this month against last") moves a lot when one of them holds a one-time charge (a course,
  * an exam, a domain bought once). When either period contains one, the card says so and shows the comparison without them.
- * One-time means a charge whose type is One-time / Other. Refunds are not counted as one-time charges. Nothing is changed
- * in the figures themselves: this only adds a second line.
+ * One-time means a charge whose type is One-time / Other AND that you confirmed. A guess (a descriptor seen once or twice, a
+ * file's Type column) is never counted, so the note does not state as fact what the app only suspects. Refunds are not counted
+ * either. Nothing is changed in the figures themselves: this only adds a second line.
  */
 
 export interface OneTimeNote {
@@ -22,11 +23,14 @@ export interface OneTimeNote {
   withoutCents: number;
 }
 
-function oneTimeOf<T extends LedgerRow>(rows: T[], typeOf: (row: T) => { kind: ChargeKind }) {
+type TypeOf<T> = (row: T) => { kind: ChargeKind; source: TypeSource };
+
+function oneTimeOf<T extends LedgerRow>(rows: T[], typeOf: TypeOf<T>) {
   const byProvider = new Map<string, number>();
   let total = 0;
   for (const r of rows) {
-    if (r.amountCents <= 0 || typeOf(r).kind !== 'other') continue;
+    const info = typeOf(r);
+    if (r.amountCents <= 0 || info.kind !== 'other' || info.source !== 'you') continue;
     total += r.amountCents;
     byProvider.set(r.provider, (byProvider.get(r.provider) ?? 0) + r.amountCents);
   }
@@ -38,7 +42,7 @@ function oneTimeOf<T extends LedgerRow>(rows: T[], typeOf: (row: T) => { kind: C
 export function oneTimeNote<T extends LedgerRow>(
   current: T[],
   earlier: T[],
-  typeOf: (row: T) => { kind: ChargeKind },
+  typeOf: TypeOf<T>,
   sum: (rows: T[]) => number,
 ): OneTimeNote | null {
   const cur = oneTimeOf(current, typeOf);

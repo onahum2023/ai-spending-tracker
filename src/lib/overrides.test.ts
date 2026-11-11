@@ -10,6 +10,7 @@ import {
   normalizeOverrides,
   overrideMap,
   overrideOf,
+  typePill,
   streamSize,
   typeLabel,
   withOverride,
@@ -287,5 +288,25 @@ describe('storage', () => {
     expect(normalizeOverrides(await loadSetting('overrides'))).toEqual(list);
     await clearAll();
     expect(await loadSetting('overrides')).toBeUndefined();
+  });
+});
+
+describe('the type pill in a list', () => {
+  it('shows a confirmed type as it is, a suggestion muted with "Suggested:", and a guess of one-time or an unknown as nothing', () => {
+    expect(typePill({ kind: 'subscription', cadence: 'monthly', source: 'you' })).toEqual({ text: 'Subscription · monthly', confirmed: true });
+    expect(typePill({ kind: 'other', source: 'you' })).toEqual({ text: 'One-time / Other', confirmed: true });
+    expect(typePill({ kind: 'subscription', cadence: 'monthly', source: 'pattern' })).toEqual({ text: 'Suggested: Subscription · monthly', confirmed: false });
+    expect(typePill({ kind: 'usage', source: 'repeats' })).toEqual({ text: 'Suggested: Usage', confirmed: false });
+    // Never One-time / Other for something nobody decided.
+    expect(typePill({ kind: 'other', source: 'single' })).toBeNull();
+    expect(typePill({ kind: 'other', source: 'import' })).toBeNull();
+  });
+
+  it('follows what analyze decides for real charges', () => {
+    const data = [charge('2026-11-04', 9000, 'Cert', 'CERT EXAM')];
+    const guessed = analyze(data, '2026-11-09');
+    expect(typePill(guessed.typeOf(data[0]))).toBeNull();
+    const confirmed = analyze(data, '2026-11-09', [{ provider: 'Cert', merchant: 'CERT EXAM', kind: 'other' }]);
+    expect(typePill(confirmed.typeOf(data[0]))).toEqual({ text: 'One-time / Other', confirmed: true });
   });
 });

@@ -73,6 +73,17 @@ export function typeLabel(t: TypeInfo): string {
   return t.cadence ? `Subscription · ${t.cadence}` : 'Subscription';
 }
 
+/**
+ * The type pill for a charge in a list. A type you confirmed shows as it is. A suggestion shows with "Suggested:" and is
+ * muted. A guess that the charge is One-time / Other, or a charge the app knows nothing about, shows nothing: a pill must
+ * never say One-time / Other for something nobody decided.
+ */
+export function typePill(info: TypeInfo): { text: string; confirmed: boolean } | null {
+  if (info.source === 'you') return { text: typeLabel(info), confirmed: true };
+  if (info.kind === 'other') return null;
+  return { text: `Suggested: ${typeLabel(info)}`, confirmed: false };
+}
+
 export const WHY: Record<TypeSource, string> = {
   you: 'You set this',
   pattern: 'Repeats monthly on a similar day and amount',

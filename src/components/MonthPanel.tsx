@@ -3,7 +3,7 @@ import { monthDrillDown } from '../lib/analytics';
 import { dateLabelShort, daysInMonth, monthLabelLong, monthShort } from '../lib/dates';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, sumCents } from '../lib/money';
-import { typeLabel, WHY } from '../lib/overrides';
+import { typePill, WHY } from '../lib/overrides';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 import { ProviderDot } from './ui';
@@ -64,6 +64,7 @@ export function MonthPanel({
             <ul className="sheet-list">
               {rows.map((t) => {
                 const info = analysis.typeOf(t);
+                const pill = typePill(info);
                 const label = labelOf(names, t.provider, t.merchant);
                 return (
                   <li key={t.id} className="sheet-row">
@@ -77,7 +78,11 @@ export function MonthPanel({
                         {label && <><span className="stream-label">{label}</span> · </>}
                         {tidyDescriptor(t.merchant)}
                       </span>
-                      <span className="chip" title={WHY[info.source]}>{typeLabel(info)}</span>
+                      {pill && (
+                        <span className={`chip${pill.confirmed ? '' : ' chip-suggested'}`} title={WHY[info.source]}>
+                          {pill.text}
+                        </span>
+                      )}
                     </span>
                     <span className="sheet-amount num">{formatEUR(t.amountCents)}</span>
                   </li>

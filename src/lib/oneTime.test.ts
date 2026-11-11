@@ -5,12 +5,12 @@ import { describeOneTime, oneTimeNote } from './oneTime';
 import type { LedgerRow } from './types';
 
 const row = (date: string, cents: number, provider: string, merchant: string): LedgerRow => ({ provider, merchant, date, amountCents: cents });
-const kindOf = (kind: 'other' | 'subscription' | 'usage') => () => ({ kind });
+const kindOf = (kind: 'other' | 'subscription' | 'usage') => () => ({ kind, source: 'you' as const });
 
 describe('one-time charges in a comparison', () => {
   const cur = [row('2026-11-04', 11505, 'Anthropic', 'EXAM'), row('2026-11-06', 2000, 'Acme', 'ACME')];
   const earlier = [row('2026-10-06', 2000, 'Acme', 'ACME'), row('2026-10-07', 5000, 'Acme', 'ACME USAGE')];
-  const typeOf = (r: LedgerRow) => ({ kind: (r.merchant === 'EXAM' ? 'other' : r.merchant === 'ACME USAGE' ? 'usage' : 'subscription') as 'other' | 'usage' | 'subscription' });
+  const typeOf = (r: LedgerRow) => ({ kind: (r.merchant === 'EXAM' ? 'other' : r.merchant === 'ACME USAGE' ? 'usage' : 'subscription') as 'other' | 'usage' | 'subscription', source: 'you' as const });
 
   it('is null when neither period has one: no change to the card', () => {
     expect(oneTimeNote(earlier, earlier, typeOf, sumCents)).toBeNull();
@@ -44,14 +44,27 @@ describe('one-time charges in a comparison', () => {
     expect(oneTimeNote(rows, [], kindOf('usage'), sumCents)).toBeNull();
   });
 
-  it('reads types from analyze: a charge type you set to one-time counts', () => {
+  it('counts only one-time types you confirmed, never a suggestion', () => {
     const rows = [
       ...['2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map((m) => row(`${m}-15`, 2000, 'Acme', 'ACME PLAN')),
-      row('2026-11-04', 9000, 'Cert', 'CERT EXAM'),
+      row('2026-11-04', 9000, 'Cert', 'CERT EXAM'), // a single charge: the app only suspects it is one-time
     ];
-    const a = analyze(rows, '2026-11-09');
-    const n = oneTimeNote(rows.filter((r) => r.date.startsWith('2026-11')), rows.filter((r) => r.date.startsWith('2026-10')), a.typeOf, sumCents)!;
-    expect(n.currentProviders).toEqual(['Cert']); // a single charge reads as one-time
+    const cur = rows.filter((r) => r.date.startsWith('2026-11'));
+    const earlier = rows.filter((r) => r.date.startsWith('2026-10'));
+    const guessed = analyze(rows, '2026-11-09');
+    expect(guessed.typeOf(rows[rows.length - 1])).toMatchObject({ kind: 'other', source: 'single' });
+    expect(oneTimeNote(cur, earlier, guessed.typeOf, sumCents)).toBeNull();
+    // Confirmed by you, the same charge counts.
+    const confirmed = analyze(rows, '2026-11-09', [{ provider: 'Cert', merchant: 'CERT EXAM', kind: 'other' }]);
+    const n = oneTimeNote(cur, earlier, confirmed.typeOf, sumCents)!;
+    expect(n.currentProviders).toEqual(['Cert']);
     expect(n.withoutCents).toBe(0 - 2000);
+  });
+
+  it('does not count a one-time type that came from an import file or a pattern read, only your own setting', () => {
+    const imported = { ...row('2026-11-04', 9000, 'Cert', 'CERT EXAM'), type: 'certification' as const };
+    const a = analyze([imported], '2026-11-09');
+    expect(a.typeOf(imported)).toMatchObject({ kind: 'other', source: 'import' });
+    expect(oneTimeNote([imported], [], a.typeOf, sumCents)).toBeNull();
   });
 });
