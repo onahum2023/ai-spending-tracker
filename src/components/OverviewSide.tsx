@@ -251,7 +251,7 @@ export function OverviewSide({
   dueColor: (e: ExpectedCharge) => string;
 }) {
   return (
-    <aside className="overview-side" aria-label="Comparisons, what is still due and budget">
+    <aside className="card overview-side" aria-label="Comparisons, what is still due and budget">
       <Compared period={period} inProgress={inProgress} asOf={asOf} />
       {inProgress && <StillDue forecast={forecast} colorOf={dueColor} />}
       <BudgetSection />

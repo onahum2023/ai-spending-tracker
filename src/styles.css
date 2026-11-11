@@ -427,9 +427,11 @@ a.legend-item:hover { color: var(--ink); text-decoration: underline; }
 .dot-hatch { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hatch) 62%, transparent) 0 2px, color-mix(in srgb, var(--hatch) 22%, transparent) 2px 4px); }
 .chart-tip-sub { display: flex; justify-content: space-between; gap: 12px; margin: 6px 0 2px; padding-top: 5px; border-top: 1px solid var(--border); font-weight: 600; }
 
-.overview-side { display: flex; flex-direction: column; min-width: 0; }
-.side-section { padding: 14px 4px 14px 2px; border-top: 1px solid var(--border); }
-.side-section:first-child { border-top: 0; padding-top: 2px; }
+/* One card, the same padding as the chart card; it stretches to the chart card's height and its content stays at the top. */
+.overview-side { display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; padding: 16px 16px 14px; }
+.side-section { padding: 14px 0; border-top: 1px solid var(--border); }
+.side-section:first-child { border-top: 0; padding-top: 0; }
+.side-section:last-child { padding-bottom: 0; }
 .side-section h3 { font-size: 12px; font-weight: 650; color: var(--ink-2); text-transform: none; }
 .side-row { padding: 8px 0 2px; }
 .side-row-main { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
