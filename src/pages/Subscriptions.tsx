@@ -1,25 +1,18 @@
-import { Card, Delta, EmptyState, Kpi, ProviderLink, StreamName, TypeNote } from '../components/ui';
-import { CATEGORY_LABELS, type Category } from '../lib/categories';
-import { addMonths, dateLabel, monthLabel, monthOf, monthShort } from '../lib/dates';
+import { useId, useState, type ReactNode } from 'react';
+import { Card, Delta, EmptyState, Kpi, ProviderDot, ProviderLink, StreamName, TypeNote } from '../components/ui';
+import { CATEGORY_LABELS, CATEGORY_NOUNS } from '../lib/categories';
+import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal } from '../lib/dates';
 import { STALE_AFTER_DAYS } from '../lib/forecast';
-import { UPCOMING_DAYS, type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type UpcomingCharge } from '../lib/insights';
+import { UPCOMING_DAYS, type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type SubscriptionReport, type UpcomingCharge } from '../lib/insights';
+import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR } from '../lib/money';
+import { overrideMap, overrideOf, typeLabel, WHY } from '../lib/overrides';
 import { reviewCounts } from '../lib/providerChargeTypes';
-import { href } from '../router';
+import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
 const weekday = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' });
-
-function CategoryChip({ category }: { category: Category }) {
-  const { categoryColors } = useLedger();
-  return (
-    <span className="chip">
-      <span className="dot" style={{ background: categoryColors(category) }} aria-hidden="true" />
-      {CATEGORY_LABELS[category]}
-    </span>
-  );
-}
 
 export function Subscriptions() {
   const { analysis, transactions, overrides } = useLedger();
@@ -46,12 +39,14 @@ export function Subscriptions() {
         />
       </div>
 
-      <p className="small muted">
-        Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
-        so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
-        be told from a one-off charge: set its charge type to "Subscription · yearly" on the provider's page. This page only shows
-        what your charge types say; change them on the provider pages.
-      </p>
+      <Disclosure label="How are these found?">
+        <p className="small muted" style={{ margin: 0 }}>
+          Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
+          so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
+          be told from a one-off charge: set its charge type to "Subscription · yearly" on the provider's page. This page only shows
+          what your charge types say; change them on the provider pages.
+        </p>
+      </Disclosure>
 
       {toReview > 0 && (
         <div className="notice-bar" role="status">
@@ -72,7 +67,7 @@ export function Subscriptions() {
       ) : (
         <>
           <div className="grid cols-2">
-            <ActiveCard subs={r.active} total={r.monthlyCents} />
+            <ActiveCard subs={r.active} total={r.monthlyCents} report={r} />
             <UpcomingCard upcoming={r.upcoming} fresh={r.dataFresh} latest={r.latestDate} asOf={r.asOf} total={r.upcomingCents} />
           </div>
           <div className="grid cols-2-even">
@@ -90,62 +85,144 @@ export function Subscriptions() {
   );
 }
 
-function ActiveCard({ subs, total }: { subs: Subscription[]; total: number }) {
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg className={`chevron${open ? ' open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+/** A text toggle that reveals its children. Closed by default. */
+function Disclosure({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div>
+      <button type="button" className="disclosure-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        <Chevron open={open} />
+        {label}
+      </button>
+      <div id={id} hidden={!open} className="disclosure-body">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const joinNames = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
+
+type Pill = { text: string; cls: string };
+
+/** One recurring charge: the answer when closed, the reasoning when open. */
+function SubscriptionRow({ s, report }: { s: Subscription; report: SubscriptionReport }) {
+  const { analysis, overrides, labels } = useLedger();
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+
+  const label = labelOf(labelMap(labels), s.provider, s.merchant);
+  const info = analysis.streamInfo(s.provider, s.merchant);
+  const confirmed = overrideOf(overrideMap(overrides), { provider: s.provider, merchant: s.merchant }) !== undefined;
+
+  // Price moves of this stream in the last 6 months (the same window as the "Price changes" figure above), newest first.
+  const since = addMonths(monthOf(report.latestDate), -5);
+  const changes = report.priceChanges
+    .filter((c) => c.provider === s.provider && c.merchant === s.merchant && c.month >= since)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const latestChange = changes[0];
+
+  const group = report.overlaps.find((o) => o.category === s.category);
+  const others = group ? group.members.filter((m) => m.provider !== s.provider).map((m) => m.provider) : [];
+
+  const pills: Pill[] = [];
+  if (latestChange) {
+    const up = latestChange.toCents > latestChange.fromCents;
+    pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latestChange.month)}`, cls: up ? 'chip-over' : 'chip-accent' });
+  }
+  if (group && others.length) pills.push({ text: 'Overlap', cls: '' });
+  if (info && !confirmed) pills.push({ text: 'To review', cls: 'chip-warn' });
+
+  const yearOf = (month: string) => (month.slice(0, 4) === report.latestDate.slice(0, 4) ? '' : ` ${month.slice(0, 4)}`);
+
+  return (
+    <li className="sub-item">
+      <button type="button" className="sub-row" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)}>
+        <ProviderDot provider={s.provider} />
+        <span className="sub-main">
+          <span className="sub-name">
+            {label ?? s.provider}
+            {label && <span className="muted sub-provider"> · {s.provider}</span>}
+          </span>
+          {pills.length > 0 && (
+            <span className="sub-pills">
+              {pills.slice(0, 2).map((p) => (
+                <span key={p.text} className={`chip ${p.cls}`.trim()}>{p.text}</span>
+              ))}
+            </span>
+          )}
+        </span>
+        <span className="sub-amount num">{formatEUR(s.monthlyCents)}/mo</span>
+        <Chevron open={open} />
+      </button>
+      <div id={panelId} hidden={!open} className="sub-detail">
+        <p>
+          {s.cadence === 'yearly'
+            ? `Yearly since ${monthLabel(monthOf(s.pattern.firstDate))}. ${formatEUR(s.billedCents)} is billed once a year, shown here as a twelfth.`
+            : `Monthly since ${monthLabel(monthOf(s.pattern.firstDate))}, around the ${ordinal(s.pattern.typicalDay)}.`}
+          {s.renewal &&
+            (s.renewal.overdue
+              ? ` The renewal has not been seen yet (expected around ${dateLabel(s.renewal.expected)}).`
+              : ` The next renewal is expected around ${dateLabel(s.renewal.expected)}${s.renewal.confirmed ? '' : ' (estimated)'}.`)}
+        </p>
+        {changes.map((c) => (
+          <p key={c.date}>
+            Went from {formatEUR(c.fromCents)} to {formatEUR(c.toCents)} in {monthShort(c.month)}
+            {yearOf(c.month)}
+            {c.kind === 'plan' && Math.abs(c.pct) >= 25 ? ', likely a plan change.' : '.'}
+          </p>
+        ))}
+        {group && others.length > 0 && (
+          <p>
+            Overlaps with {joinNames(others)}: {group.members.length} {CATEGORY_NOUNS[group.category].many}, {formatEUR(group.combinedMonthlyCents)}/mo combined.
+          </p>
+        )}
+        {s.pattern.forced && <p>You marked this as a {s.cadence} subscription.</p>}
+        {s.pattern.provisional && (
+          <p>
+            A new price has been seen {s.pattern.charges.length === 1 ? 'once' : 'twice'}. It is counted as the same subscription until three charges confirm it.
+          </p>
+        )}
+        {info && (
+          <p title={WHY[info.source]}>
+            Counted as {typeLabel(info)}.{' '}
+            {confirmed ? 'You confirmed this type. ' : 'This type is the app’s suggestion. '}
+            <a href={providerHref(s.provider)} className="sub-link">{confirmed ? 'Change it on the provider page' : 'Confirm or change'}</a>
+          </p>
+        )}
+        <p>Category: {CATEGORY_LABELS[s.category]}.</p>
+        <p className="sub-descriptor">{tidyDescriptor(s.merchant)}</p>
+      </div>
+    </li>
+  );
+}
+
+function ActiveCard({ subs, total, report }: { subs: Subscription[]; total: number; report: SubscriptionReport }) {
   return (
     <Card title="Active recurring charges" subtitle="Based on the latest charge, which is what you are committed to now. A yearly one counts as a twelfth per month.">
       {subs.length === 0 ? (
         <EmptyState>Nothing is currently recurring.</EmptyState>
       ) : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Provider</th>
-                <th className="hide-sm">Category</th>
-                <th className="amount">Per month</th>
-                <th className="amount">Per year</th>
-                <th className="hide-sm">Since</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subs.map((s) => (
-                <tr key={s.provider + s.pattern.firstDate}>
-                  <td>
-                    <ProviderLink provider={s.provider} />
-                    <StreamName provider={s.provider} merchant={s.merchant} />
-                    {s.renewal && (
-                      <div className={`small ${s.renewal.overdue ? 'secondary' : 'muted'}`}>
-                        {s.renewal.overdue
-                          ? `Renewal not seen yet (expected around ${dateLabel(s.renewal.expected)})`
-                          : `Renews yearly, next around ${dateLabel(s.renewal.expected)}${s.renewal.confirmed ? '' : ' (estimated)'}`}
-                      </div>
-                    )}
-                    {s.notes.map((n) => (
-                      <div key={n} className="small muted">{n}</div>
-                    ))}
-                    <TypeNote provider={s.provider} merchant={s.merchant} />
-                  </td>
-                  <td className="hide-sm"><CategoryChip category={s.category} /></td>
-                  <td className="amount">
-                    {formatEUR(s.monthlyCents)}
-                    {s.cadence === 'yearly' && <div className="small muted">billed yearly: {formatEUR(s.billedCents)}</div>}
-                  </td>
-                  <td className="amount">{formatEUR(s.yearlyCents)}</td>
-                  <td className="date hide-sm">{monthLabel(monthOf(s.pattern.firstDate))}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>{subs.length} recurring charges</td>
-                <td className="hide-sm" />
-                <td className="amount">{formatEUR(total)}</td>
-                <td className="amount">{formatEUR(total * 12)}</td>
-                <td className="hide-sm" />
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <>
+          <ul className="sub-list">
+            {subs.map((s) => (
+              <SubscriptionRow key={`${s.provider}|${s.merchant}|${s.pattern.firstDate}`} s={s} report={report} />
+            ))}
+          </ul>
+          <div className="sub-total">
+            <span>{subs.length} recurring charges</span>
+            <span className="num">{formatEUR(total)}/mo</span>
+          </div>
+        </>
       )}
     </Card>
   );
