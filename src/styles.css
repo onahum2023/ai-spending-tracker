@@ -370,6 +370,8 @@ a.legend-item:hover { color: var(--ink); text-decoration: underline; }
 .type-pills { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .chevron { flex: none; color: var(--ink-3); transition: transform 0.12s; }
 .chevron.open { transform: rotate(90deg); }
+.plan-head > td { background: var(--surface-2); }
+.plan-member > td:first-child { padding-left: 34px; }
 .type-detail > td { background: var(--surface-2); padding: 10px 12px 12px 40px; font-size: 13px; color: var(--ink-2); }
 .type-detail p { margin: 0 0 6px; }
 .type-detail p:last-child { margin-bottom: 0; }

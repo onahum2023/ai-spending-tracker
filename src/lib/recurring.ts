@@ -104,17 +104,24 @@ function buildChains<T extends LedgerRow>(rows: T[]): T[][] {
   return chains;
 }
 
-export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: string): RecurringPattern<T>[] {
+/**
+ * `plan` names the plan a charge belongs to when you grouped several descriptors under one label (see labels.ts). Charges of a
+ * plan are detected as one descriptor; undefined means the charge's own descriptor, exactly as before.
+ */
+export type PlanOf = (r: LedgerRow) => string | undefined;
+
+export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: string, plan?: PlanOf): RecurringPattern<T>[] {
+  const merchantOf = (r: LedgerRow) => plan?.(r) ?? r.merchant;
   // Usage-style top-ups (3+ charges with the same descriptor in one month) can line up
   // by chance, so they are left out: they aren't a single recurring charge.
   const perMonth = new Map<string, number>();
-  const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
+  const usageKey = (r: LedgerRow) => `${r.provider}\u0000${merchantOf(r)}\u0000${monthOf(r.date)}`;
   // Charges only: a refund in a month is not another top-up (two subscriptions plus a refund must not read as usage).
   for (const r of rows) if (r.amountCents > 0) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
   // Every charge of a descriptor, heavy months included, for the coverage check below.
   const streamTotal = new Map<string, number>();
-  const streamKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}`;
+  const streamKey = (r: LedgerRow) => `${r.provider}\u0000${merchantOf(r)}`;
   for (const r of rows) if (r.amountCents > 0) streamTotal.set(streamKey(r), (streamTotal.get(streamKey(r)) ?? 0) + 1);
 
   const byProvider = new Map<string, T[]>();
@@ -133,7 +140,7 @@ export function detectRecurring<T extends LedgerRow>(rows: T[], latestDate: stri
     // Pass 2: chain whatever is left at provider level, for providers whose descriptor
     // changes every time (e.g. "NAME-CHEAP.COM* <random code>").
     const byMerchant = new Map<string, T[]>();
-    for (const r of list) byMerchant.set(r.merchant, [...(byMerchant.get(r.merchant) ?? []), r]);
+    for (const r of list) byMerchant.set(merchantOf(r), [...(byMerchant.get(merchantOf(r)) ?? []), r]);
     const chains: T[][] = [];
     const used = new Set<T>();
     for (const group of byMerchant.values()) {
@@ -199,11 +206,13 @@ export function detectProvisional<T extends LedgerRow>(
   rows: T[],
   patterns: RecurringPattern<T>[],
   latestDate: string,
+  plan?: PlanOf,
 ): RecurringPattern<T>[] {
+  const merchantOf = (r: LedgerRow) => plan?.(r) ?? r.merchant;
   const taken = new Set<T>();
   for (const p of patterns) for (const c of p.charges) taken.add(c);
   const perMonth = new Map<string, number>();
-  const usageKey = (r: LedgerRow) => `${r.provider}\u0000${r.merchant}\u0000${monthOf(r.date)}`;
+  const usageKey = (r: LedgerRow) => `${r.provider}\u0000${merchantOf(r)}\u0000${monthOf(r.date)}`;
   for (const r of rows) if (r.amountCents > 0) perMonth.set(usageKey(r), (perMonth.get(usageKey(r)) ?? 0) + 1);
 
   const out: RecurringPattern<T>[] = [];
@@ -211,9 +220,11 @@ export function detectProvisional<T extends LedgerRow>(
   const monthly = patterns.filter((p) => p.cadence !== 'yearly' && !p.forced).sort((a, b) => (a.lastDate < b.lastDate ? -1 : a.lastDate > b.lastDate ? 1 : 0));
   for (const old of monthly) {
     // The same charge type (cleaned description), so a case or city difference does not make it a different service.
+    const planName = plan?.(old.charges[0]);
     const types = new Set(old.charges.map((c) => normalizeDescriptor(c.merchant)));
     const sameStream = (r: LedgerRow) =>
-      r.provider === old.provider && (types.size > 1 || normalizeDescriptor(r.merchant) === normalizeDescriptor(old.merchant));
+      r.provider === old.provider &&
+      (types.size > 1 || (planName !== undefined ? plan?.(r) === planName : normalizeDescriptor(r.merchant) === normalizeDescriptor(old.merchant)));
     const candidates = rows.filter((r) => {
       if (taken.has(r) || r.amountCents <= 0 || !sameStream(r)) return false;
       if ((perMonth.get(usageKey(r)) ?? 0) >= USAGE_CHARGES_PER_MONTH) return false;

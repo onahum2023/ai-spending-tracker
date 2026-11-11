@@ -55,3 +55,23 @@ export function normalizeLabels(raw: unknown): Label[] {
   }
   return [...out.values()].sort((a, b) => a.provider.localeCompare(b.provider) || a.merchant.localeCompare(b.merchant));
 }
+
+/**
+ * Plans: when two or more charge types (descriptors) of one provider have the same label, they are one plan. "Claude Pro" on
+ * both CLAUDE.AI SUBSCRIPTION and ANTHROPIC* CLAUDE SUB says they are the same subscription under two names on the statement.
+ * Returns, for each grouped charge type (keyed like `streamKey`), the name of its plan. Types with a label of their own, or with
+ * no label, are left out. The ledger keeps every original descriptor; this only changes how they are read together.
+ */
+export function planGroups(labels: Label[]): Map<string, string> {
+  const byPlan = new Map<string, string[]>();
+  for (const l of labels) {
+    const plan = `plan\u0000${l.provider}\u0000${cleanLabel(l.label).toLowerCase()}`;
+    const keys = byPlan.get(plan) ?? [];
+    const key = streamKey(l.provider, l.merchant);
+    if (!keys.includes(key)) keys.push(key);
+    byPlan.set(plan, keys);
+  }
+  const out = new Map<string, string>();
+  for (const [plan, keys] of byPlan) if (keys.length >= 2) for (const k of keys) out.set(k, plan);
+  return out;
+}

@@ -314,8 +314,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const span = useMemo(() => dataSpan(transactions), [transactions]);
-  const analysis = useMemo(() => analyze(transactions, today, overrides, providerCategories),
-    [transactions, today, overrides, providerCategories],);
+  const analysis = useMemo(() => analyze(transactions, today, overrides, providerCategories, labels),
+    [transactions, today, overrides, providerCategories, labels]);
   const providers = useMemo(() => summarizeProviders(transactions), [transactions]);
   const colors = useMemo(
     () => buildProviderColors(providers.map((p) => p.provider), scheme),
