@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
 import { ForecastCard } from '../components/ForecastCard';
+import { MonthPanel } from '../components/MonthPanel';
 import { TransactionTable } from '../components/TransactionTable';
 import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmented } from '../components/ui';
 import {
@@ -24,8 +25,11 @@ type ChartView = 'provider' | 'category' | 'type';
 const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
 
 export function Overview() {
-  const { transactions, span, period, setPeriod, today, analysis, overrides } = useLedger();
+  const { transactions, span, period, today, analysis, overrides } = useLedger();
   const [view, setView] = useState<ChartView>('provider');
+  // The month whose transactions are open in the side sheet, and, from the comparison card, only up to a day of it.
+  const [drill, setDrill] = useState<{ month: string; throughDay?: number } | null>(null);
+  const closeDrill = useCallback(() => setDrill(null), []);
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
   const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
 
@@ -38,7 +42,7 @@ export function Overview() {
 
   return (
     <div className="stack">
-      <KpiRow period={period} />
+      <KpiRow period={period} onOpenMonth={(month, throughDay) => setDrill({ month, throughDay })} />
       {toReview > 0 && (
         <p className="small muted" style={{ margin: '-6px 0 0' }}>
           {toReview} charge type{toReview === 1 ? '' : 's'} still follow{toReview === 1 ? 's' : ''} the app's suggestion.{' '}
@@ -49,7 +53,7 @@ export function Overview() {
       <div className="grid cols-2">
         <Card
           title={`Monthly spending by ${VIEW_NAMES[view]}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
-          subtitle={view === 'type' ? <>Click a month to explore it · <ReadChip /> Types are suggestions until you confirm them</> : 'Click a month to explore it'}
+          subtitle={view === 'type' ? <>Click a month to list its transactions · <ReadChip /> Types are suggestions until you confirm them</> : 'Click a month to list its transactions'}
           actions={
             <Segmented<ChartView>
               label="Group by"
@@ -67,24 +71,24 @@ export function Overview() {
             <MonthlyProviderChart
               rows={transactions}
               months={chartMonths}
-              selectedMonth={period.kind === 'month' ? period.month : null}
-              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
+              onSelectMonth={(m) => setDrill({ month: m })}
             />
           ) : view === 'type' ? (
             <TypeChart
               rows={transactions}
               months={chartMonths}
               typeOf={analysis.typeOf}
-              selectedMonth={period.kind === 'month' ? period.month : null}
-              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
+              onSelectMonth={(m) => setDrill({ month: m })}
             />
           ) : (
             <MonthlyCategoryChart
               rows={transactions}
               months={chartMonths}
               categoryFor={analysis.categoryOf}
-              selectedMonth={period.kind === 'month' ? period.month : null}
-              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
+              onSelectMonth={(m) => setDrill({ month: m })}
             />
           )}
           {view === 'type' && (
@@ -109,6 +113,14 @@ export function Overview() {
         <ChargesCard period={period} />
         <ContributorsCard rows={periodRows} label={periodLabel(period)} />
       </div>
+      {drill && (
+        <MonthPanel
+          month={drill.month}
+          throughDay={drill.throughDay}
+          onClose={closeDrill}
+          onShowFullMonth={() => setDrill({ month: drill.month })}
+        />
+      )}
       {today < span.lastDate && (
         <p className="small muted">Note: some transactions are dated after today ({dateLabel(today)}).</p>
       )}
@@ -116,7 +128,7 @@ export function Overview() {
   );
 }
 
-function KpiRow({ period }: { period: Period }) {
+function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: string, throughDay?: number) => void }) {
   const { transactions, span, today } = useLedger();
   if (!span) return null;
   const byMonth = totalsByMonth(transactions);
@@ -155,6 +167,8 @@ function KpiRow({ period }: { period: Period }) {
         />
         <Kpi label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
         <Kpi
+          onClick={inProgress ? () => onOpenMonth(prev, day) : undefined}
+          hint={inProgress ? `List the transactions of ${monthShort(prev)} 1–${day}` : undefined}
           label={inProgress ? `vs same point in ${monthShort(prev)}` : 'Month over month'}
           value={
             inProgress ? (

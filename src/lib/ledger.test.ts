@@ -5,6 +5,7 @@ import {
   concentration,
   dataSpan,
   monthTotal,
+  monthDrillDown,
   monthTotalThroughDay,
   providerChanges,
   summarizeProviders,
@@ -277,6 +278,31 @@ describe('recurring-looking patterns', () => {
   });
   it('does not report one-off providers', () => {
     expect(patterns.some((p) => p.provider === 'Venice' || p.provider === 'Replicate' || p.provider === 'DeepSeek')).toBe(false);
+  });
+});
+
+describe('month drill-down', () => {
+  const r = (date: string, cents: number, provider = 'P'): LedgerRow => ({ provider, merchant: 'M', date, amountCents: cents });
+  const data = [r('2026-10-03', 500), r('2026-10-20', 9000, 'Big'), r('2026-10-10', 500), r('2026-10-05', -300), r('2026-09-30', 99999), r('2026-11-01', 99999)];
+
+  it('lists only that month, largest first, ties newest first, refunds last', () => {
+    const list = monthDrillDown(data, '2026-10');
+    expect(list.map((x) => x.amountCents)).toEqual([9000, 500, 500, -300]);
+    expect(list.map((x) => x.date)).toEqual(['2026-10-20', '2026-10-10', '2026-10-03', '2026-10-05']);
+  });
+  it('with a day, keeps only the first days of the month, and does not touch the input', () => {
+    const before = [...data];
+    expect(monthDrillDown(data, '2026-10', 10).map((x) => x.date)).toEqual(['2026-10-10', '2026-10-03', '2026-10-05']);
+    expect(data).toEqual(before);
+  });
+  it('is empty for a month with nothing', () => {
+    expect(monthDrillDown(data, '2025-01')).toEqual([]);
+  });
+  it('adds up to the month total, so the panel and the chart agree', () => {
+    for (const m of ['2025-06', '2026-03', '2026-10']) {
+      expect(sumCents(monthDrillDown(rows, m))).toBe(monthTotal(rows, m));
+      expect(sumCents(monthDrillDown(rows, m, 11))).toBe(monthTotalThroughDay(rows, m, 11));
+    }
   });
 });
 

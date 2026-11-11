@@ -1,5 +1,6 @@
 import {
   addMonths,
+  dayOf,
   monthLabel,
   monthOf,
   monthsBetween,
@@ -219,6 +220,16 @@ export function concentration(rows: LedgerRow[]): Concentration {
   }
   const top = (n: number) => shares.slice(0, n).reduce((a, s) => a + s.share, 0);
   return { totalCents: total, shares, top1Share: top(1), top3Share: top(3), providersFor80 };
+}
+
+/**
+ * One month's charges for the drill-down list: largest first, ties newest first. With `throughDay`, only the first days of the
+ * month (what a same-point-in-the-month comparison counts). Refunds sort last. Does not change the rows.
+ */
+export function monthDrillDown<T extends LedgerRow>(rows: T[], month: string, throughDay?: number): T[] {
+  return rows
+    .filter((r) => monthOf(r.date) === month && (throughDay === undefined || dayOf(r.date) <= throughDay))
+    .sort((a, b) => b.amountCents - a.amountCents || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
 /** Distinct merchant descriptors for a provider with counts and totals. */

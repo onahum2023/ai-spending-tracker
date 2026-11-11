@@ -34,7 +34,16 @@ export function Card({
   );
 }
 
-export function Kpi({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
+export function Kpi({ label, value, sub, onClick, hint }: { label: ReactNode; value: ReactNode; sub?: ReactNode; onClick?: () => void; hint?: string }) {
+  if (onClick) {
+    return (
+      <button type="button" className="card kpi kpi-btn" onClick={onClick} aria-haspopup="dialog" title={hint}>
+        <span className="kpi-label">{label}</span>
+        <span className="kpi-value num">{value}</span>
+        {sub && <span className="kpi-sub">{sub}</span>}
+      </button>
+    );
+  }
   return (
     <div className="card kpi">
       <div className="kpi-label">{label}</div>
