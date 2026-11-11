@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
 import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
@@ -34,7 +34,16 @@ export function Card({
   );
 }
 
-export function Kpi({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
+export function Kpi({ label, value, sub, onClick, hint }: { label: ReactNode; value: ReactNode; sub?: ReactNode; onClick?: () => void; hint?: string }) {
+  if (onClick) {
+    return (
+      <button type="button" className="card kpi kpi-btn" onClick={onClick} aria-haspopup="dialog" title={hint}>
+        <span className="kpi-label">{label}</span>
+        <span className="kpi-value num">{value}</span>
+        {sub && <span className="kpi-sub">{sub}</span>}
+      </button>
+    );
+  }
   return (
     <div className="card kpi">
       <div className="kpi-label">{label}</div>
@@ -247,5 +256,39 @@ export function TypeNote({ provider, merchant }: { provider: string; merchant: s
         change on the provider page
       </a>
     </div>
+  );
+}
+
+export function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg className={`chevron${open ? ' open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+/** A text toggle that reveals its children. Closed by default. */
+export function Disclosure({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div>
+      <button type="button" className="disclosure-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        <Chevron open={open} />
+        {label}
+      </button>
+      <div id={id} hidden={!open} className="disclosure-body">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Marks something the app worked out, as opposed to something recorded in the ledger. */
+export function ReadChip({ children = 'App’s read' }: { children?: ReactNode }) {
+  return (
+    <span className="chip chip-accent" title="Worked out by the app from your charges. It is not recorded in the ledger.">
+      {children}
+    </span>
   );
 }

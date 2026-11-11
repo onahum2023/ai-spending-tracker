@@ -1,5 +1,6 @@
 import {
   addMonths,
+  dayOf,
   monthLabel,
   monthOf,
   monthsBetween,
@@ -61,6 +62,23 @@ export function dataSpan(rows: LedgerRow[]): DataSpan | null {
   const years: number[] = [];
   for (let y = yearOf(firstDate); y <= yearOf(lastDate); y++) years.push(y);
   return { firstDate, lastDate, firstMonth, lastMonth, months: monthsBetween(firstMonth, lastMonth), years };
+}
+
+/**
+ * The period the Today button jumps to: the current month or year, as far as the data reaches. If today is past the last
+ * recorded month (or year) it is the last one recorded, and if it is before the first it is the first, so the picker never
+ * lands on a period with nothing in it. Null for All time, which has no "today".
+ */
+export function todayPeriod(kind: Period['kind'], span: DataSpan, today: string): Period | null {
+  if (kind === 'all') return null;
+  if (kind === 'month') {
+    const m = monthOf(today);
+    return { kind: 'month', month: m < span.firstMonth ? span.firstMonth : m > span.lastMonth ? span.lastMonth : m };
+  }
+  const y = yearOf(today);
+  const first = span.years[0];
+  const last = span.years[span.years.length - 1];
+  return { kind: 'year', year: y < first ? first : y > last ? last : y };
 }
 
 export function totalsByMonth(rows: LedgerRow[]): Map<string, number> {
@@ -219,6 +237,16 @@ export function concentration(rows: LedgerRow[]): Concentration {
   }
   const top = (n: number) => shares.slice(0, n).reduce((a, s) => a + s.share, 0);
   return { totalCents: total, shares, top1Share: top(1), top3Share: top(3), providersFor80 };
+}
+
+/**
+ * One month's charges for the drill-down list: largest first, ties newest first. With `throughDay`, only the first days of the
+ * month (what a same-point-in-the-month comparison counts). With `only`, just the charges it accepts (one commitment type). Refunds sort last. Does not change the rows.
+ */
+export function monthDrillDown<T extends LedgerRow>(rows: T[], month: string, throughDay?: number, only?: (row: T) => boolean): T[] {
+  return rows
+    .filter((r) => monthOf(r.date) === month && (throughDay === undefined || dayOf(r.date) <= throughDay) && (!only || only(r)))
+    .sort((a, b) => b.amountCents - a.amountCents || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
 /** Distinct merchant descriptors for a provider with counts and totals. */

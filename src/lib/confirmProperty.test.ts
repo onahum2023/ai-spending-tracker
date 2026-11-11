@@ -3,6 +3,7 @@ import { dayOf } from './dates';
 import { analyze, RENEWAL_AMOUNT_TOLERANCE } from './insights';
 import { streamKey, type Override } from './overrides';
 import type { LedgerRow } from './types';
+import { monthlyTotal } from './__fixtures__/reportTotals';
 
 /*
  * Property: confirming some charge types of a provider as monthly subscriptions never makes the app count less than it already did
@@ -101,7 +102,7 @@ describe('confirming never splits, drops or swaps a schedule that is already cou
       const auto = automatic.report;
       const confirmed = confirmedAnalysis.report;
       judged++;
-      if (auto.monthlyCents > 0) active++;
+      if (monthlyTotal(auto) > 0) active++;
       if (confirmed.active.length < auto.active.length) failures.push(`seed ${seed}: active ${confirmed.active.length} < ${auto.active.length}`);
       for (const p of automatic.patterns.filter((q) => q.active && q.provider === 'Acme')) {
         const home = confirmedAnalysis.patterns.find((q) => q.active && p.charges.every((x) => q.charges.includes(x)));
@@ -188,7 +189,7 @@ describe('confirming one subscription with drifting billing days', () => {
       const confirmed = analyze(rows, asOf, [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' }]).report;
       if (auto.active.length > 0) counted++;
       if (confirmed.active.length > Math.max(1, auto.active.length)) failures.push(`seed ${seed}: ${confirmed.active.length} active, automatic ${auto.active.length}`);
-      if (auto.monthlyCents > 0 && confirmed.monthlyCents > auto.monthlyCents) failures.push(`seed ${seed}: run-rate ${confirmed.monthlyCents} > ${auto.monthlyCents}`);
+      if (monthlyTotal(auto) > 0 && monthlyTotal(confirmed) > monthlyTotal(auto)) failures.push(`seed ${seed}: run-rate ${monthlyTotal(confirmed)} > ${monthlyTotal(auto)}`);
     }
     expect(failures).toEqual([]);
     expect(counted).toBeGreaterThan(300);

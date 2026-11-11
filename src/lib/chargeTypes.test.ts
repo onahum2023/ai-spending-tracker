@@ -3,6 +3,7 @@ import { cleanDescriptor, normalizeDescriptor } from './chargeTypes';
 import { analyze } from './insights';
 import { normalizeOverrides, streamKey, streamSize, withOverride } from './overrides';
 import type { LedgerRow } from './types';
+import { monthlyTotal, yearlyTotal } from './__fixtures__/reportTotals';
 
 const c = (date: string, cents: number, merchant: string, provider = 'Acme'): LedgerRow => ({ provider, merchant, date, amountCents: cents });
 
@@ -118,9 +119,9 @@ describe('confirming a charge type as a subscription', () => {
   const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
 
   it('counts two concurrent subscriptions under one charge type once each, as detection does', () => {
-    expect(analyze(base, '2026-03-20').report.monthlyCents).toBe(7000);
+    expect(monthlyTotal(analyze(base, '2026-03-20').report)).toBe(7000);
     const a = analyze(base, '2026-03-20', confirm);
-    expect(a.report.monthlyCents).toBe(7000); // confirming must not collapse them into one
+    expect(monthlyTotal(a.report)).toBe(7000); // confirming must not collapse them into one
     expect(a.report.active).toHaveLength(2);
     expect(a.report.active.map((s) => s.monthlyCents).sort()).toEqual([2000, 5000]);
   });
@@ -128,7 +129,7 @@ describe('confirming a charge type as a subscription', () => {
   it('keeps ONE subscription as one when its reference comes and goes (repeated references alone prove nothing)', () => {
     const rows = [plan('2026-01-05', 2000, 'ABC123'), c('2026-02-05', 2000, 'ACME* PLAN', 'Acme'), plan('2026-03-05', 2000, 'ABC123'), c('2026-04-05', 2000, 'ACME* PLAN', 'Acme')];
     const a = analyze(rows, '2026-04-20', confirm);
-    expect(a.report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(a.report)).toBe(2000);
     expect(a.report.active).toHaveLength(1);
   });
 
@@ -136,7 +137,7 @@ describe('confirming a charge type as a subscription', () => {
     const rows = [plan('2024-03-10', 12000, 'ABC123'), plan('2025-03-10', 12000, 'ABC123'), plan('2026-03-10', 12000, 'XYZ456')];
     const a = analyze(rows, '2026-03-25', [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'yearly' }]);
     expect(a.report.active).toHaveLength(1); // during the renewal grace, not counted twice
-    expect(a.report.yearlyCents).toBe(12000);
+    expect(yearlyTotal(a.report)).toBe(12000);
   });
 
   it('still counts two concurrent subscriptions when every charge carries its own reference, with no false price rise', () => {
@@ -144,9 +145,9 @@ describe('confirming a charge type as a subscription', () => {
       ...['2026-01-05', '2026-02-05', '2026-03-05'].map((d, i) => plan(d, 2000, `A${i}B9C${i}`)),
       ...['2026-01-15', '2026-02-15', '2026-03-15'].map((d, i) => plan(d, 5000, `X${i}Y9Z${i}`)),
     ];
-    expect(analyze(rows, '2026-03-20').report.monthlyCents).toBe(7000); // detection
+    expect(monthlyTotal(analyze(rows, '2026-03-20').report)).toBe(7000); // detection
     const a = analyze(rows, '2026-03-20', confirm);
-    expect(a.report.monthlyCents).toBe(7000); // and Confirm must not change that
+    expect(monthlyTotal(a.report)).toBe(7000); // and Confirm must not change that
     expect(a.report.active).toHaveLength(2);
     expect(a.report.priceChanges).toEqual([]);
   });
@@ -167,14 +168,14 @@ describe('confirming a charge type as a subscription', () => {
     const rows = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d, i) => plan(d, 2000, `R${i}X9Z${i}`));
     const a = analyze(rows, '2026-03-20', confirm);
     expect(a.report.active).toHaveLength(1);
-    expect(a.report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(a.report)).toBe(2000);
   });
 
   it('does not let a refund decide what the charge type is, or drop it from the run-rate', () => {
     const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'ABC123')), plan('2026-03-20', -2000, 'ABC123')];
     const a = analyze(rows, '2026-03-25');
     expect(a.streamInfo('Acme', 'ACME* PLAN')).toMatchObject({ kind: 'subscription' });
-    expect(analyze(rows, '2026-03-25', confirm).report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(analyze(rows, '2026-03-25', confirm).report)).toBe(2000);
   });
 
   it('does not report an unrelated charge as "still charging" after a plan stopped, whatever the case of the description', () => {
@@ -201,14 +202,14 @@ describe('a separate charge that shares a charge type is not a plan switch', () 
     const all = [...rows, c('2026-11-07', 898, 'VERCEL                  COVINA', 'Vercel')];
     const a = analyze(all, '2026-11-10');
     expect(a.patterns.some((p) => p.provisional)).toBe(false);
-    expect(a.report.monthlyCents).toBe(1832);
+    expect(monthlyTotal(a.report)).toBe(1832);
     expect(a.report.priceChanges).toEqual([]);
   });
 
   it('still recognises a switch that lands on the usual billing day', () => {
     const rows = ['2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => c(d, 2178, 'ANTHROPIC* CLAUDE SUB   SAN FRANCISCO', 'Anthropic'));
     const a = analyze([...rows, c('2026-11-06', 10890, 'Anthropic* Claude Sub', 'Anthropic')], '2026-11-08');
-    expect(a.report.monthlyCents).toBe(10890);
+    expect(monthlyTotal(a.report)).toBe(10890);
     expect(a.report.priceChanges[0]).toMatchObject({ kind: 'plan', fromCents: 2178, toCents: 10890 });
   });
 });
@@ -219,7 +220,7 @@ describe('confirming never disagrees with what automatic detection already count
   const same = (rows: LedgerRow[], today: string) => {
     const auto = analyze(rows, today).report;
     const confirmed = analyze(rows, today, confirm).report;
-    expect(confirmed.monthlyCents).toBe(auto.monthlyCents);
+    expect(monthlyTotal(confirmed)).toBe(monthlyTotal(auto));
     expect(confirmed.active).toHaveLength(auto.active.length);
     return { auto, confirmed };
   };
@@ -231,29 +232,29 @@ describe('confirming never disagrees with what automatic detection already count
       ...['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15'].map((d) => plan(d, 5000, 'XYZ456')),
     ];
     const { auto, confirmed } = same(rows, '2026-04-20');
-    expect(auto.monthlyCents).toBe(15000);
+    expect(monthlyTotal(auto)).toBe(15000);
     expect(confirmed.stopped).toEqual([]);
   });
 
   it('keeps a payment that returns after a missed month', () => {
     const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'ABC123')), plan('2026-05-05', 2000, 'ABC123'), ...['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15'].map((d) => plan(d, 5000, 'XYZ456'))];
     const { confirmed } = same(rows, '2026-05-20');
-    expect(confirmed.monthlyCents).toBe(7000);
+    expect(monthlyTotal(confirmed)).toBe(7000);
   });
 
   it('counts a subscription that came back after a long gap, which detection alone cannot place', () => {
     const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'ABC123')), plan('2026-09-05', 2000, 'ABC123')];
-    expect(analyze(rows, '2026-09-10').report.monthlyCents).toBe(0);
-    expect(analyze(rows, '2026-09-10', confirm).report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(analyze(rows, '2026-09-10').report)).toBe(0);
+    expect(monthlyTotal(analyze(rows, '2026-09-10', confirm).report)).toBe(2000);
   });
 
   it('is not thrown by a refund: two schedules on one descriptor plus a refund in a month stay two schedules', () => {
     // one descriptor, 20 on the 5th and 50 on the 15th; the refund makes February three rows, which used to read as usage
     const base = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000)), ...['2026-01-15', '2026-02-15', '2026-03-15'].map((d) => plan(d, 5000))];
-    expect(analyze(base, '2026-03-20', confirm).report.monthlyCents).toBe(7000);
+    expect(monthlyTotal(analyze(base, '2026-03-20', confirm).report)).toBe(7000);
     const rows = [...base, plan('2026-02-16', -5000)];
     const { auto, confirmed } = same(rows, '2026-03-20');
-    expect(auto.monthlyCents).toBe(7000); // detection itself, no Confirm
+    expect(monthlyTotal(auto)).toBe(7000); // detection itself, no Confirm
     expect(confirmed.priceChanges).toEqual([]); // and no false 150% rise
   });
 
@@ -271,7 +272,7 @@ describe('confirming never disagrees with what automatic detection already count
     const b = ['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15', '2026-06-15', '2026-07-15', '2026-08-15'].map((d) => plan(d, 5000, 'X1Y2Z3'));
     const rows = [...a, plan('2026-09-05', 2000, 'A1B2C3'), ...b];
     const r = analyze(rows, '2026-09-06', confirm).report;
-    expect(r.monthlyCents).toBe(7000); // A is back (20) and B (50) is still there
+    expect(monthlyTotal(r)).toBe(7000); // A is back (20) and B (50) is still there
     expect(r.active).toHaveLength(2);
     expect(r.priceChanges).toEqual([]); // no invented 50 -> 20 downgrade
   });
@@ -280,16 +281,16 @@ describe('confirming never disagrees with what automatic detection already count
     const a = ['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => plan(d, 2000, 'A1B2C3'));
     const b = ['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15', '2026-06-15', '2026-07-15', '2026-08-15', '2026-09-15'].map((d) => plan(d, 5000, 'X1Y2Z3'));
     const r = analyze([...a, plan('2026-09-05', 2000, 'A1B2C3'), ...b], '2026-09-20', confirm).report;
-    expect(r.monthlyCents).toBe(7000);
+    expect(monthlyTotal(r)).toBe(7000);
     expect(r.active).toHaveLength(2);
   });
 
   it('does not count one subscription twice when its description alternates between two charge types', () => {
     const rows = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-04-05'].map((d, i) => c(d, 2000, i % 2 ? 'ACME* RENEWAL' : 'ACME* PLAN', 'Acme'));
-    expect(analyze(rows, '2026-04-10').report.monthlyCents).toBe(2000); // automatic
+    expect(monthlyTotal(analyze(rows, '2026-04-10').report)).toBe(2000); // automatic
     const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
     const a = analyze(rows, '2026-04-10', both); // "Confirm all"
-    expect(a.report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(a.report)).toBe(2000);
     expect(a.report.active).toHaveLength(1);
   });
 
@@ -297,11 +298,11 @@ describe('confirming never disagrees with what automatic detection already count
     // 20 on the 5th, Jan-Jun, alternating PLAN and RENEWAL: one chain. Confirming only PLAN must not split it.
     const chain = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-04-05', '2026-05-05', '2026-06-05'].map((d, i) => c(d, 2000, i % 2 ? 'ACME* RENEWAL' : 'ACME* PLAN', 'Acme'));
     const rows = [...chain, c('2026-06-21', 100, 'OTHER', 'Other')]; // the ledger runs to Jun 21, so a missing Jun charge would show
-    expect(analyze(rows, '2026-06-21').report.monthlyCents).toBe(2000); // automatic
-    expect(analyze(rows, '2026-06-21', [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' }]).report.monthlyCents).toBe(2000);
-    expect(analyze(rows, '2026-06-21', [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' }]).report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(analyze(rows, '2026-06-21').report)).toBe(2000); // automatic
+    expect(monthlyTotal(analyze(rows, '2026-06-21', [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' }]).report)).toBe(2000);
+    expect(monthlyTotal(analyze(rows, '2026-06-21', [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' }]).report)).toBe(2000);
     const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
-    expect(analyze(rows, '2026-06-21', both).report.monthlyCents).toBe(2000);
+    expect(monthlyTotal(analyze(rows, '2026-06-21', both).report)).toBe(2000);
   });
 
   it('attaches a returning charge to the subscription of its own charge type, not one that bills a few days from it', () => {
@@ -309,10 +310,10 @@ describe('confirming never disagrees with what automatic detection already count
     const plan = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN', 'Acme')), c('2026-09-05', 2000, 'ACME* PLAN', 'Acme')];
     const service = ['2026-01-07', '2026-02-07', '2026-03-07', '2026-04-07', '2026-05-07', '2026-06-07', '2026-07-07', '2026-08-07'].map((d) => c(d, 5000, 'ACME* SERVICE', 'Acme'));
     const rows = [...plan, ...service];
-    expect(analyze(rows, '2026-09-06').report.monthlyCents).toBe(5000); // automatic keeps SERVICE
+    expect(monthlyTotal(analyze(rows, '2026-09-06').report)).toBe(5000); // automatic keeps SERVICE
     const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* SERVICE', kind: 'monthly' as const }];
     const r = analyze(rows, '2026-09-06', both).report;
-    expect(r.monthlyCents).toBe(7000); // PLAN is back (20), SERVICE (50) is still there
+    expect(monthlyTotal(r)).toBe(7000); // PLAN is back (20), SERVICE (50) is still there
     expect(r.priceChanges).toEqual([]); // no invented downgrade
   });
 
@@ -320,7 +321,7 @@ describe('confirming never disagrees with what automatic detection already count
     // 90 on the 4th Feb-Apr (active), and a 80 on Apr 6 from nowhere in particular: noise, not the same subscription at a new price
     const rows = [...['2026-02-04', '2026-03-04', '2026-04-04'].map((d) => c(d, 9000, 'ACME* PLAN R71X9Z', 'Acme')), c('2026-04-06', 8000, 'ACME* PLAN R18X9Z', 'Acme')];
     const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
-    expect(analyze(rows, '2026-04-07', confirm).report.monthlyCents).toBe(analyze(rows, '2026-04-07').report.monthlyCents);
+    expect(monthlyTotal(analyze(rows, '2026-04-07', confirm).report)).toBe(monthlyTotal(analyze(rows, '2026-04-07').report));
   });
 
   it('follows a revived subscription through its next renewals, with the latest amount and dates', () => {
@@ -332,13 +333,13 @@ describe('confirming never disagrees with what automatic detection already count
     const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
     // one renewal after the revival: 30 on Oct 5, judged on Oct 6
     const one = analyze(back([['2026-10-05', 3000]]).filter((r) => r.provider === 'Acme'), '2026-10-06', confirm);
-    expect(one.report.monthlyCents).toBe(3000);
+    expect(monthlyTotal(one.report)).toBe(3000);
     expect(one.report.active[0]).toMatchObject({ lastDate: '2026-10-05', billedCents: 3000 });
     expect(one.report.active[0].pattern.nextExpected).toBe('2026-11-05');
     expect(one.report.priceChanges[0]).toMatchObject({ kind: 'step', fromCents: 2000, toCents: 3000 }); // 20 -> 30 is a real price change
     // two and three renewals after it
     const three = analyze(back([['2026-10-05', 3000], ['2026-11-05', 3000], ['2026-12-05', 3000]]).filter((r) => r.provider === 'Acme'), '2026-12-06', confirm);
-    expect(three.report.monthlyCents).toBe(3000);
+    expect(monthlyTotal(three.report)).toBe(3000);
     expect(three.report.active[0]).toMatchObject({ lastDate: '2026-12-05', billedCents: 3000 });
     expect(three.report.active[0].pattern.nextExpected).toBe('2027-01-05');
     // unchanged amount: the dates must still move on
@@ -350,9 +351,9 @@ describe('confirming never disagrees with what automatic detection already count
     // 20 on the 5th Jan-Mar, then a 5 on Apr 3, the real 20 on Apr 5 and a 3 on Apr 7: three charges in one month on one descriptor
     const rows = [...['2026-01-05', '2026-02-05', '2026-03-05'].map((d) => c(d, 2000, 'ACME* PLAN', 'Acme')), c('2026-04-03', 500, 'ACME* PLAN', 'Acme'), c('2026-04-05', 2000, 'ACME* PLAN', 'Acme'), c('2026-04-07', 300, 'ACME* PLAN', 'Acme')];
     const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
-    expect(analyze(rows, '2026-04-08').report.monthlyCents).toBe(2000); // automatic
+    expect(monthlyTotal(analyze(rows, '2026-04-08').report)).toBe(2000); // automatic
     const r = analyze(rows, '2026-04-08', confirm).report;
-    expect(r.monthlyCents).toBe(2000);
+    expect(monthlyTotal(r)).toBe(2000);
     expect(r.active[0]).toMatchObject({ lastDate: '2026-04-05', billedCents: 2000 });
     expect(r.priceChanges).toEqual([]);
   });
@@ -364,7 +365,7 @@ describe('confirming never disagrees with what automatic detection already count
     const rows = [...a, ...b, c('2026-09-05', 2000, 'ACME* PLAN', 'Acme'), c('2026-09-07', 5000, 'ACME* PLAN', 'Acme')];
     const confirm = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }];
     const r = analyze(rows, '2026-09-08', confirm).report;
-    expect(r.monthlyCents).toBe(7000);
+    expect(monthlyTotal(r)).toBe(7000);
     expect(r.priceChanges).toEqual([]); // no swapped histories
     expect(r.active.map((s) => [s.billedCents, s.lastDate]).sort()).toEqual([[2000, '2026-09-05'], [5000, '2026-09-07']]);
   });
@@ -375,7 +376,7 @@ describe('confirming never disagrees with what automatic detection already count
     const confirm = [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
     const r = analyze(rows, '2026-06-09', confirm).report;
     expect(r.active).toHaveLength(1);
-    expect(r.monthlyCents).toBe(7000); // not 3: the stray is not the renewal
+    expect(monthlyTotal(r)).toBe(7000); // not 3: the stray is not the renewal
   });
 
   it('keeps one subscription as one when a charge lands two days off its billing day and the next goes back (the replacer owns it)', () => {
@@ -386,12 +387,12 @@ describe('confirming never disagrees with what automatic detection already count
     const r = analyze(rows, '2026-06-06', confirm).report;
     expect(auto.active).toHaveLength(1);
     expect(r.active).toHaveLength(1);
-    expect(r.monthlyCents).toBe(2000);
+    expect(monthlyTotal(r)).toBe(2000);
     expect(r.active[0]).toMatchObject({ lastDate: '2026-06-05' });
     // and at a higher price the run-rate is the price once, not twice
     const dear = rows.map((x) => (x.date >= '2026-05-01' ? { ...x, amountCents: 5000 } : x));
     expect(analyze(dear, '2026-06-06', confirm).report.active).toHaveLength(1);
-    expect(analyze(dear, '2026-06-06', confirm).report.monthlyCents).toBe(5000);
+    expect(monthlyTotal(analyze(dear, '2026-06-06', confirm).report)).toBe(5000);
   });
 
   it('counts one subscription once when its billing day drifts or a month is missed, however many stopped runs detection saw', () => {
@@ -404,12 +405,12 @@ describe('confirming never disagrees with what automatic detection already count
     const drift = run(['2026-01-18', '2026-02-15', '2026-03-15', '2026-04-15', '2026-06-12', '2026-07-17'], '2026-07-18');
     expect(drift.auto.active).toHaveLength(1);
     expect(drift.conf.active).toHaveLength(1);
-    expect(drift.conf.monthlyCents).toBe(drift.auto.monthlyCents);
+    expect(monthlyTotal(drift.conf)).toBe(monthlyTotal(drift.auto));
     // two stopped runs of one schedule (a missed month between them) and a later charge: one subscription, not three
     const split = run(['2026-01-23', '2026-02-24', '2026-03-22', '2026-04-22', '2026-05-22', '2026-06-19', '2026-08-21', '2026-09-22'], '2026-09-23');
     expect(split.auto.active).toHaveLength(1);
     expect(split.conf.active).toHaveLength(1);
-    expect(split.conf.monthlyCents).toBe(2000);
+    expect(monthlyTotal(split.conf)).toBe(2000);
   });
 
   it('lets an exact renewal under a new reference beat a reference-less stray', () => {
@@ -419,7 +420,7 @@ describe('confirming never disagrees with what automatic detection already count
     for (const renewal of ['ACME* PLAN DEF456', 'ACME* PLAN']) {
       const rows = [...a, c('2026-09-03', 300, 'ACME* PLAN', 'Acme'), c('2026-09-05', 2000, renewal, 'Acme')];
       const r = analyze(rows, '2026-09-06', confirm).report;
-      expect(r.monthlyCents).toBe(2000);
+      expect(monthlyTotal(r)).toBe(2000);
       expect(r.active[0]).toMatchObject({ lastDate: '2026-09-05', billedCents: 2000 });
       expect(r.priceChanges).toEqual([]);
     }
@@ -462,7 +463,7 @@ describe('confirming never disagrees with what automatic detection already count
     const confirm = [{ provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
     const a = analyze(rows, '2026-06-08', confirm);
     expect(a.report.active).toHaveLength(1);
-    expect(a.report.monthlyCents).toBe(7000);
+    expect(monthlyTotal(a.report)).toBe(7000);
   });
 
   it('lets all confirmed charge types compete for the same pattern, so a later stray of one cannot shut out an earlier return of another', () => {
@@ -486,7 +487,7 @@ describe('confirming never disagrees with what automatic detection already count
     ];
     const both = [{ provider: 'Acme', merchant: 'ACME* PLAN', kind: 'monthly' as const }, { provider: 'Acme', merchant: 'ACME* RENEWAL', kind: 'monthly' as const }];
     const r = analyze(rows, '2027-01-06', both).report;
-    expect(r.monthlyCents).toBe(2000);
+    expect(monthlyTotal(r)).toBe(2000);
     expect(r.active[0]).toMatchObject({ lastDate: '2027-01-05', billedCents: 2000 });
   });
 });

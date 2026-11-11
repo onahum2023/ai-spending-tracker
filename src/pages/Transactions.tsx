@@ -149,7 +149,7 @@ export function Transactions({ route }: { route: Route }) {
           <p className="small secondary">
             {mode === 'demo'
               ? 'The charge is removed from the demo until you leave it. Nothing is saved.'
-              : 'The charge is removed from this browser, and from totals, trends and subscriptions. If you import a file that contains it again, it comes back.'}
+              : 'The charge is removed from this browser, and from totals, insights and the next-month estimate. If you import a file that contains it again, it comes back.'}
           </p>
         </ConfirmDialog>
       )}

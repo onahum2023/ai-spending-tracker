@@ -1,5 +1,6 @@
 import { cleanDescriptor } from './chargeTypes';
-import { labelMap, labelOf, type Label } from './labels';
+import type { StoppedSubscription, Subscription, SubscriptionReport } from './insights';
+import { cleanLabel, labelMap, labelOf, type Label } from './labels';
 import { overrideMap, streamKey, type Override, type OverrideKind, type TypeInfo } from './overrides';
 import type { LedgerRow } from './types';
 
@@ -96,4 +97,69 @@ export function reviewCounts(rows: LedgerRow[], overrides: Override[]): Map<stri
     if (!set.has(k)) out.set(r.provider, (out.get(r.provider) ?? 0) + 1);
   }
   return out;
+}
+
+/** The recurring charges the app found that end in one charge type. */
+export interface TypePatterns<T extends LedgerRow = LedgerRow> {
+  active: Subscription<T>[];
+  stopped: StoppedSubscription<T>[];
+}
+
+/**
+ * Attaches each recurring charge the app found (active and stopped) to the charge type of its latest charge, keyed like
+ * `ChargeTypeSummary.key`, so the Provider page can show what the app reads under the charge type it concerns. Each one lands
+ * under exactly one charge type, even when a pattern spans several descriptors.
+ */
+export function patternsByChargeType<T extends LedgerRow>(report: SubscriptionReport<T>): Map<string, TypePatterns<T>> {
+  const out = new Map<string, TypePatterns<T>>();
+  const slot = (key: string) => out.get(key) ?? out.set(key, { active: [], stopped: [] }).get(key)!;
+  const keyOf = (charges: T[]) => {
+    const last = charges[charges.length - 1];
+    return streamKey(last.provider, last.merchant);
+  };
+  for (const s of report.active) slot(keyOf(s.pattern.charges)).active.push(s);
+  for (const s of report.stopped) slot(keyOf(s.pattern.charges)).stopped.push(s);
+  return out;
+}
+
+/** One entry of the Charge types table: a lone charge type, or several that carry the same label and so are one plan. */
+export interface ChargeTypeGroup {
+  /** Set when the entry is a plan: two or more charge types of the provider with the same label. */
+  plan: string | null;
+  types: ChargeTypeSummary[];
+  count: number;
+  totalCents: number;
+  lastDate: string;
+}
+
+/**
+ * Groups charge types that carry the same label (ignoring case and spacing) into one plan, and leaves the rest alone. The
+ * ledger keeps every original descriptor: a group only sits them together. Largest first, like the list it comes from.
+ */
+export function groupChargeTypes(types: ChargeTypeSummary[]): ChargeTypeGroup[] {
+  const byLabel = new Map<string, ChargeTypeSummary[]>();
+  for (const t of types) {
+    if (!t.label) continue;
+    const k = t.label.trim().replace(/\s+/g, ' ').toLowerCase();
+    byLabel.set(k, [...(byLabel.get(k) ?? []), t]);
+  }
+  const planned = new Set<ChargeTypeSummary>();
+  const out: ChargeTypeGroup[] = [];
+  for (const list of byLabel.values()) {
+    if (list.length < 2) continue;
+    for (const t of list) planned.add(t);
+    // Shown under the label of the member charged most recently: the name it has now.
+    const current = list.reduce((a, t) => (t.lastDate > a.lastDate ? t : a), list[0]);
+    out.push({
+      plan: cleanLabel(current.label!),
+      types: list,
+      count: list.reduce((n, t) => n + t.count, 0),
+      totalCents: list.reduce((n, t) => n + t.totalCents, 0),
+      lastDate: list.reduce((d, t) => (t.lastDate > d ? t.lastDate : d), list[0].lastDate),
+    });
+  }
+  for (const t of types) {
+    if (!planned.has(t)) out.push({ plan: null, types: [t], count: t.count, totalCents: t.totalCents, lastDate: t.lastDate });
+  }
+  return out.sort((a, b) => b.totalCents - a.totalCents || b.count - a.count || (a.plan ?? a.types[0].name).localeCompare(b.plan ?? b.types[0].name));
 }

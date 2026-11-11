@@ -2,7 +2,8 @@ import { dataSpan, type MonthlyStackRow } from './analytics';
 import { hasReference, referenceKey } from './chargeTypes';
 import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category, type ProviderCategory } from './categories';
 import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
-import { STALE_AFTER_DAYS } from './forecast';
+import { STALE_AFTER_DAYS, type ExpectedCharge } from './forecast';
+import { planGroups, type Label } from './labels';
 import { formatEUR, medianCents } from './money';
 import {
   importedKind,
@@ -123,10 +124,7 @@ export interface SubscriptionReport<T extends LedgerRow = LedgerRow> {
   /** False when the newest recorded charge is long ago, so anything forward-looking would be guesswork. */
   dataFresh: boolean;
   active: Subscription<T>[];
-  monthlyCents: number;
-  yearlyCents: number;
   upcoming: UpcomingCharge[];
-  upcomingCents: number;
   priceChanges: PriceChange[];
   stopped: StoppedSubscription<T>[];
   overlaps: OverlapGroup[];
@@ -141,10 +139,22 @@ export interface Analysis<T extends LedgerRow = LedgerRow> {
   /** The type of a stream (provider + descriptor), judged by its most recent charge. Null if there is no such stream. */
   streamInfo: (provider: string, merchant: string) => TypeInfo | null;
   categoryOf: (row: T) => Category;
+  /**
+   * Recurring charges still due later this month with strong evidence: confirmed by you, or found by the pattern rule with the
+   * latest charge in the previous month. Each at its charge type's last actual charge. This is all the month-end estimate adds.
+   */
+  expected: ExpectedCharge[];
   report: SubscriptionReport<T>;
 }
 
 const lastOf = <T,>(xs: T[]): T => xs[xs.length - 1];
+
+/**
+ * What makes two charges the same charge type in the pattern logic: the cleaned descriptor, or, when you gave two or more
+ * descriptors of one provider the same label, the plan they share (see `planGroups`).
+ */
+type TypeKey = (r: LedgerRow) => string;
+const descriptorKey: TypeKey = (r) => streamKey(r.provider, r.merchant);
 
 /**
  * The charges that belong to the same stream as a pattern, for "does anything still charge after it stopped?".
@@ -152,16 +162,15 @@ const lastOf = <T,>(xs: T[]): T => xs[xs.length - 1];
  * "ACME* PLAN XYZ456", two subscriptions that share a charge type), else the same charge type (a later "ACME* PLAN ABC123" still
  * counts for a plan that never showed a reference), else the whole provider (the description changes every time).
  */
-function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>): (r: LedgerRow) => boolean {
+function streamMatcher<T extends LedgerRow>(p: RecurringPattern<T>, key: TypeKey = descriptorKey): (r: LedgerRow) => boolean {
   const refs = new Set(p.charges.map((c) => referenceKey(c.merchant)));
   if (refs.size === 1 && p.charges.every((c) => hasReference(c.merchant))) {
     const ref = [...refs][0];
     return (r) => r.provider === p.provider && referenceKey(r.merchant) === ref;
   }
-  const types = new Set(p.charges.map((c) => streamKey(c.provider, c.merchant)));
-  return types.size > 1
-    ? (r) => r.provider === p.provider
-    : (r) => r.provider === p.provider && streamKey(r.provider, r.merchant) === streamKey(p.provider, p.merchant);
+  const types = new Set(p.charges.map(key));
+  const only = [...types][0];
+  return types.size > 1 ? (r) => r.provider === p.provider : (r) => r.provider === p.provider && key(r) === only;
 }
 
 /**
@@ -196,13 +205,13 @@ function followsOn<T extends LedgerRow>(p: RecurringPattern<T>, c: T): boolean {
  * carrying on (a billing day that drifted, or a missed month, reads exactly like that), not a stopped one waiting to come back,
  * and a charge must not revive it next to its successor: automatic detection counts the pair once, so Confirm must too.
  */
-function isSuperseded<T extends LedgerRow>(p: RecurringPattern<T>, patterns: RecurringPattern<T>[]): boolean {
+function isSuperseded<T extends LedgerRow>(p: RecurringPattern<T>, patterns: RecurringPattern<T>[], key: TypeKey = descriptorKey): boolean {
   const was = p.charges[p.charges.length - 1].amountCents;
-  const types = new Set(p.charges.map((x) => streamKey(x.provider, x.merchant)));
+  const types = new Set(p.charges.map(key));
   return patterns.some((q) => {
     if (q === p || q.standalone || q.provider !== p.provider || q.firstDate <= p.lastDate) return false;
     const now = q.charges[0].amountCents;
-    return Math.abs(now - was) <= 0.02 * Math.max(now, was) && q.charges.some((x) => types.has(streamKey(x.provider, x.merchant)));
+    return Math.abs(now - was) <= 0.02 * Math.max(now, was) && q.charges.some((x) => types.has(key(x)));
   });
 }
 
@@ -210,7 +219,7 @@ function isSuperseded<T extends LedgerRow>(p: RecurringPattern<T>, patterns: Rec
  * Can this leftover charge continue this pattern? See `placeConfirmed`. `replacerOf` maps a pattern to the one a plan switch
  * already continued it with.
  */
-function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replacerOf: Map<RecurringPattern<T>, RecurringPattern<T>>, superseded: Set<RecurringPattern<T>>): boolean {
+function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replacerOf: Map<RecurringPattern<T>, RecurringPattern<T>>, superseded: Set<RecurringPattern<T>>, key: TypeKey = descriptorKey): boolean {
   if (!followsOn(p, c) || superseded.has(p)) return false;
   // A pattern that a plan switch already continued is not revived by a charge that its replacer can take as its own next
   // renewal, nor by one that sits no closer to its billing day than to its replacer's. Only a charge the replacer cannot take and
@@ -219,8 +228,8 @@ function canContinue<T extends LedgerRow>(p: RecurringPattern<T>, c: T, replacer
   if (replacer && (followsOn(replacer, c) || billingDayGap(p, c) >= billingDayGap(replacer, c))) return false;
   // It has to share the charge type: two subscriptions that bill a few days apart under different descriptions are not each
   // other's continuation.
-  const type = streamKey(c.provider, c.merchant);
-  return p.charges.some((x) => streamKey(x.provider, x.merchant) === type);
+  const type = key(c);
+  return p.charges.some((x) => key(x) === type);
 }
 
 /** How a leftover charge ranks against a pattern it can continue; lower is better. See `fit`. */
@@ -262,18 +271,18 @@ function betterFit(a: Fit, b: Fit): boolean {
  *     days or amounts), as a stand-in that takes no part in plan-switch matching;
  *   - the rest of a charge type that an active pattern does cover are left out: they are noise within a subscription.
  */
-function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], confirmed: Set<T>, latestDate: string): void {
+function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], confirmed: Set<T>, latestDate: string, key: TypeKey = descriptorKey): void {
   const explained = new Set(patterns.flatMap((p) => p.charges));
   // All the leftovers compete together, whatever their charge type: matching one type first would move a pattern's last date past
   // an earlier charge of another type, which could then no longer continue it.
   let leftover = [...confirmed].filter((c) => c.amountCents > 0 && !explained.has(c));
   for (;;) {
     const replacerOf = new Map(patterns.flatMap((p) => (p.replaces ? [[p.replaces, p] as const] : [])));
-    const superseded = new Set(patterns.filter((p) => isSuperseded(p, patterns)));
+    const superseded = new Set(patterns.filter((p) => isSuperseded(p, patterns, key)));
     let best: { p: RecurringPattern<T>; c: T; score: Fit } | null = null;
     for (const c of leftover) {
       for (const p of patterns) {
-        if (!canContinue(p, c, replacerOf, superseded)) continue;
+        if (!canContinue(p, c, replacerOf, superseded, key)) continue;
         const score = fit(p, c);
         if (!best || betterFit(score, best.score)) best = { p, c, score };
       }
@@ -297,7 +306,7 @@ function placeConfirmed<T extends LedgerRow>(patterns: RecurringPattern<T>[], co
   // What no pattern could take: per charge type.
   const byType = new Map<string, T[]>();
   for (const c of confirmed) {
-    const k = streamKey(c.provider, c.merchant);
+    const k = key(c);
     byType.set(k, [...(byType.get(k) ?? []), c]);
   }
   for (const typeCharges of byType.values()) {
@@ -378,6 +387,13 @@ function planSwitches<T extends LedgerRow>(
   return out;
 }
 
+/** The date a monthly charge falls on in `month`: its next expected date, rolled forward month by month until it reaches `month`. */
+function occurrenceIn(month: string, expected: string): string {
+  let d = expected;
+  for (let i = 0; i < 60 && monthOf(d) < month; i++) d = addOneMonthToDate(d);
+  return d;
+}
+
 function nextOccurrence(expected: string, asOf: string): string {
   let d = expected;
   // The next date may already be in the past when the newest import is a few weeks old: roll forward.
@@ -427,12 +443,18 @@ export function analyze<T extends LedgerRow>(
   today: string,
   overrides: Override[] = [],
   providerCategories: ProviderCategory[] = [],
+  /** Labels you gave charge types. Descriptors of one provider that share a label are read as one plan. */
+  labels: Label[] = [],
 ): Analysis<T> {
   const span = dataSpan(rows);
   const latestDate = span?.lastDate ?? today;
   const asOf = latestDate > today ? latestDate : today;
   const ov = overrideMap(overrides);
   const kindFor = (r: T) => overrideOf(ov, r);
+  const plans = planGroups(labels);
+  const typeKey: TypeKey = (r) => plans.get(streamKey(r.provider, r.merchant)) ?? streamKey(r.provider, r.merchant);
+  /** Only grouped descriptors are given a shared identity; everything else is detected exactly as before. */
+  const planOf = plans.size ? (r: LedgerRow) => plans.get(streamKey(r.provider, r.merchant)) : undefined;
 
   // Detection runs ONCE, on everything that could be a monthly subscription: charges you have not classified and charges of types
   // you confirmed as monthly, together. (A charge type set to Usage or One-time, or confirmed as yearly, is left out.)
@@ -453,9 +475,9 @@ export function analyze<T extends LedgerRow>(
       yearly.set(key, [...(yearly.get(key) ?? []), r]);
     }
   }
-  const found = span ? detectRecurring(pool, latestDate) : [];
-  const monthlyPatterns = span ? [...found, ...detectProvisional(pool, found, latestDate)] : [];
-  if (span) placeConfirmed(monthlyPatterns, confirmed, latestDate);
+  const found = span ? detectRecurring(pool, latestDate, planOf) : [];
+  const monthlyPatterns = span ? [...found, ...detectProvisional(pool, found, latestDate, planOf)] : [];
+  if (span) placeConfirmed(monthlyPatterns, confirmed, latestDate, typeKey);
   // A pattern that contains charges of a type you confirmed is marked as yours ("You marked this as a monthly subscription").
   for (const p of monthlyPatterns) if (p.charges.some((c) => confirmed.has(c))) p.forced = true;
   const yearlyPatterns = span ? [...yearly.values()].flatMap((charges) => forcedPattern(charges, 'yearly', latestDate) ?? []) : [];
@@ -485,7 +507,14 @@ export function analyze<T extends LedgerRow>(
   // a one-time charge, so refunds only count when there is nothing else.
   const newest = new Map<string, T>();
   const newestAny = new Map<string, T>();
+  /** The newest real charge of each charge type, a plan counting as one: what the month-end estimate adds. */
+  const newestOfType = new Map<string, T>();
   for (const r of rows) {
+    if (r.amountCents > 0) {
+      const tk = typeKey(r);
+      const prevT = newestOfType.get(tk);
+      if (!prevT || r.date >= prevT.date) newestOfType.set(tk, r);
+    }
     const k = streamKey(r.provider, r.merchant);
     const anyPrev = newestAny.get(k);
     if (!anyPrev || r.date >= anyPrev.date) newestAny.set(k, r);
@@ -603,11 +632,22 @@ export function analyze<T extends LedgerRow>(
     : [];
 
   // ---- stopped subscriptions
+  // A plan you grouped under one label (descriptors that share it) is stopped only when none of its descriptors is still running.
+  const runningPlans = new Set(
+    active.flatMap((s) => {
+      const last = lastOf(s.pattern.charges);
+      return plans.has(streamKey(last.provider, last.merchant)) ? [typeKey(last)] : [];
+    }),
+  );
+  const planRuns = (p: RecurringPattern<T>) => {
+    const last = lastOf(p.charges);
+    return plans.has(streamKey(last.provider, last.merchant)) && runningPlans.has(typeKey(last));
+  };
   const stopped: StoppedSubscription<T>[] = patterns
-    .filter((p) => !p.active && !superseded.has(p))
+    .filter((p) => !p.active && !superseded.has(p) && !planRuns(p))
     .map((p) => {
       const last = lastOf(p.charges);
-      const same = streamMatcher(p);
+      const same = streamMatcher(p, typeKey);
       return {
         pattern: p,
         provider: p.provider,
@@ -622,22 +662,39 @@ export function analyze<T extends LedgerRow>(
     })
     .sort((a, b) => (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0));
 
-  const monthlyCents = active.reduce((a, s) => a + s.monthlyCents, 0);
+  // ---- strongly expected later this month (the month-end estimate adds only these)
+  const thisMonth = monthOf(asOf);
+  const lastMonth = addMonths(thisMonth, -1);
+  const expected: ExpectedCharge[] = span
+    ? active.flatMap((s): ExpectedCharge[] => {
+        const p = s.pattern;
+        const confirmedByYou = Boolean(p.forced);
+        // The pattern rule is trusted only while it is current: its latest charge was last month, and it is not a new price seen once or twice.
+        if (!confirmedByYou && (p.provisional || monthOf(p.lastDate) !== lastMonth)) return [];
+        const yearly = s.cadence === 'yearly';
+        // Counted from the latest recorded charge, not from today: what is due after the data ends has not been seen yet, even if its
+        // usual day is before today. What was due before the data ends and never arrived is not coming.
+        const date = yearly ? s.renewal!.expected : occurrenceIn(thisMonth, p.nextExpected);
+        if (monthOf(date) !== thisMonth || date <= latestDate) return [];
+        const last = lastOf(p.charges);
+        const cents = newestOfType.get(typeKey(last))?.amountCents ?? s.billedCents;
+        return [{ provider: s.provider, merchant: s.merchant, category: s.category, date, cents, confirmed: confirmedByYou, cadence: s.cadence }];
+      })
+    : [];
+
   return {
     patterns,
     fixed,
     typeOf,
     streamInfo,
     categoryOf: category,
+    expected,
     report: {
       asOf,
       latestDate,
       dataFresh,
       active,
-      monthlyCents,
-      yearlyCents: active.reduce((a, s) => a + s.yearlyCents, 0),
       upcoming,
-      upcomingCents: upcoming.reduce((a, u) => a + u.cents, 0),
       priceChanges,
       stopped,
       overlaps,

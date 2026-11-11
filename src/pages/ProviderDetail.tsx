@@ -6,16 +6,15 @@ import { ChargeTypesCard } from '../components/ChargeTypes';
 import { Card, EmptyState, Kpi } from '../components/ui';
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
 import { filterPeriod, periodLabel } from '../lib/analytics';
-import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
+import { dateLabel, monthLabel, monthOf, monthsBetween } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
 import { href } from '../router';
 import { useLedger } from '../store';
 
 export function ProviderDetail({ provider }: { provider: string }) {
-  const { transactions, span, colors, period, providers, analysis, providerCategories, setProviderCategory, tagRules } = useLedger();
+  const { transactions, span, colors, period, providers, providerCategories, setProviderCategory, tagRules } = useLedger();
   const ownCategory = providerCategories.find((c) => c.provider === provider)?.category ?? '';
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
-  const patterns = useMemo(() => analysis.patterns.filter((p) => p.provider === provider), [analysis, provider]);
 
   if (!span) return null;
   if (rows.length === 0) {
@@ -47,38 +46,9 @@ export function ProviderDetail({ provider }: { provider: string }) {
         <Kpi label="First → most recent" value={<span style={{ fontSize: 16 }}>{dateLabel(first)}</span>} sub={`Most recent: ${dateLabel(last)}`} />
       </div>
 
-      <div className="grid cols-2">
-        <Card title="Monthly spending" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}`}>
-          <SingleSeriesMonthlyChart rows={rows} months={months} color={colors.color(provider)} />
-        </Card>
-        <Card title="Subscription patterns" subtitle="Monthly ones are observed in the data, not confirmed. Yearly ones are set by you.">
-          {patterns.length === 0 ? (
-            <EmptyState>No charge repeats monthly on a similar day for 3+ months, and none is set as a subscription.</EmptyState>
-          ) : (
-            <div className="stack" style={{ gap: 12 }}>
-              {patterns.map((p) => (
-                <div key={p.firstDate} className="stack" style={{ gap: 2 }}>
-                  <div className="row-between">
-                    <strong className="num">~{formatEUR(p.typicalCents)} / {p.cadence === 'yearly' ? 'year' : 'month'}</strong>
-                    <span className={`chip ${p.active ? 'chip-active' : 'chip-ended'}`}>{p.active ? 'Still appearing' : 'Stopped'}</span>
-                  </div>
-                  <span className="small secondary">
-                    {p.cadence === 'yearly'
-                      ? `Yearly, set by you · last charged ${dateLabel(p.lastDate)}`
-                      : p.provisional
-                      ? `New price after a plan change · ${p.months} charge${p.months === 1 ? '' : 's'} so far · first seen ${dateLabel(p.firstDate)}`
-                      : `Around the ${ordinal(p.typicalDay)} · ${p.months} ${p.forced ? 'month' + (p.months === 1 ? '' : 's') + ' with charges, set by you' : 'consecutive months'} · ${monthLabel(monthOf(p.firstDate))} – ${monthLabel(monthOf(p.lastDate))}`}
-                  </span>
-                  <span className="small muted">
-                    {p.minCents !== p.maxCents ? `Amounts ${formatEUR(p.minCents)}–${formatEUR(p.maxCents)} · ` : ''}
-                    {p.active ? `next expected around ${dateLabel(p.nextExpected)}` : `last seen ${dateLabel(p.lastDate)}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+      <Card title="Monthly spending" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}`}>
+        <SingleSeriesMonthlyChart rows={rows} months={months} color={colors.color(provider)} />
+      </Card>
 
       <ChargeTypesCard
         provider={provider}

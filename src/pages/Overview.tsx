@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
-import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
+import { ClosedMonthCard } from '../components/ClosedMonthCard';
 import { ForecastCard } from '../components/ForecastCard';
+import { MonthPanel } from '../components/MonthPanel';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, EmptyState, Kpi, ProviderDot, Segmented } from '../components/ui';
+import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmented } from '../components/ui';
 import {
   filterPeriod,
+  monthDrillDown,
+  periodKey,
   monthTotal,
   monthTotalThroughDay,
   periodLabel,
@@ -15,14 +19,29 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
 import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
-import type { Period } from '../lib/types';
+import type { Commitment } from '../lib/commitment';
+import { describeOneTime, formatSignedNoBreak, oneTimeNote } from '../lib/oneTime';
+import { reviewCounts } from '../lib/providerChargeTypes';
+import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
+type ChartView = 'provider' | 'category' | 'type';
+const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
+
 export function Overview() {
-  const { transactions, span, period, setPeriod, today, analysis } = useLedger();
-  const [view, setView] = useState<'provider' | 'category'>('provider');
+  const { transactions, span, period, today, analysis, overrides } = useLedger();
+  const [view, setView] = useState<ChartView>('provider');
+  // The month whose transactions are open in the side sheet, and, from the comparison card, only up to a day of it.
+  const [drill, setDrill] = useState<{ month: string; throughDay?: number; commitment?: Commitment } | null>(null);
+  const closeDrill = useCallback(() => setDrill(null), []);
+  // Changing the period (the Today button, for one) closes the drill-down.
+  const periodId = periodKey(period);
+  useEffect(() => setDrill(null), [periodId]);
+  // The month the estimate is about: the one that is still in progress.
+  const currentMonth = span ? monthOf(span.lastDate > today ? span.lastDate : today) : '';
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
+  const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
 
   if (!span) return null;
 
@@ -33,20 +52,27 @@ export function Overview() {
 
   return (
     <div className="stack">
-      <KpiRow period={period} />
+      <KpiRow period={period} onOpenMonth={(month, throughDay) => setDrill({ month, throughDay })} />
+      {toReview > 0 && (
+        <p className="small muted" style={{ margin: '-6px 0 0' }}>
+          {toReview} charge type{toReview === 1 ? '' : 's'} still follow{toReview === 1 ? 's' : ''} the app's suggestion.{' '}
+          <a href={href(['providers'])} style={{ textDecoration: 'underline' }}>Review on the Providers page</a>
+        </p>
+      )}
 
       <div className="grid cols-2">
         <Card
-          title={`Monthly spending by ${view}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
-          subtitle="Click a month to explore it"
+          title={`Monthly spending by ${VIEW_NAMES[view]}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
+          subtitle={view === 'type' ? <>Click a month to list its transactions · <ReadChip /> Types are suggestions until you confirm them</> : 'Click a month to list its transactions'}
           actions={
-            <Segmented<'provider' | 'category'>
+            <Segmented<ChartView>
               label="Group by"
               value={view}
               onChange={setView}
               options={[
                 { value: 'provider', label: 'Provider' },
                 { value: 'category', label: 'Category' },
+                { value: 'type', label: 'Commitment' },
               ]}
             />
           }
@@ -55,21 +81,43 @@ export function Overview() {
             <MonthlyProviderChart
               rows={transactions}
               months={chartMonths}
-              selectedMonth={period.kind === 'month' ? period.month : null}
-              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
+              onSelectMonth={(m) => setDrill({ month: m })}
+            />
+          ) : view === 'type' ? (
+            <TypeChart
+              rows={transactions}
+              months={chartMonths}
+              typeOf={analysis.typeOf}
+              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
+              onSelectMonth={(m) => setDrill({ month: m })}
             />
           ) : (
             <MonthlyCategoryChart
               rows={transactions}
               months={chartMonths}
               categoryFor={analysis.categoryOf}
-              selectedMonth={period.kind === 'month' ? period.month : null}
-              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
+              onSelectMonth={(m) => setDrill({ month: m })}
             />
+          )}
+          {view === 'type' && (
+            <div style={{ marginTop: 10 }}>
+              <Disclosure label="How are these found?">
+                <p className="small muted" style={{ margin: 0 }}>
+                  Amounts and dates are the ledger. Whether a charge is a subscription, usage or one-time is the app's read: a charge is a
+                  subscription once it has appeared monthly for three months in a row, and usage when the same descriptor is charged three
+                  or more times without that rhythm. A type you confirm on the provider's page replaces the app's read for that charge type.
+                </p>
+              </Disclosure>
+            </div>
           )}
         </Card>
         <div className="stack">
-          <ForecastCard />
+          {period.kind === 'month' && period.month !== currentMonth && (
+            <ClosedMonthCard month={period.month} onOpen={(commitment) => setDrill({ month: period.month, commitment })} />
+          )}
+          {period.kind === 'month' && period.month === currentMonth && <ForecastCard />}
           <BudgetCard />
         </div>
       </div>
@@ -78,6 +126,16 @@ export function Overview() {
         <ChargesCard period={period} />
         <ContributorsCard rows={periodRows} label={periodLabel(period)} />
       </div>
+      {drill && (
+        <MonthPanel
+          month={drill.month}
+          throughDay={drill.throughDay}
+          commitment={drill.commitment}
+          onClose={closeDrill}
+          onShowFullMonth={() => setDrill({ month: drill.month })}
+          onShowAllTypes={() => setDrill({ month: drill.month, throughDay: drill.throughDay })}
+        />
+      )}
       {today < span.lastDate && (
         <p className="small muted">Note: some transactions are dated after today ({dateLabel(today)}).</p>
       )}
@@ -85,9 +143,18 @@ export function Overview() {
   );
 }
 
-function KpiRow({ period }: { period: Period }) {
-  const { transactions, span, today } = useLedger();
+function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: string, throughDay?: number) => void }) {
+  const { transactions, span, today, analysis } = useLedger();
   if (!span) return null;
+  /** A second line under a comparison when either period holds one-time charges. Nothing when there are none. */
+  const oneTime = (current: Transaction[], earlier: Transaction[]) => {
+    const n = oneTimeNote(current, earlier, analysis.typeOf, sumCents);
+    return n ? (
+      <span className="kpi-note" title={describeOneTime(n)}>
+        <span className="nowrap">{formatSignedNoBreak(n.withoutCents)}</span> without one-time
+      </span>
+    ) : null;
+  };
   const byMonth = totalsByMonth(transactions);
   const currentMonth = monthOf(today);
 
@@ -124,6 +191,8 @@ function KpiRow({ period }: { period: Period }) {
         />
         <Kpi label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
         <Kpi
+          onClick={inProgress ? () => onOpenMonth(prev, day) : prev >= span.firstMonth ? () => onOpenMonth(prev) : undefined}
+          hint={inProgress ? `List the transactions of ${monthShort(prev)} 1–${day}` : prev >= span.firstMonth ? `List the transactions of ${monthLabel(prev)}` : undefined}
           label={inProgress ? `vs same point in ${monthShort(prev)}` : 'Month over month'}
           value={
             inProgress ? (
@@ -138,11 +207,18 @@ function KpiRow({ period }: { period: Period }) {
             inProgress ? (
               <>
                 {monthShort(prev)} 1–{day}: {formatEUR(prevSameDays)}. Full {monthShort(prev)} total was {formatEUR(before)}.
+                {oneTime(monthDrillDown(transactions, m), monthDrillDown(transactions, prev, day))}
               </>
             ) : before > 0 ? (
-              `${formatPct(pctChange(before, cur))} vs ${monthLabel(prev)}`
+              <>
+                {formatPct(pctChange(before, cur))} vs {monthLabel(prev)}
+                {oneTime(monthDrillDown(transactions, m), monthDrillDown(transactions, prev))}
+              </>
             ) : (
-              'No spending the month before'
+              <>
+                No spending the month before
+                {oneTime(monthDrillDown(transactions, m), [])}
+              </>
             )
           }
         />
@@ -176,7 +252,7 @@ function KpiRow({ period }: { period: Period }) {
         <Kpi
           label={partial ? `vs same months of ${y - 1}` : `vs ${y - 1}`}
           value={hasPrev ? <Delta before={samePrev} after={total} showPct={false} /> : '—'}
-          sub={hasPrev ? <>{monthShort(months[0])}–{monthShort(months[months.length - 1])} {y - 1}: {formatEUR(samePrev)} ({formatPct(pctChange(samePrev, total))})</> : 'Nothing to compare'}
+          sub={hasPrev ? <>{monthShort(months[0])}–{monthShort(months[months.length - 1])} {y - 1}: {formatEUR(samePrev)} ({formatPct(pctChange(samePrev, total))}){oneTime(rows, rowsInMonths(transactions, `${y - 1}-${firstMM}`, `${y - 1}-${lastMM}`))}</> : 'Nothing to compare'}
         />
         <Kpi label="Average per month" value={formatEUR(Math.round(total / months.length))} sub={`Highest: ${monthLabel(best)} (${formatEUR(byMonth.get(best) ?? 0)})`} />
         <Kpi label="Providers with spending" value={new Set(rows.map((r) => r.provider)).size} sub={`in ${y}`} />

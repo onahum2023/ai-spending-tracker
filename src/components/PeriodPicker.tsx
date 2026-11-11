@@ -1,4 +1,4 @@
-import { periodLabel } from '../lib/analytics';
+import { periodKey, periodLabel, todayPeriod } from '../lib/analytics';
 import { addMonths, monthLabel, yearOf } from '../lib/dates';
 import type { Period } from '../lib/types';
 import { useLedger } from '../store';
@@ -8,7 +8,7 @@ type Scope = Period['kind'];
 
 /** Month / Year / All-time selector with previous/next stepping. */
 export function PeriodPicker() {
-  const { span, period, setPeriod } = useLedger();
+  const { span, period, setPeriod, today } = useLedger();
   if (!span) return null;
 
   const setScope = (scope: Scope) => {
@@ -37,6 +37,10 @@ export function PeriodPicker() {
     if (span.years.includes(period.year - 1)) prev = { kind: 'year', year: period.year - 1 };
     if (span.years.includes(period.year + 1)) next = { kind: 'year', year: period.year + 1 };
   }
+
+  // The current month or year (as far as the data reaches). Disabled, not hidden, while it is already selected.
+  const now = todayPeriod(period.kind, span, today);
+  const atNow = now !== null && periodKey(now) === periodKey(period);
 
   return (
     <div className="period">
@@ -85,6 +89,16 @@ export function PeriodPicker() {
           <button className="btn btn-icon" aria-label="Next period" disabled={!next} onClick={() => next && setPeriod(next)}>
             ›
           </button>
+          {now && (
+            <button
+              className="btn btn-sm"
+              disabled={atNow}
+              onClick={() => setPeriod(now)}
+              title={atNow ? `Already showing ${periodLabel(now)}` : `Jump to ${periodLabel(now)}`}
+            >
+              Today
+            </button>
+          )}
         </div>
       )}
       <span className="sr-only" aria-live="polite" style={{ position: 'absolute', left: -9999 }}>

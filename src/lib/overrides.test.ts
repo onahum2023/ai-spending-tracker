@@ -10,6 +10,7 @@ import {
   normalizeOverrides,
   overrideMap,
   overrideOf,
+  typePill,
   streamSize,
   typeLabel,
   withOverride,
@@ -17,6 +18,7 @@ import {
 } from './overrides';
 import { sumCents } from './money';
 import type { LedgerRow } from './types';
+import { monthlyTotal, upcomingTotal } from './__fixtures__/reportTotals';
 
 const rows = parseLedgerCsv(readFileSync(resolve(__dirname, '__fixtures__/ledger.csv'), 'utf8')).rows;
 const TODAY = '2026-11-09';
@@ -88,7 +90,7 @@ describe('usage', () => {
       expect(a.typeOf(r)).toMatchObject({ kind: 'usage', source: 'you' });
       expect(a.categoryOf(r)).toBe('api');
     }
-    expect(a.report.monthlyCents).toBeLessThan(base.report.monthlyCents);
+    expect(monthlyTotal(a.report)).toBeLessThan(monthlyTotal(base.report));
   });
 
   it('never changes what was spent', () => {
@@ -117,8 +119,8 @@ describe('one-time / other', () => {
     const withLovable = analyze(rows, TODAY);
     const without = analyze(rows, TODAY, [{ ...lovable, kind: 'other' }]);
     const up = (an: typeof withLovable) => {
-      const f = forecastCurrentMonth(rows, TODAY, undefined, an.patterns);
-      return f.status === 'ok' ? f.upcoming.map((p) => p.provider) : [];
+      const f = forecastCurrentMonth(rows, TODAY, undefined, an.expected, an.typeOf);
+      return f.status === 'ok' ? f.expected.map((e) => e.provider) : [];
     };
     expect(up(withLovable)).toContain('Lovable');
     expect(up(without)).not.toContain('Lovable');
@@ -133,7 +135,7 @@ describe('monthly subscription', () => {
     expect(a.report.active).toHaveLength(1);
     expect(a.report.active[0]).toMatchObject({ provider: 'Acme', cadence: 'monthly', monthlyCents: 1500, yearlyCents: 18000, billedCents: 1500 });
     expect(a.report.active[0].notes).toContain('You marked this as a monthly subscription');
-    expect(a.report.monthlyCents).toBe(1500);
+    expect(monthlyTotal(a.report)).toBe(1500);
     for (const c of data) expect(a.fixed.has(c)).toBe(true);
   });
 
@@ -148,7 +150,7 @@ describe('monthly subscription', () => {
     const pro = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 2178));
     const data = [...pro, charge('2026-12-06', 10890)];
     const r = analyze(data, '2026-12-07').report;
-    expect(r.monthlyCents).toBe(10890);
+    expect(monthlyTotal(r)).toBe(10890);
     expect(r.active).toHaveLength(1);
     expect(r.active[0].pattern.provisional).toBe(true);
     expect(r.active[0].notes.join(' ')).toContain('New price seen once');
@@ -160,7 +162,7 @@ describe('monthly subscription', () => {
   it('counts the new price once when the switch lands on the usual billing day', () => {
     const pro = ['2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 2178));
     const r = analyze([...pro, charge('2026-11-06', 10890), later('2026-11-08')], '2026-11-08').report;
-    expect(r.monthlyCents).toBe(10890); // not 2178 + 10890
+    expect(monthlyTotal(r)).toBe(10890); // not 2178 + 10890
     expect(r.stopped).toEqual([]);
   });
 
@@ -168,7 +170,7 @@ describe('monthly subscription', () => {
     const old = ['2026-01-06', '2026-02-06', '2026-03-06'].map((d) => charge(d, 2000));
     const data = [...old, charge('2026-04-02', 1000), charge('2026-04-15', 10000), charge('2026-05-15', 10000)];
     const r = analyze(data, '2026-05-16').report;
-    expect(r.monthlyCents).toBe(10000);
+    expect(monthlyTotal(r)).toBe(10000);
     expect(r.active).toHaveLength(1);
     expect(r.active[0].pattern.charges.map((c) => c.amountCents)).toEqual([10000, 10000]);
     expect(r.stopped).toEqual([]);
@@ -180,7 +182,7 @@ describe('monthly subscription', () => {
     const max = ['2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 10890));
     const a = analyze([...pro, ...max], '2026-10-07');
     expect(a.patterns.some((p) => p.provisional)).toBe(false);
-    expect(a.report.monthlyCents).toBe(10890);
+    expect(monthlyTotal(a.report)).toBe(10890);
   });
 
   it('does not invent a subscription from a lone charge that nothing followed', () => {
@@ -200,7 +202,7 @@ describe('monthly subscription', () => {
     const pro = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06', '2026-10-06'].map((d) => charge(d, 2178));
     const data = [...pro, charge('2026-12-06', 10890)];
     const after = analyze(data, '2026-12-07', [{ provider: 'Anthropic', merchant: 'ANTHROPIC* CLAUDE SUB', kind: 'monthly' }]).report;
-    expect(after.monthlyCents).toBe(10890);
+    expect(monthlyTotal(after)).toBe(10890);
     expect(after.stopped).toEqual([]);
     expect(after.priceChanges[0]).toMatchObject({ kind: 'plan', fromCents: 2178, toCents: 10890 }); // reported as automatic detection reports it
   });
@@ -233,11 +235,11 @@ describe('yearly subscription (always set by the user)', () => {
   it('adds the monthly equivalent to the run-rate and the whole renewal to the 30-day calendar when it is near', () => {
     const data = [charge('2026-01-02', 500, 'Acme', 'ACME'), gh('2025-11-20'), later('2026-11-01')];
     const r = analyze(data, '2026-11-02', yearly).report;
-    expect(r.monthlyCents).toBe(1000);
+    expect(monthlyTotal(r)).toBe(1000);
     expect(r.upcoming).toEqual([
       { date: '2026-11-20', provider: 'GitHub', merchant: 'GITHUB, INC.', cents: 12000, cadence: 'yearly', estimated: true, overdue: false },
     ]);
-    expect(r.upcomingCents).toBe(12000);
+    expect(upcomingTotal(r)).toBe(12000);
     // a renewal five months out is not in the next 30 days
     expect(analyze([gh('2026-06-10'), later('2026-11-01')], '2026-11-02', yearly).report.upcoming).toEqual([]);
   });
@@ -287,5 +289,25 @@ describe('storage', () => {
     expect(normalizeOverrides(await loadSetting('overrides'))).toEqual(list);
     await clearAll();
     expect(await loadSetting('overrides')).toBeUndefined();
+  });
+});
+
+describe('the type pill in a list', () => {
+  it('shows a confirmed type as it is, a suggestion muted with "Suggested:", and a guess of one-time or an unknown as nothing', () => {
+    expect(typePill({ kind: 'subscription', cadence: 'monthly', source: 'you' })).toEqual({ text: 'Subscription · monthly', confirmed: true });
+    expect(typePill({ kind: 'other', source: 'you' })).toEqual({ text: 'One-time / Other', confirmed: true });
+    expect(typePill({ kind: 'subscription', cadence: 'monthly', source: 'pattern' })).toEqual({ text: 'Suggested: Subscription · monthly', confirmed: false });
+    expect(typePill({ kind: 'usage', source: 'repeats' })).toEqual({ text: 'Suggested: Usage', confirmed: false });
+    // Never One-time / Other for something nobody decided.
+    expect(typePill({ kind: 'other', source: 'single' })).toBeNull();
+    expect(typePill({ kind: 'other', source: 'import' })).toBeNull();
+  });
+
+  it('follows what analyze decides for real charges', () => {
+    const data = [charge('2026-11-04', 9000, 'Cert', 'CERT EXAM')];
+    const guessed = analyze(data, '2026-11-09');
+    expect(typePill(guessed.typeOf(data[0]))).toBeNull();
+    const confirmed = analyze(data, '2026-11-09', [{ provider: 'Cert', merchant: 'CERT EXAM', kind: 'other' }]);
+    expect(typePill(confirmed.typeOf(data[0]))).toEqual({ text: 'One-time / Other', confirmed: true });
   });
 });

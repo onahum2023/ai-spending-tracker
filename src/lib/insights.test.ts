@@ -15,8 +15,10 @@ import {
   monthlyByCategory,
 } from './insights';
 import { dataSpan } from './analytics';
+import { formatEUR } from './money';
 import { quarterOf, quarterReport, quartersIn } from './tags';
 import type { LedgerRow } from './types';
+import { monthlyTotal } from './__fixtures__/reportTotals';
 
 const rows = parseLedgerCsv(readFileSync(resolve(__dirname, '__fixtures__/ledger.csv'), 'utf8')).rows;
 const TODAY = '2026-11-09';
@@ -109,9 +111,7 @@ describe('subscription report on the fixture ledger', () => {
   const r = a.report;
   const names = (xs: { provider: string }[]) => xs.map((x) => x.provider);
 
-  it('adds up the monthly run-rate from the latest charge of each active subscription', () => {
-    expect(r.monthlyCents).toBe(r.active.reduce((s, x) => s + x.monthlyCents, 0));
-    expect(r.yearlyCents).toBe(r.monthlyCents * 12);
+  it('lists the active subscriptions, each from its latest charge', () => {
     expect(names(r.active)).toContain('OpenAI');
     expect(names(r.active)).toContain('Cursor');
     // Cancelled before the end of the data
@@ -127,7 +127,6 @@ describe('subscription report on the fixture ledger', () => {
       expect(u.date >= TODAY).toBe(true);
       expect(u.date <= '2026-12-09').toBe(true);
     }
-    expect(r.upcomingCents).toBe(r.upcoming.reduce((s, u) => s + u.cents, 0));
   });
 
   it('reports plan changes as "from X to Y" with the month of the first new charge', () => {
@@ -212,7 +211,7 @@ describe('subscription detection edge cases', () => {
   it('reports nothing for an empty ledger', () => {
     const e = analyze([], TODAY).report;
     expect(e.active).toEqual([]);
-    expect(e.monthlyCents).toBe(0);
+    expect(monthlyTotal(e)).toBe(0);
   });
 });
 
@@ -280,6 +279,14 @@ describe('categories over time', () => {
   });
 });
 
+describe('the report no longer carries a run-rate', () => {
+  it('has no monthly, yearly or upcoming totals, only the subscriptions and charges themselves', () => {
+    const r = analyze(rows, TODAY).report as unknown as Record<string, unknown>;
+    for (const k of ['monthlyCents', 'yearlyCents', 'upcomingCents']) expect(k in r).toBe(false);
+    expect(Array.isArray(r.active) && Array.isArray(r.upcoming)).toBe(true);
+  });
+});
+
 describe('budgets', () => {
   const a = analyze(rows, TODAY);
   const month = '2026-11';
@@ -293,13 +300,28 @@ describe('budgets', () => {
     expect(rep.lines[0].summary).toMatch(/^Over budget by €10\.00$/);
   });
 
-  it('says "on track to exceed" when the month-end estimate is above the budget', () => {
-    const rep = evaluateBudgets(rows, { totalCents: actual + 100, byCategory: {} }, TODAY, a.categoryOf);
+  it('says the month will cost at least more than the budget when recorded plus what is still due passes it', () => {
+    const rep = evaluateBudgets(rows, { totalCents: actual + 100, byCategory: {} }, TODAY, a.categoryOf, a.expected, a.typeOf);
     const line = rep.lines[0];
-    expect(line.projectedCents).not.toBeNull();
-    expect(line.projectedCents!).toBeGreaterThan(actual + 100);
+    expect(line.atLeastCents).not.toBeNull();
+    expect(line.atLeastCents!).toBe(actual + a.expected.reduce((n, e) => n + e.cents, 0));
+    expect(line.atLeastCents!).toBeGreaterThan(actual + 100);
     expect(line.status).toBe('at-risk');
-    expect(line.summary).toMatch(/^On track to exceed by /);
+    expect(line.summary).toBe(`Expected to exceed by at least ${formatEUR(line.atLeastCents! - (actual + 100))}`);
+  });
+
+  it('does not call a budget at risk on the strength of usage or one-time charges: only recorded plus recurring still due', () => {
+    // A budget just above recorded + still due is not at risk, however much usage normally follows.
+    const floor = actual + a.expected.reduce((n, e) => n + e.cents, 0);
+    const rep = evaluateBudgets(rows, { totalCents: floor + 1, byCategory: {} }, TODAY, a.categoryOf, a.expected, a.typeOf);
+    expect(rep.lines[0].status).toBe('under');
+    expect(rep.lines[0].summary).toMatch(/still due$/);
+  });
+
+  it('without the expected charges, nothing is added to what is recorded', () => {
+    const rep = evaluateBudgets(rows, { totalCents: actual + 100, byCategory: {} }, TODAY, a.categoryOf);
+    expect(rep.lines[0].atLeastCents).toBe(actual);
+    expect(rep.lines[0].status).toBe('under');
   });
 
   it('stays under with a generous budget, and evaluates category budgets on that category only', () => {
@@ -315,7 +337,7 @@ describe('budgets', () => {
   it('falls back to spent-so-far, with a reason, when there is no estimate', () => {
     const rep = evaluateBudgets(rows, { totalCents: 100, byCategory: {} }, '2027-06-01', a.categoryOf);
     expect(rep.note).toMatch(/No month-end estimate/);
-    expect(rep.lines[0].projectedCents).toBeNull();
+    expect(rep.lines[0].atLeastCents).toBeNull();
   });
 
   it('normalizes budgets read from storage', () => {

@@ -1,17 +1,25 @@
 import { useMemo } from 'react';
-import { dateLabel, dateLabelShort, monthLabel, monthLabelLong, ordinal } from '../lib/dates';
-import { forecastCurrentMonth, LOOKBACK_MONTHS } from '../lib/forecast';
+import { href } from '../router';
+import { dateLabel, dateLabelShort, monthLabel, monthLabelLong } from '../lib/dates';
+import { forecastCurrentMonth, STALE_AFTER_DAYS } from '../lib/forecast';
 import { formatEUR } from '../lib/money';
 import { useLedger } from '../store';
-import { Card, ProviderLink } from './ui';
+import { Card, Disclosure, ProviderLink, ReadChip, StreamName } from './ui';
 
+/**
+ * The month so far, and a floor for the month: what is recorded plus the recurring charges that are still due and trusted.
+ * Usage is shown on its own line and never projected. It is the app's read, so it is marked and explained.
+ */
 export function ForecastCard() {
   const { transactions, today, span, analysis } = useLedger();
-  const f = useMemo(() => forecastCurrentMonth(transactions, today, undefined, analysis.patterns), [transactions, today, analysis]);
+  const f = useMemo(
+    () => forecastCurrentMonth(transactions, today, undefined, analysis.expected, analysis.typeOf),
+    [transactions, today, analysis],
+  );
 
   if (f.status === 'insufficient') {
     return (
-      <Card title={`${monthLabelLong(f.month)} estimate`} subtitle="Month-end projection">
+      <Card title={`${monthLabelLong(f.month)} so far`} subtitle="Month-end estimate" actions={<ReadChip>Estimate</ReadChip>}>
         <div className="stack" style={{ gap: 10 }}>
           <div>
             <div className="small muted">Recorded so far</div>
@@ -23,56 +31,53 @@ export function ForecastCard() {
     );
   }
 
-  const scale = Math.max(f.highCents, f.projectedCents, 1);
+  const scale = Math.max(f.atLeastCents, 1);
   const pct = (c: number) => `${(c / scale) * 100}%`;
   const lastRecorded = span?.lastDate;
-  const dayAfter = f.asOfDay + 1;
 
   return (
     <Card
-      title={`${monthLabelLong(f.month)} estimate`}
-      subtitle={`As of ${dateLabel(f.asOf)} · day ${f.asOfDay} of ${f.daysInMonth}`}
+      title={`${monthLabelLong(f.month)} so far`}
+      subtitle={f.dataEnd === f.asOf ? `As of ${dateLabel(f.asOf)} · day ${f.asOfDay} of ${f.daysInMonth}` : `As of last import, ${dateLabel(f.dataEnd)}`}
+      actions={<ReadChip>Estimate</ReadChip>}
     >
-      <div className="small secondary">Projected month-end total</div>
-      <div className="row" style={{ alignItems: 'baseline', gap: 10 }}>
-        <span className="kpi-value num" style={{ fontSize: 26 }}>≈ {formatEUR(f.projectedCents)}</span>
-        <span className="small muted num">
-          likely {formatEUR(f.lowCents)} – {formatEUR(f.highCents)}
-        </span>
+      <div className="small secondary">Month-end total</div>
+      <div className="row" style={{ alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <span className="kpi-value num" style={{ fontSize: 26 }}>At least {formatEUR(f.atLeastCents)}</span>
       </div>
 
-      <div className="forecast-bar" role="img" aria-label={`Recorded ${formatEUR(f.actualCents)}, estimated additional ${formatEUR(f.estimatedAdditionalCents)}`}>
+      <div className="forecast-bar" role="img" aria-label={`Recorded ${formatEUR(f.actualCents)}, still to come ${formatEUR(f.stillToComeCents)}`}>
         <div className="forecast-actual" style={{ width: pct(f.actualCents) }} />
-        <div className="forecast-est" style={{ left: pct(f.actualCents), width: pct(f.estimatedAdditionalCents) }} />
-        {f.highCents > f.lowCents && (
-          <div className="forecast-range" style={{ left: pct(f.lowCents), width: `calc(${pct(f.highCents - f.lowCents)})` }} title="Likely range" />
-        )}
+        <div className="forecast-est" style={{ left: pct(f.actualCents), width: pct(f.stillToComeCents) }} />
       </div>
 
       <div className="forecast-figs">
         <div>
-          <div className="label"><span className="swatch-solid" />Recorded</div>
+          <div className="label"><span className="swatch-solid" />Recorded so far</div>
           <div className="value num">{formatEUR(f.actualCents)}</div>
         </div>
         <div>
-          <div className="label"><span className="swatch-hatch" />Estimated additional</div>
-          <div className="value num">+{formatEUR(f.estimatedAdditionalCents)}</div>
+          <div className="label"><span className="swatch-hatch" />Still to come</div>
+          <div className="value num">+{formatEUR(f.stillToComeCents)}</div>
         </div>
         <div>
-          <div className="label">Projected total</div>
-          <div className="value num">{formatEUR(f.projectedCents)}</div>
+          <div className="label">At least</div>
+          <div className="value num">{formatEUR(f.atLeastCents)}</div>
         </div>
       </div>
 
-      {f.upcoming.length > 0 && (
+      {f.expected.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <div className="small secondary" style={{ marginBottom: 6 }}>Usually charged later in the month</div>
+          <div className="small secondary" style={{ marginBottom: 6 }}>Recurring charges still due this month</div>
           <div className="stack" style={{ gap: 4 }}>
-            {f.upcoming.map((p) => (
-              <div key={p.provider + p.firstDate} className="row-between small">
-                <ProviderLink provider={p.provider} />
-                <span className="muted num">
-                  ~{formatEUR(p.typicalCents)} around {dateLabelShort(p.nextExpected)}
+            {f.expected.map((e) => (
+              <div key={`${e.provider}|${e.merchant}|${e.date}`} className="row-between small">
+                <span>
+                  <ProviderLink provider={e.provider} />
+                  <StreamName provider={e.provider} merchant={e.merchant} labelOnly />
+                </span>
+                <span className="muted num" title={e.confirmed ? 'You confirmed this subscription' : 'Found by the pattern rule: monthly for 3+ months, last charged last month'}>
+                  {formatEUR(e.cents)} around {dateLabelShort(e.date)}
                 </span>
               </div>
             ))}
@@ -80,35 +85,46 @@ export function ForecastCard() {
         </div>
       )}
 
-      <details className="explain">
-        <summary>How is this estimated?</summary>
-        <ol>
-          <li>
-            <strong>Recorded</strong> is the sum of every transaction dated in {monthLabel(f.month)} so far
-            {lastRecorded ? ` (latest: ${dateLabel(lastRecorded)})` : ''}.
-          </li>
-          <li>
-            For each of the previous {LOOKBACK_MONTHS} months, we add up what you spent from the {ordinal(dayAfter)} to the end of that month:
-            <ul>
-              {f.samples.map((s) => (
-                <li key={s.month} className="num">
-                  {monthLabel(s.month)}: {formatEUR(s.remainingCents)} <span className="muted">(of {formatEUR(s.fullMonthCents)} that month)</span>
-                </li>
-              ))}
-            </ul>
-          </li>
-          <li>
-            <strong>Estimated additional</strong> is the middle of those three amounts ({formatEUR(f.estimatedAdditionalCents)}).
-            The likely range uses the lowest and highest.
-          </li>
-          <li><strong>Projected total</strong> = recorded + estimated additional.</li>
-        </ol>
-        <p className="muted">
-          It's a simple pattern-based estimate, not a prediction of specific charges. One-off purchases,
-          plan changes, or transactions not yet imported will move the real number.
-          {f.asOfDay >= f.daysInMonth ? ' The month is over, so nothing is added.' : ''}
+      {f.usageSoFarCents !== null && (
+        <p className="small" style={{ margin: '14px 0 0' }}>
+          <span className="secondary">Usage so far this month</span> <strong className="num">{formatEUR(f.usageSoFarCents)}</strong>
+          <span className="muted"> · not projected, not in the total above</span>
         </p>
-      </details>
+      )}
+
+      {f.dataOld && (
+        <p className="small muted" style={{ margin: '10px 0 0' }}>
+          Your data ends {dateLabelShort(f.dataEnd)}.{' '}
+          <a href={href(['data'])} style={{ textDecoration: 'underline' }}>Import newer statements</a> for a better estimate.
+        </p>
+      )}
+
+      <div className="explain" style={{ marginTop: 12 }}>
+        <Disclosure label="How is this estimated?">
+          <ol>
+            <li>
+              <strong>Recorded so far</strong> is the sum of every transaction dated in {monthLabel(f.month)} so far
+              {lastRecorded ? ` (latest: ${dateLabel(lastRecorded)})` : ''}. It is the ledger, unchanged.
+            </li>
+            <li>
+              <strong>Still to come</strong> adds only recurring charges that are still due later this month and that the app has strong
+              reason to expect: a subscription you confirmed on its provider's page, or one found by the pattern rule (the same provider on
+              a similar day and amount for 3+ months in a row) whose latest charge was last month. Each counts at that charge type's last
+              actual charge, not an average. "Due later" is counted from the latest recorded charge, not from today: a charge that falls after
+              the data ends has not been seen yet, even if its usual day has passed.
+            </li>
+            <li><strong>At least</strong> = recorded + still to come. The month can cost more; it should not cost less.</li>
+            <li>
+              <strong>Usage</strong> is pay-as-you-go, so it is not projected: the line shows what has been spent so far. <strong>One-time</strong>{' '}
+              charges never feed the estimate.
+            </li>
+          </ol>
+          <p className="muted">
+            Nothing is shown when the latest recorded transaction is more than {STALE_AFTER_DAYS} days old.
+            {f.asOfDay >= f.daysInMonth ? ' The month is over, so nothing is added.' : ''}
+          </p>
+        </Disclosure>
+      </div>
     </Card>
   );
 }

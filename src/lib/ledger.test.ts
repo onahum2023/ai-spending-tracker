@@ -5,6 +5,9 @@ import {
   concentration,
   dataSpan,
   monthTotal,
+  monthDrillDown,
+  periodKey,
+  todayPeriod,
   monthTotalThroughDay,
   providerChanges,
   summarizeProviders,
@@ -15,6 +18,7 @@ import { parseLedgerCsv, toLedgerCsv } from './csv';
 import { addMonths, addOneMonthToDate, isValidDate, monthsBetween } from './dates';
 import { planImport } from './dedupe';
 import { forecastCurrentMonth } from './forecast';
+import { analyze } from './insights';
 import { centsToPlain, formatEUR, medianCents, parseAmountToCents, sumCents } from './money';
 import { detectRecurring } from './recurring';
 import type { LedgerRow } from './types';
@@ -279,29 +283,86 @@ describe('recurring-looking patterns', () => {
   });
 });
 
+describe('the period the Today button jumps to', () => {
+  const span = dataSpan(rows)!; // Jan 2025 - Nov 2026
+  it('is the current month or year when the data reaches it', () => {
+    expect(todayPeriod('month', span, '2026-11-09')).toEqual({ kind: 'month', month: '2026-11' });
+    expect(todayPeriod('month', span, '2026-03-02')).toEqual({ kind: 'month', month: '2026-03' });
+    expect(todayPeriod('year', span, '2026-11-09')).toEqual({ kind: 'year', year: 2026 });
+    expect(todayPeriod('year', span, '2025-06-30')).toEqual({ kind: 'year', year: 2025 });
+  });
+  it('stays inside the data: the last recorded month or year when today is past it, the first when it is before', () => {
+    expect(todayPeriod('month', span, '2027-03-01')).toEqual({ kind: 'month', month: span.lastMonth });
+    expect(todayPeriod('month', span, '2024-05-01')).toEqual({ kind: 'month', month: span.firstMonth });
+    expect(todayPeriod('year', span, '2030-01-01')).toEqual({ kind: 'year', year: 2026 });
+    expect(todayPeriod('year', span, '2020-01-01')).toEqual({ kind: 'year', year: 2025 });
+  });
+  it('has none for All time, and can be compared with the selected period to know whether it is already selected', () => {
+    expect(todayPeriod('all', span, '2026-11-09')).toBeNull();
+    expect(periodKey(todayPeriod('month', span, '2026-11-09')!)).toBe(periodKey({ kind: 'month', month: '2026-11' }));
+    expect(periodKey(todayPeriod('month', span, '2026-11-09')!)).not.toBe(periodKey({ kind: 'month', month: '2026-10' }));
+  });
+});
+
+describe('month drill-down', () => {
+  const r = (date: string, cents: number, provider = 'P'): LedgerRow => ({ provider, merchant: 'M', date, amountCents: cents });
+  const data = [r('2026-10-03', 500), r('2026-10-20', 9000, 'Big'), r('2026-10-10', 500), r('2026-10-05', -300), r('2026-09-30', 99999), r('2026-11-01', 99999)];
+
+  it('lists only that month, largest first, ties newest first, refunds last', () => {
+    const list = monthDrillDown(data, '2026-10');
+    expect(list.map((x) => x.amountCents)).toEqual([9000, 500, 500, -300]);
+    expect(list.map((x) => x.date)).toEqual(['2026-10-20', '2026-10-10', '2026-10-03', '2026-10-05']);
+  });
+  it('with a day, keeps only the first days of the month, and does not touch the input', () => {
+    const before = [...data];
+    expect(monthDrillDown(data, '2026-10', 10).map((x) => x.date)).toEqual(['2026-10-10', '2026-10-03', '2026-10-05']);
+    expect(data).toEqual(before);
+  });
+  it('is empty for a month with nothing', () => {
+    expect(monthDrillDown(data, '2025-01')).toEqual([]);
+  });
+  it('adds up to the month total, so the panel and the chart agree', () => {
+    for (const m of ['2025-06', '2026-03', '2026-10']) {
+      expect(sumCents(monthDrillDown(rows, m))).toBe(monthTotal(rows, m));
+      expect(sumCents(monthDrillDown(rows, m, 11))).toBe(monthTotalThroughDay(rows, m, 11));
+    }
+  });
+});
+
 describe('forecast', () => {
-  it('estimates the rest of November 2026 from the median of the last 3 months', () => {
-    const f = forecastCurrentMonth(rows, '2026-11-09');
+  const an = analyze(rows, '2026-11-09');
+  const est = () => forecastCurrentMonth(rows, '2026-11-09', undefined, an.expected, an.typeOf);
+
+  it('is recorded so far plus only the strongly expected recurring charges, at their last actual amount', () => {
+    const f = est();
     expect(f.status).toBe('ok');
     if (f.status !== 'ok') return;
-    expect(f.actualCents).toBe(10944);
-    // Spent after the 9th: Aug 390.52, Sep 332.38, Oct 433.71 -> median 390.52
-    expect(f.samples.map((s) => s.remainingCents)).toEqual([39052, 33238, 43371]);
-    expect(f.estimatedAdditionalCents).toBe(39052);
-    expect(f.projectedCents).toBe(10944 + 39052);
-    expect(f.lowCents).toBe(10944 + 33238);
-    expect(f.highCents).toBe(10944 + 43371);
-    const upcoming = f.upcoming.map((p) => p.provider);
-    expect(upcoming).toContain('Anthropic');
-    expect(upcoming).toContain('OpenAI');
-    expect(f.upcoming.every((p) => p.active && p.nextExpected > '2026-11-09' && p.nextExpected.startsWith('2026-11'))).toBe(true);
+    expect(f.actualCents).toBe(10944); // recorded so far: unchanged
+    expect(f.stillToComeCents).toBe(f.expected.reduce((n, e) => n + e.cents, 0));
+    expect(f.atLeastCents).toBe(f.actualCents + f.stillToComeCents);
+    const providers = f.expected.map((e) => e.provider);
+    expect(providers).toContain('Anthropic');
+    expect(providers).toContain('OpenAI');
+    expect(f.expected.every((e) => e.date > '2026-11-09' && e.date.startsWith('2026-11'))).toBe(true);
+    // Each is the charge type's last actual charge: that of its latest pattern charge.
+    for (const e of f.expected) {
+      const last = rows.filter((r) => r.provider === e.provider && r.amountCents > 0).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+      expect(e.cents).toBeGreaterThan(0);
+      expect(last.date <= '2026-11-09').toBe(true);
+    }
+  });
+  it('has no range and no median of past months', () => {
+    const f = est() as Record<string, unknown>;
+    for (const k of ['lowCents', 'highCents', 'projectedCents', 'estimatedAdditionalCents', 'samples']) expect(k in f).toBe(false);
   });
   it('is deterministic', () => {
-    expect(forecastCurrentMonth(rows, '2026-11-09')).toEqual(forecastCurrentMonth(rows, '2026-11-09'));
+    expect(est()).toEqual(est());
   });
-  it('declines when history is too short', () => {
-    const f = forecastCurrentMonth(rows.filter((r) => r.date >= '2026-09-01'), '2026-11-09');
-    expect(f.status).toBe('insufficient');
+  it('still gives "at least what is recorded" when history is short, since nothing is projected from it', () => {
+    const short = rows.filter((r) => r.date >= '2026-09-01');
+    const f = forecastCurrentMonth(short, '2026-11-09');
+    expect(f.status).toBe('ok');
+    if (f.status === 'ok') expect(f.atLeastCents).toBe(f.actualCents);
   });
   it('declines when data is stale', () => {
     const f = forecastCurrentMonth(rows, '2027-03-01');
