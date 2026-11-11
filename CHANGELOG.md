@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
 ### Changed
 - Five pages, organised by question: Overview (how much), Providers (who), Insights (what it says), Transactions, Data. The ledger is shown plainly; anything the app worked out is marked **App's read** or **Estimate**, with the reasoning one click away.
 - The Subscriptions page is gone. Per-provider details are on the provider page (each charge type opens to what the app reads about it), and price changes, stopped, overlap and savings are in Insights. `#/subscriptions` opens Overview.
@@ -39,5 +41,6 @@ First public release. Versions before 1.0.0 may still change how the app behaves
 - All data stays in the browser (IndexedDB). There is no backend, account, cookie or analytics.
 - Released under the Apache License 2.0.
 
-[Unreleased]: https://github.com/onahum2023/ai-spending-tracker/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/onahum2023/ai-spending-tracker/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/onahum2023/ai-spending-tracker/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/onahum2023/ai-spending-tracker/releases/tag/v0.1.0
