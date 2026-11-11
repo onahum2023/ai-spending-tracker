@@ -118,7 +118,7 @@ Export writes the same 4-column format with CRLF line endings (plus `Type` and `
 
 ## Current-month estimate
 
-Shown on the Overview. It is deliberately conservative: a floor for the month, not a forecast.
+Shown on the Overview when the selected month is the one in progress. A closed month shows no projection, only its total split by commitment type (Subscriptions, Usage, One-time you confirmed, Unclassified), and each line opens that month's transactions of that type. Year and All time show neither. It is deliberately conservative: a floor for the month, not a forecast.
 
 1. **Recorded so far**: everything dated in the current month, exactly as recorded.
 2. **Still to come**: only recurring charges with strong evidence that are due later this month. Strong evidence is a subscription you **confirmed** on its provider's page, or one the pattern rule found (the same provider on a similar day and amount for 3+ months in a row) whose latest charge was in the **previous month**. A new price seen only once or twice does not count. Each counts at its charge type's **last actual charge**, never an average.

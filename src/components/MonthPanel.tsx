@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { monthDrillDown } from '../lib/analytics';
+import { COMMITMENT_LABELS, commitmentOf, type Commitment } from '../lib/commitment';
 import { dateLabelShort, daysInMonth, monthLabelLong, monthShort } from '../lib/dates';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, sumCents } from '../lib/money';
@@ -16,19 +17,27 @@ export function MonthPanel({
   month,
   throughDay,
   onClose,
+  commitment,
   onShowFullMonth,
+  onShowAllTypes,
 }: {
   month: string;
   /** Only the first days of the month, as the comparison card counts them. */
   throughDay?: number;
   onClose: () => void;
+  /** Only the charges of one commitment type (from a line of the closed-month card). */
+  commitment?: Commitment;
   onShowFullMonth?: () => void;
+  onShowAllTypes?: () => void;
 }) {
   const { transactions, analysis, labels } = useLedger();
   const names = useMemo(() => labelMap(labels), [labels]);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  const rows = useMemo(() => monthDrillDown(transactions, month, throughDay), [transactions, month, throughDay]);
+  const rows = useMemo(
+    () => monthDrillDown(transactions, month, throughDay, commitment ? (t) => commitmentOf(analysis.typeOf(t)) === commitment : undefined),
+    [transactions, month, throughDay, commitment, analysis],
+  );
 
   // Esc closes; focus moves in on open and goes back to where it came from on close.
   useEffect(() => {
@@ -42,7 +51,7 @@ export function MonthPanel({
     };
   }, [onClose]);
 
-  const range = throughDay === undefined ? monthLabelLong(month) : `${monthShort(month)} 1–${throughDay} ${month.slice(0, 4)}`;
+  const range = (throughDay === undefined ? monthLabelLong(month) : `${monthShort(month)} 1–${throughDay} ${month.slice(0, 4)}`) + (commitment ? ` · ${COMMITMENT_LABELS[commitment]}` : '');
   const to = throughDay === undefined ? daysInMonth(month) : throughDay;
 
   return (
@@ -99,6 +108,9 @@ export function MonthPanel({
           >
             Open in Transactions →
           </a>
+          {commitment && onShowAllTypes && (
+            <button className="btn btn-sm btn-ghost" onClick={onShowAllTypes}>Show all types</button>
+          )}
           {throughDay !== undefined && onShowFullMonth && (
             <button className="btn btn-sm btn-ghost" onClick={onShowFullMonth}>Show the full month</button>
           )}

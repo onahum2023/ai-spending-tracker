@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
+import { ClosedMonthCard } from '../components/ClosedMonthCard';
 import { ForecastCard } from '../components/ForecastCard';
 import { MonthPanel } from '../components/MonthPanel';
 import { TransactionTable } from '../components/TransactionTable';
@@ -17,6 +18,7 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
 import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
+import type { Commitment } from '../lib/commitment';
 import { describeOneTime, oneTimeNote } from '../lib/oneTime';
 import { reviewCounts } from '../lib/providerChargeTypes';
 import type { Period, Transaction } from '../lib/types';
@@ -30,8 +32,10 @@ export function Overview() {
   const { transactions, span, period, today, analysis, overrides } = useLedger();
   const [view, setView] = useState<ChartView>('provider');
   // The month whose transactions are open in the side sheet, and, from the comparison card, only up to a day of it.
-  const [drill, setDrill] = useState<{ month: string; throughDay?: number } | null>(null);
+  const [drill, setDrill] = useState<{ month: string; throughDay?: number; commitment?: Commitment } | null>(null);
   const closeDrill = useCallback(() => setDrill(null), []);
+  // The month the estimate is about: the one that is still in progress.
+  const currentMonth = span ? monthOf(span.lastDate > today ? span.lastDate : today) : '';
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
   const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
 
@@ -106,7 +110,10 @@ export function Overview() {
           )}
         </Card>
         <div className="stack">
-          <ForecastCard />
+          {period.kind === 'month' && period.month !== currentMonth && (
+            <ClosedMonthCard month={period.month} onOpen={(commitment) => setDrill({ month: period.month, commitment })} />
+          )}
+          {period.kind === 'month' && period.month === currentMonth && <ForecastCard />}
           <BudgetCard />
         </div>
       </div>
@@ -119,8 +126,10 @@ export function Overview() {
         <MonthPanel
           month={drill.month}
           throughDay={drill.throughDay}
+          commitment={drill.commitment}
           onClose={closeDrill}
           onShowFullMonth={() => setDrill({ month: drill.month })}
+          onShowAllTypes={() => setDrill({ month: drill.month, throughDay: drill.throughDay })}
         />
       )}
       {today < span.lastDate && (

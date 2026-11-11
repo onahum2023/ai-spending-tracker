@@ -224,11 +224,11 @@ export function concentration(rows: LedgerRow[]): Concentration {
 
 /**
  * One month's charges for the drill-down list: largest first, ties newest first. With `throughDay`, only the first days of the
- * month (what a same-point-in-the-month comparison counts). Refunds sort last. Does not change the rows.
+ * month (what a same-point-in-the-month comparison counts). With `only`, just the charges it accepts (one commitment type). Refunds sort last. Does not change the rows.
  */
-export function monthDrillDown<T extends LedgerRow>(rows: T[], month: string, throughDay?: number): T[] {
+export function monthDrillDown<T extends LedgerRow>(rows: T[], month: string, throughDay?: number, only?: (row: T) => boolean): T[] {
   return rows
-    .filter((r) => monthOf(r.date) === month && (throughDay === undefined || dayOf(r.date) <= throughDay))
+    .filter((r) => monthOf(r.date) === month && (throughDay === undefined || dayOf(r.date) <= throughDay) && (!only || only(r)))
     .sort((a, b) => b.amountCents - a.amountCents || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
