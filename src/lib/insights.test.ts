@@ -18,6 +18,7 @@ import { dataSpan } from './analytics';
 import { formatEUR } from './money';
 import { quarterOf, quarterReport, quartersIn } from './tags';
 import type { LedgerRow } from './types';
+import { monthlyTotal } from './__fixtures__/reportTotals';
 
 const rows = parseLedgerCsv(readFileSync(resolve(__dirname, '__fixtures__/ledger.csv'), 'utf8')).rows;
 const TODAY = '2026-11-09';
@@ -110,9 +111,7 @@ describe('subscription report on the fixture ledger', () => {
   const r = a.report;
   const names = (xs: { provider: string }[]) => xs.map((x) => x.provider);
 
-  it('adds up the monthly run-rate from the latest charge of each active subscription', () => {
-    expect(r.monthlyCents).toBe(r.active.reduce((s, x) => s + x.monthlyCents, 0));
-    expect(r.yearlyCents).toBe(r.monthlyCents * 12);
+  it('lists the active subscriptions, each from its latest charge', () => {
     expect(names(r.active)).toContain('OpenAI');
     expect(names(r.active)).toContain('Cursor');
     // Cancelled before the end of the data
@@ -128,7 +127,6 @@ describe('subscription report on the fixture ledger', () => {
       expect(u.date >= TODAY).toBe(true);
       expect(u.date <= '2026-12-09').toBe(true);
     }
-    expect(r.upcomingCents).toBe(r.upcoming.reduce((s, u) => s + u.cents, 0));
   });
 
   it('reports plan changes as "from X to Y" with the month of the first new charge', () => {
@@ -213,7 +211,7 @@ describe('subscription detection edge cases', () => {
   it('reports nothing for an empty ledger', () => {
     const e = analyze([], TODAY).report;
     expect(e.active).toEqual([]);
-    expect(e.monthlyCents).toBe(0);
+    expect(monthlyTotal(e)).toBe(0);
   });
 });
 
@@ -278,6 +276,14 @@ describe('categories over time', () => {
       for (const k of Object.keys(m.cents)) expect(CATEGORIES).toContain(k);
     }
     expect(stack.reduce((s, m) => s + m.totalCents, 0)).toBe(581003);
+  });
+});
+
+describe('the report no longer carries a run-rate', () => {
+  it('has no monthly, yearly or upcoming totals, only the subscriptions and charges themselves', () => {
+    const r = analyze(rows, TODAY).report as unknown as Record<string, unknown>;
+    for (const k of ['monthlyCents', 'yearlyCents', 'upcomingCents']) expect(k in r).toBe(false);
+    expect(Array.isArray(r.active) && Array.isArray(r.upcoming)).toBe(true);
   });
 });
 

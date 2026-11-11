@@ -63,7 +63,7 @@ export interface RecurringPattern<T extends LedgerRow = LedgerRow> {
   /** Its plan-switch link was dropped on purpose (the pattern it replaced came back): it must not look for another predecessor. */
   noSwitch?: boolean;
   /**
-   * A stand-in for charges of a type you confirmed that detection could not place. It counts in the run-rate but is never
+   * A stand-in for charges of a type you confirmed that detection could not place. It counts as an active subscription but is never
    * paired with another pattern as a plan switch: it says nothing about what replaced what.
    */
   standalone?: boolean;

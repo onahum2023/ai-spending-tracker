@@ -124,10 +124,7 @@ export interface SubscriptionReport<T extends LedgerRow = LedgerRow> {
   /** False when the newest recorded charge is long ago, so anything forward-looking would be guesswork. */
   dataFresh: boolean;
   active: Subscription<T>[];
-  monthlyCents: number;
-  yearlyCents: number;
   upcoming: UpcomingCharge[];
-  upcomingCents: number;
   priceChanges: PriceChange[];
   stopped: StoppedSubscription<T>[];
   overlaps: OverlapGroup[];
@@ -676,7 +673,6 @@ export function analyze<T extends LedgerRow>(
       })
     : [];
 
-  const monthlyCents = active.reduce((a, s) => a + s.monthlyCents, 0);
   return {
     patterns,
     fixed,
@@ -689,10 +685,7 @@ export function analyze<T extends LedgerRow>(
       latestDate,
       dataFresh,
       active,
-      monthlyCents,
-      yearlyCents: active.reduce((a, s) => a + s.yearlyCents, 0),
       upcoming,
-      upcomingCents: upcoming.reduce((a, u) => a + u.cents, 0),
       priceChanges,
       stopped,
       overlaps,
