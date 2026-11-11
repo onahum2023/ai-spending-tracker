@@ -1,7 +1,7 @@
 {
   "name": "ai-spending-tracker",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "author": "NuCielo ICT B.V.",
   "license": "Apache-2.0",
   "type": "module",

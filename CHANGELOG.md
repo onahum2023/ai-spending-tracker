@@ -4,9 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-11-11
+## [0.1.0] - 2026-11-11
 
-First public release.
+First public release. Versions before 1.0.0 may still change how the app behaves or what it stores; the project is usable, but not yet declared stable.
 
 ### Added
 - Local dashboard for AI spending: Overview (month, quarter, year), Providers, Provider detail, Transactions and Trends, with a current-month estimate.
@@ -23,5 +23,5 @@ First public release.
 - All data stays in the browser (IndexedDB). There is no backend, account, cookie or analytics.
 - Released under the Apache License 2.0.
 
-[Unreleased]: https://github.com/onahum2023/ai-spending-tracker/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/onahum2023/ai-spending-tracker/releases/tag/v1.0.0
+[Unreleased]: https://github.com/onahum2023/ai-spending-tracker/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/onahum2023/ai-spending-tracker/releases/tag/v0.1.0
