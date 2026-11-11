@@ -3,10 +3,11 @@ import { SingleSeriesMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
 import { TagRuleInput, TagSuggestions } from '../components/TagEditor';
 import { ChargeTypesCard } from '../components/ChargeTypes';
-import { Card, EmptyState, Kpi } from '../components/ui';
+import { StoppedRow, SubscriptionRow } from '../components/SubscriptionRow';
+import { Card, Disclosure, EmptyState, Kpi, ReadChip } from '../components/ui';
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
 import { filterPeriod, periodLabel } from '../lib/analytics';
-import { dateLabel, monthLabel, monthOf, monthsBetween, ordinal } from '../lib/dates';
+import { dateLabel, monthLabel, monthOf, monthsBetween } from '../lib/dates';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
 import { href } from '../router';
 import { useLedger } from '../store';
@@ -15,7 +16,9 @@ export function ProviderDetail({ provider }: { provider: string }) {
   const { transactions, span, colors, period, providers, analysis, providerCategories, setProviderCategory, tagRules } = useLedger();
   const ownCategory = providerCategories.find((c) => c.provider === provider)?.category ?? '';
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
-  const patterns = useMemo(() => analysis.patterns.filter((p) => p.provider === provider), [analysis, provider]);
+  const report = analysis.report;
+  const subs = useMemo(() => report.active.filter((s) => s.provider === provider), [report, provider]);
+  const stopped = useMemo(() => report.stopped.filter((s) => s.provider === provider), [report, provider]);
 
   if (!span) return null;
   if (rows.length === 0) {
@@ -51,32 +54,32 @@ export function ProviderDetail({ provider }: { provider: string }) {
         <Card title="Monthly spending" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}`}>
           <SingleSeriesMonthlyChart rows={rows} months={months} color={colors.color(provider)} />
         </Card>
-        <Card title="Subscription patterns" subtitle="Monthly ones are observed in the data, not confirmed. Yearly ones are set by you.">
-          {patterns.length === 0 ? (
+        <Card
+          title="Subscriptions"
+          subtitle="What the app reads as recurring charges from this provider. Open one for the reasoning."
+          actions={<ReadChip />}
+        >
+          {subs.length === 0 && stopped.length === 0 ? (
             <EmptyState>No charge repeats monthly on a similar day for 3+ months, and none is set as a subscription.</EmptyState>
           ) : (
-            <div className="stack" style={{ gap: 12 }}>
-              {patterns.map((p) => (
-                <div key={p.firstDate} className="stack" style={{ gap: 2 }}>
-                  <div className="row-between">
-                    <strong className="num">~{formatEUR(p.typicalCents)} / {p.cadence === 'yearly' ? 'year' : 'month'}</strong>
-                    <span className={`chip ${p.active ? 'chip-active' : 'chip-ended'}`}>{p.active ? 'Still appearing' : 'Stopped'}</span>
-                  </div>
-                  <span className="small secondary">
-                    {p.cadence === 'yearly'
-                      ? `Yearly, set by you · last charged ${dateLabel(p.lastDate)}`
-                      : p.provisional
-                      ? `New price after a plan change · ${p.months} charge${p.months === 1 ? '' : 's'} so far · first seen ${dateLabel(p.firstDate)}`
-                      : `Around the ${ordinal(p.typicalDay)} · ${p.months} ${p.forced ? 'month' + (p.months === 1 ? '' : 's') + ' with charges, set by you' : 'consecutive months'} · ${monthLabel(monthOf(p.firstDate))} – ${monthLabel(monthOf(p.lastDate))}`}
-                  </span>
-                  <span className="small muted">
-                    {p.minCents !== p.maxCents ? `Amounts ${formatEUR(p.minCents)}–${formatEUR(p.maxCents)} · ` : ''}
-                    {p.active ? `next expected around ${dateLabel(p.nextExpected)}` : `last seen ${dateLabel(p.lastDate)}`}
-                  </span>
-                </div>
+            <ul className="sub-list">
+              {subs.map((s) => (
+                <SubscriptionRow key={`${s.merchant}|${s.pattern.firstDate}`} s={s} report={report} showProvider={false} />
               ))}
-            </div>
+              {stopped.map((s) => (
+                <StoppedRow key={`${s.merchant}|${s.pattern.firstDate}`} s={s} showProvider={false} />
+              ))}
+            </ul>
           )}
+          <div style={{ marginTop: 10 }}>
+            <Disclosure label="How are these found?">
+              <p className="small muted" style={{ margin: 0 }}>
+                Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
+                so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
+                be told from a one-off charge: set its charge type to "Subscription · yearly" under Charge types below.
+              </p>
+            </Disclosure>
+          </div>
         </Card>
       </div>
 
