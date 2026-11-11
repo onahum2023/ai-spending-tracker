@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
 import { ClosedMonthCard } from '../components/ClosedMonthCard';
@@ -9,6 +9,7 @@ import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmen
 import {
   filterPeriod,
   monthDrillDown,
+  periodKey,
   monthTotal,
   monthTotalThroughDay,
   periodLabel,
@@ -34,6 +35,9 @@ export function Overview() {
   // The month whose transactions are open in the side sheet, and, from the comparison card, only up to a day of it.
   const [drill, setDrill] = useState<{ month: string; throughDay?: number; commitment?: Commitment } | null>(null);
   const closeDrill = useCallback(() => setDrill(null), []);
+  // Changing the period (the Today button, for one) closes the drill-down.
+  const periodId = periodKey(period);
+  useEffect(() => setDrill(null), [periodId]);
   // The month the estimate is about: the one that is still in progress.
   const currentMonth = span ? monthOf(span.lastDate > today ? span.lastDate : today) : '';
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);

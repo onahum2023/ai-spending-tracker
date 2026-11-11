@@ -6,6 +6,8 @@ import {
   dataSpan,
   monthTotal,
   monthDrillDown,
+  periodKey,
+  todayPeriod,
   monthTotalThroughDay,
   providerChanges,
   summarizeProviders,
@@ -278,6 +280,27 @@ describe('recurring-looking patterns', () => {
   });
   it('does not report one-off providers', () => {
     expect(patterns.some((p) => p.provider === 'Venice' || p.provider === 'Replicate' || p.provider === 'DeepSeek')).toBe(false);
+  });
+});
+
+describe('the period the Today button jumps to', () => {
+  const span = dataSpan(rows)!; // Jan 2025 - Nov 2026
+  it('is the current month or year when the data reaches it', () => {
+    expect(todayPeriod('month', span, '2026-11-09')).toEqual({ kind: 'month', month: '2026-11' });
+    expect(todayPeriod('month', span, '2026-03-02')).toEqual({ kind: 'month', month: '2026-03' });
+    expect(todayPeriod('year', span, '2026-11-09')).toEqual({ kind: 'year', year: 2026 });
+    expect(todayPeriod('year', span, '2025-06-30')).toEqual({ kind: 'year', year: 2025 });
+  });
+  it('stays inside the data: the last recorded month or year when today is past it, the first when it is before', () => {
+    expect(todayPeriod('month', span, '2027-03-01')).toEqual({ kind: 'month', month: span.lastMonth });
+    expect(todayPeriod('month', span, '2024-05-01')).toEqual({ kind: 'month', month: span.firstMonth });
+    expect(todayPeriod('year', span, '2030-01-01')).toEqual({ kind: 'year', year: 2026 });
+    expect(todayPeriod('year', span, '2020-01-01')).toEqual({ kind: 'year', year: 2025 });
+  });
+  it('has none for All time, and can be compared with the selected period to know whether it is already selected', () => {
+    expect(todayPeriod('all', span, '2026-11-09')).toBeNull();
+    expect(periodKey(todayPeriod('month', span, '2026-11-09')!)).toBe(periodKey({ kind: 'month', month: '2026-11' }));
+    expect(periodKey(todayPeriod('month', span, '2026-11-09')!)).not.toBe(periodKey({ kind: 'month', month: '2026-10' }));
   });
 });
 

@@ -17,6 +17,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Charge types that carry the same label are read as one plan: grouped in the Charge types table and chained in pattern detection.
 - Overview's monthly chart can be grouped by commitment type (subscription, usage, one-time).
 - Providers shows a trend arrow per provider (last 3 complete months against the 3 before, one-time charges left out; an arrow only when the change is more than 5% and more than €5) and can be filtered by category and commitment type.
+- The period picker has a Today button: the current month in Month mode, the current year in Year mode, hidden for All time, disabled while it is already selected, and it closes the month drill-down.
 - The "charge types still to review" banner is replaced by a single link on Overview.
 
 ## [0.1.0] - 2026-11-11

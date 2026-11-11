@@ -64,6 +64,23 @@ export function dataSpan(rows: LedgerRow[]): DataSpan | null {
   return { firstDate, lastDate, firstMonth, lastMonth, months: monthsBetween(firstMonth, lastMonth), years };
 }
 
+/**
+ * The period the Today button jumps to: the current month or year, as far as the data reaches. If today is past the last
+ * recorded month (or year) it is the last one recorded, and if it is before the first it is the first, so the picker never
+ * lands on a period with nothing in it. Null for All time, which has no "today".
+ */
+export function todayPeriod(kind: Period['kind'], span: DataSpan, today: string): Period | null {
+  if (kind === 'all') return null;
+  if (kind === 'month') {
+    const m = monthOf(today);
+    return { kind: 'month', month: m < span.firstMonth ? span.firstMonth : m > span.lastMonth ? span.lastMonth : m };
+  }
+  const y = yearOf(today);
+  const first = span.years[0];
+  const last = span.years[span.years.length - 1];
+  return { kind: 'year', year: y < first ? first : y > last ? last : y };
+}
+
 export function totalsByMonth(rows: LedgerRow[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const r of rows) {
