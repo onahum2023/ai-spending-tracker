@@ -1,4 +1,5 @@
 import { cleanDescriptor } from './chargeTypes';
+import type { StoppedSubscription, Subscription, SubscriptionReport } from './insights';
 import { labelMap, labelOf, type Label } from './labels';
 import { overrideMap, streamKey, type Override, type OverrideKind, type TypeInfo } from './overrides';
 import type { LedgerRow } from './types';
@@ -95,5 +96,28 @@ export function reviewCounts(rows: LedgerRow[], overrides: Override[]): Map<stri
     seen.add(k);
     if (!set.has(k)) out.set(r.provider, (out.get(r.provider) ?? 0) + 1);
   }
+  return out;
+}
+
+/** The recurring charges the app found that end in one charge type. */
+export interface TypePatterns<T extends LedgerRow = LedgerRow> {
+  active: Subscription<T>[];
+  stopped: StoppedSubscription<T>[];
+}
+
+/**
+ * Attaches each recurring charge the app found (active and stopped) to the charge type of its latest charge, keyed like
+ * `ChargeTypeSummary.key`, so the Provider page can show what the app reads under the charge type it concerns. Each one lands
+ * under exactly one charge type, even when a pattern spans several descriptors.
+ */
+export function patternsByChargeType<T extends LedgerRow>(report: SubscriptionReport<T>): Map<string, TypePatterns<T>> {
+  const out = new Map<string, TypePatterns<T>>();
+  const slot = (key: string) => out.get(key) ?? out.set(key, { active: [], stopped: [] }).get(key)!;
+  const keyOf = (charges: T[]) => {
+    const last = charges[charges.length - 1];
+    return streamKey(last.provider, last.merchant);
+  };
+  for (const s of report.active) slot(keyOf(s.pattern.charges)).active.push(s);
+  for (const s of report.stopped) slot(keyOf(s.pattern.charges)).stopped.push(s);
   return out;
 }

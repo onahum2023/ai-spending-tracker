@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { dateLabel } from '../lib/dates';
 import { labelMap, labelOf, MAX_LABEL_LENGTH } from '../lib/labels';
 import { formatEUR } from '../lib/money';
+import type { SubscriptionReport } from '../lib/insights';
 import { OVERRIDE_HELP, OVERRIDE_LABELS, typeLabel, WHY, type OverrideKind } from '../lib/overrides';
-import { listChargeTypes, suggestedSetting, type ChargeTypeSummary } from '../lib/providerChargeTypes';
+import { listChargeTypes, patternsByChargeType, suggestedSetting, type ChargeTypeSummary, type TypePatterns } from '../lib/providerChargeTypes';
 import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
-import { Card, EmptyState } from './ui';
+import { stoppedPills, StoppedDetail, SubscriptionDetail, subscriptionPills, type Pill } from './SubscriptionDetail';
+import { Card, Chevron, Disclosure, EmptyState, ReadChip } from './ui';
 
 const OPTIONS: OverrideKind[] = ['monthly', 'yearly', 'usage', 'other'];
 
@@ -40,21 +42,54 @@ function LabelInput({ provider, merchant }: { provider: string; merchant: string
   );
 }
 
-function ChargeTypeRow({ t }: { t: ChargeTypeSummary }) {
+function ChargeTypeRow({ t, patterns, report }: { t: ChargeTypeSummary; patterns?: TypePatterns<Transaction>; report: SubscriptionReport<Transaction> }) {
   const { setOverride } = useLedger();
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
   const suggested = suggestedSetting(t.guess);
   const reviewed = t.setting !== null;
   const guessText = typeLabel(t.guess);
+  const hasDetail = Boolean(patterns && (patterns.active.length || patterns.stopped.length));
+  const pills: Pill[] = patterns
+    ? [...patterns.active.flatMap((s) => subscriptionPills(s, report)), ...patterns.stopped.flatMap((s) => stoppedPills(s))]
+    : [];
   return (
+    <>
     <tr>
       <td>
-        <div style={{ fontWeight: 500 }} title={t.rawVariants > 1 ? `${t.rawVariants} slightly different descriptions on the statement` : t.merchant.trim()}>
-          {t.name}
-        </div>
-        {t.label && <div className="small muted merchant-line">{t.descriptor}</div>}
-        {!t.label && t.rawVariants > 1 && <div className="small muted">{t.rawVariants} variations of the description</div>}
-        <div style={{ marginTop: 4 }}>
-          <LabelInput provider={t.provider} merchant={t.merchant} />
+        <div className="type-name">
+          {hasDetail ? (
+            <button
+              type="button"
+              className="row-toggle"
+              aria-expanded={open}
+              aria-controls={panelId}
+              aria-label={`What the app reads about ${t.name}`}
+              title="What the app reads about this charge type"
+              onClick={() => setOpen((o) => !o)}
+            >
+              <Chevron open={open} />
+            </button>
+          ) : (
+            <span className="row-toggle-spacer" />
+          )}
+          <div>
+            <div style={{ fontWeight: 500 }} title={t.rawVariants > 1 ? `${t.rawVariants} slightly different descriptions on the statement` : t.merchant.trim()}>
+              {t.name}
+            </div>
+            {pills.length > 0 && (
+              <span className="type-pills">
+                {pills.slice(0, 2).map((p) => (
+                  <span key={p.text} className={`chip ${p.cls}`.trim()}>{p.text}</span>
+                ))}
+              </span>
+            )}
+            {t.label && <div className="small muted merchant-line">{t.descriptor}</div>}
+            {!t.label && t.rawVariants > 1 && <div className="small muted">{t.rawVariants} variations of the description</div>}
+            <div style={{ marginTop: 4 }}>
+              <LabelInput provider={t.provider} merchant={t.merchant} />
+            </div>
+          </div>
         </div>
       </td>
       <td className="amount">{t.count}</td>
@@ -99,6 +134,30 @@ function ChargeTypeRow({ t }: { t: ChargeTypeSummary }) {
         )}
       </td>
     </tr>
+    {hasDetail && (
+      <tr id={panelId} hidden={!open} className="type-detail">
+        <td colSpan={6}>
+          <div className="type-detail-head">
+            <ReadChip />
+            <span className="small muted">What the app reads about this charge type</span>
+          </div>
+          {patterns!.active.map((s) => (
+            <SubscriptionDetail key={`${s.merchant}|${s.pattern.firstDate}`} s={s} report={report} />
+          ))}
+          {patterns!.stopped.map((s) => (
+            <StoppedDetail key={`${s.merchant}|${s.pattern.firstDate}`} s={s} />
+          ))}
+          <Disclosure label="How are these found?">
+            <p className="small muted" style={{ margin: 0 }}>
+              Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
+              so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
+              be told from a one-off charge: set this charge type to "Subscription · yearly" in this table.
+            </p>
+          </Disclosure>
+        </td>
+      </tr>
+    )}
+    </>
   );
 }
 
@@ -110,6 +169,9 @@ function ChargeTypeRow({ t }: { t: ChargeTypeSummary }) {
 export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Transaction[]; actions?: React.ReactNode }) {
   const { overrides, labels, analysis, setOverrides } = useLedger();
   const types = useMemo(() => listChargeTypes(rows, overrides, labels, analysis.typeOf), [rows, overrides, labels, analysis]);
+  // The recurring charges the app found, each attached to the charge type of its latest charge.
+  const report = analysis.report;
+  const byType = useMemo(() => patternsByChargeType(report), [report]);
   const toReview = types.filter((t) => t.setting === null);
   return (
     <Card
@@ -150,7 +212,7 @@ export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Tra
             </thead>
             <tbody>
               {types.map((t) => (
-                <ChargeTypeRow key={t.key} t={t} />
+                <ChargeTypeRow key={t.key} t={t} patterns={byType.get(t.key)} report={report} />
               ))}
             </tbody>
           </table>

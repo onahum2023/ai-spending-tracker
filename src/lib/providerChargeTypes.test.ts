@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from './insights';
-import { listChargeTypes, reviewCounts, suggestedSetting } from './providerChargeTypes';
+import { listChargeTypes, patternsByChargeType, reviewCounts, suggestedSetting } from './providerChargeTypes';
+import { streamKey } from './overrides';
 import type { LedgerRow } from './types';
 
 const c = (date: string, cents: number, merchant: string, provider = 'Anthropic'): LedgerRow => ({ provider, merchant, date, amountCents: cents });
@@ -55,5 +56,28 @@ describe('charge types of a provider', () => {
     expect([...reviewCounts(rows, some)]).toEqual([['Anthropic', 1], ['Namecheap', 1]]);
     const all = [...some, { provider: 'Anthropic', merchant: SUB, kind: 'monthly' as const }, { provider: 'Namecheap', merchant: 'NAME-CHEAP.COM* X1Y2Z3', kind: 'other' as const }];
     expect([...reviewCounts(rows, all)]).toEqual([]);
+  });
+});
+
+describe('recurring charges under their charge type', () => {
+  const claude = ['2025-10-19', '2025-11-19', '2025-12-19', '2026-01-19'].map((d) => c(d, 2178, 'CLAUDE.AI SUBSCRIPTION   SAN FRANCISCO'));
+  const all = [...rows, ...claude];
+  const a = analyze(all, '2026-11-09');
+  const by = patternsByChargeType(a.report);
+
+  it('attaches each active and stopped pattern to the charge type of its latest charge', () => {
+    const sub = by.get(streamKey('Anthropic', SUB))!;
+    expect(sub.active).toHaveLength(1);
+    expect(sub.active[0].pattern.lastDate).toBe('2026-10-19');
+    const old = by.get(streamKey('Anthropic', 'CLAUDE.AI SUBSCRIPTION   SAN FRANCISCO'))!;
+    expect(old.stopped).toHaveLength(1);
+    expect(old.stopped[0].lastDate).toBe('2026-01-19');
+    expect(old.active).toHaveLength(0);
+  });
+
+  it('puts every pattern under exactly one charge type, and none under a type with no pattern', () => {
+    const count = [...by.values()].reduce((n, t) => n + t.active.length + t.stopped.length, 0);
+    expect(count).toBe(a.report.active.length + a.report.stopped.length);
+    expect(by.has(streamKey('Anthropic', 'Anthropic'))).toBe(false);
   });
 });

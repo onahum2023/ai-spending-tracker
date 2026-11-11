@@ -361,28 +361,19 @@ a.legend-item:hover { color: var(--ink); text-decoration: underline; }
 .change-line { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .change-line:last-child { border-bottom: 0; }
 
-/* Subscriptions: one row per recurring charge, details one click away */
-.sub-list { list-style: none; margin: 0; padding: 0; }
-.sub-item { border-bottom: 1px solid var(--border); }
-.sub-row {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 6px; margin: 0; border: 0; border-radius: 6px;
-  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
-}
-.sub-row:hover { background: var(--surface-hover); }
-.sub-row:focus-visible, .disclosure-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.sub-main { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.sub-name { font-weight: 500; overflow-wrap: anywhere; }
-.sub-provider { font-weight: 400; }
-.sub-pills { display: inline-flex; flex-wrap: wrap; gap: 4px; }
-.sub-amount { margin-left: auto; white-space: nowrap; font-weight: 600; font-size: 13px; }
+/* Charge types: a row that opens to what the app reads about it */
+.type-name { display: flex; gap: 6px; align-items: flex-start; }
+.row-toggle { flex: none; width: 22px; height: 22px; margin-top: 1px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ink-3); cursor: pointer; display: inline-grid; place-items: center; }
+.row-toggle:hover { background: var(--surface-hover); color: var(--ink); }
+.row-toggle:focus-visible, .disclosure-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row-toggle-spacer { flex: none; width: 22px; }
+.type-pills { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .chevron { flex: none; color: var(--ink-3); transition: transform 0.12s; }
 .chevron.open { transform: rotate(90deg); }
-.sub-detail { padding: 2px 6px 12px 25px; font-size: 13px; color: var(--ink-2); }
-.sub-detail p { margin: 0 0 6px; }
-.sub-detail p:last-child { margin-bottom: 0; }
-.sub-link { text-decoration: underline; color: var(--accent-ink); }
-.sub-descriptor { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; color: var(--ink-3); overflow-wrap: anywhere; }
-.sub-total { display: flex; justify-content: space-between; gap: 12px; padding: 10px 6px 0; font-weight: 600; font-size: 13px; border-top: 1px solid var(--border-strong); }
+.type-detail > td { background: var(--surface-2); padding: 10px 12px 12px 40px; font-size: 13px; color: var(--ink-2); }
+.type-detail p { margin: 0 0 6px; }
+.type-detail p:last-child { margin-bottom: 0; }
+.type-detail-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .disclosure-btn {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 0; border: 0; border-radius: 4px; background: transparent;
   color: var(--ink-2); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
