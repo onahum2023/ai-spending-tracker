@@ -2,7 +2,7 @@ import { dataSpan, type MonthlyStackRow } from './analytics';
 import { hasReference, referenceKey } from './chargeTypes';
 import { CATEGORIES, CATEGORY_NOUNS, OVERLAP_CATEGORIES, categoryOf, type Category, type ProviderCategory } from './categories';
 import { addDays, addMonths, addMonthsToDate, addOneMonthToDate, dayOf, monthDiff, monthOf, monthShort } from './dates';
-import { STALE_AFTER_DAYS } from './forecast';
+import { STALE_AFTER_DAYS, type ExpectedCharge } from './forecast';
 import { formatEUR, medianCents } from './money';
 import {
   importedKind,
@@ -141,6 +141,11 @@ export interface Analysis<T extends LedgerRow = LedgerRow> {
   /** The type of a stream (provider + descriptor), judged by its most recent charge. Null if there is no such stream. */
   streamInfo: (provider: string, merchant: string) => TypeInfo | null;
   categoryOf: (row: T) => Category;
+  /**
+   * Recurring charges still due later this month with strong evidence: confirmed by you, or found by the pattern rule with the
+   * latest charge in the previous month. Each at its charge type's last actual charge. This is all the month-end estimate adds.
+   */
+  expected: ExpectedCharge[];
   report: SubscriptionReport<T>;
 }
 
@@ -622,6 +627,24 @@ export function analyze<T extends LedgerRow>(
     })
     .sort((a, b) => (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0));
 
+  // ---- strongly expected later this month (the month-end estimate adds only these)
+  const thisMonth = monthOf(asOf);
+  const lastMonth = addMonths(thisMonth, -1);
+  const expected: ExpectedCharge[] = span
+    ? active.flatMap((s): ExpectedCharge[] => {
+        const p = s.pattern;
+        const confirmedByYou = Boolean(p.forced);
+        // The pattern rule is trusted only while it is current: its latest charge was last month, and it is not a new price seen once or twice.
+        if (!confirmedByYou && (p.provisional || monthOf(p.lastDate) !== lastMonth)) return [];
+        const yearly = s.cadence === 'yearly';
+        const date = yearly ? s.renewal!.expected : nextOccurrence(p.nextExpected, asOf);
+        if (monthOf(date) !== thisMonth || date <= asOf) return [];
+        const last = lastOf(p.charges);
+        const cents = newest.get(streamKey(last.provider, last.merchant))?.amountCents ?? s.billedCents;
+        return [{ provider: s.provider, merchant: s.merchant, category: s.category, date, cents, confirmed: confirmedByYou, cadence: s.cadence }];
+      })
+    : [];
+
   const monthlyCents = active.reduce((a, s) => a + s.monthlyCents, 0);
   return {
     patterns,
@@ -629,6 +652,7 @@ export function analyze<T extends LedgerRow>(
     typeOf,
     streamInfo,
     categoryOf: category,
+    expected,
     report: {
       asOf,
       latestDate,

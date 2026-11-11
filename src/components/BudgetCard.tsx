@@ -19,16 +19,16 @@ const STATUS_LABEL = { under: 'On track', 'at-risk': 'At risk', over: 'Over' } a
 const STATUS_CLASS = { under: 'chip-ok', 'at-risk': 'chip-warn', over: 'chip-over' } as const;
 
 function BudgetBar({ line }: { line: BudgetLine }) {
-  const scale = Math.max(line.budgetCents, line.projectedCents ?? 0, line.actualCents, 1);
+  const scale = Math.max(line.budgetCents, line.atLeastCents ?? 0, line.actualCents, 1);
   const actualPct = (Math.min(line.actualCents, scale) / scale) * 100;
-  const estCents = line.projectedCents !== null ? Math.max(line.projectedCents - line.actualCents, 0) : 0;
+  const estCents = line.atLeastCents !== null ? Math.max(line.atLeastCents - line.actualCents, 0) : 0;
   const estPct = (Math.min(estCents, scale - line.actualCents) / scale) * 100;
   const markPct = (line.budgetCents / scale) * 100;
   return (
     <div
       className="budget-bar"
       role="img"
-      aria-label={`${formatEUR(line.actualCents)} spent of ${formatEUR(line.budgetCents)} budget${line.projectedCents !== null ? `, estimated ${formatEUR(line.projectedCents)} by month end` : ''}`}
+      aria-label={`${formatEUR(line.actualCents)} spent of ${formatEUR(line.budgetCents)} budget${line.atLeastCents !== null ? `, at least ${formatEUR(line.atLeastCents)} by month end` : ''}`}
     >
       <div className={`budget-actual${line.status === 'over' ? ' is-over' : ''}`} style={{ width: `${actualPct}%` }} />
       {estPct > 0 && <div className="forecast-est" style={{ left: `${actualPct}%`, width: `${estPct}%` }} />}
@@ -41,7 +41,7 @@ export function BudgetCard() {
   const { transactions, today, analysis, budgets, setBudgets } = useLedger();
   const [editing, setEditing] = useState(false);
   const report = useMemo(
-    () => evaluateBudgets(transactions, budgets, today, analysis.categoryOf),
+    () => evaluateBudgets(transactions, budgets, today, analysis.categoryOf, analysis.expected, analysis.typeOf),
     [transactions, budgets, today, analysis],
   );
   const present = useMemo(() => {
@@ -68,7 +68,7 @@ export function BudgetCard() {
 
   if (!hasBudgets(budgets)) {
     return (
-      <Card title="Monthly budget" subtitle="Set a limit and see it against the month-end estimate">
+      <Card title="Monthly budget" subtitle="Set a limit and see it against what is recorded plus what is still due">
         <button className="btn" onClick={() => setEditing(true)}>Set a budget…</button>
       </Card>
     );
@@ -77,7 +77,7 @@ export function BudgetCard() {
   return (
     <Card
       title={`Budget · ${monthLabelLong(report.month)}`}
-      subtitle="Spent so far, with the month-end estimate"
+      subtitle="Spent so far, plus recurring charges still due this month"
       actions={<button className="btn btn-sm" onClick={() => setEditing(true)}>Edit</button>}
     >
       <div className="stack" style={{ gap: 16 }}>

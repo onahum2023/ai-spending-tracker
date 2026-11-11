@@ -117,8 +117,8 @@ describe('one-time / other', () => {
     const withLovable = analyze(rows, TODAY);
     const without = analyze(rows, TODAY, [{ ...lovable, kind: 'other' }]);
     const up = (an: typeof withLovable) => {
-      const f = forecastCurrentMonth(rows, TODAY, undefined, an.patterns);
-      return f.status === 'ok' ? f.upcoming.map((p) => p.provider) : [];
+      const f = forecastCurrentMonth(rows, TODAY, undefined, an.expected, an.typeOf);
+      return f.status === 'ok' ? f.expected.map((e) => e.provider) : [];
     };
     expect(up(withLovable)).toContain('Lovable');
     expect(up(without)).not.toContain('Lovable');

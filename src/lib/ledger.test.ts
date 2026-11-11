@@ -15,6 +15,7 @@ import { parseLedgerCsv, toLedgerCsv } from './csv';
 import { addMonths, addOneMonthToDate, isValidDate, monthsBetween } from './dates';
 import { planImport } from './dedupe';
 import { forecastCurrentMonth } from './forecast';
+import { analyze } from './insights';
 import { centsToPlain, formatEUR, medianCents, parseAmountToCents, sumCents } from './money';
 import { detectRecurring } from './recurring';
 import type { LedgerRow } from './types';
@@ -280,28 +281,39 @@ describe('recurring-looking patterns', () => {
 });
 
 describe('forecast', () => {
-  it('estimates the rest of November 2026 from the median of the last 3 months', () => {
-    const f = forecastCurrentMonth(rows, '2026-11-09');
+  const an = analyze(rows, '2026-11-09');
+  const est = () => forecastCurrentMonth(rows, '2026-11-09', undefined, an.expected, an.typeOf);
+
+  it('is recorded so far plus only the strongly expected recurring charges, at their last actual amount', () => {
+    const f = est();
     expect(f.status).toBe('ok');
     if (f.status !== 'ok') return;
-    expect(f.actualCents).toBe(10944);
-    // Spent after the 9th: Aug 390.52, Sep 332.38, Oct 433.71 -> median 390.52
-    expect(f.samples.map((s) => s.remainingCents)).toEqual([39052, 33238, 43371]);
-    expect(f.estimatedAdditionalCents).toBe(39052);
-    expect(f.projectedCents).toBe(10944 + 39052);
-    expect(f.lowCents).toBe(10944 + 33238);
-    expect(f.highCents).toBe(10944 + 43371);
-    const upcoming = f.upcoming.map((p) => p.provider);
-    expect(upcoming).toContain('Anthropic');
-    expect(upcoming).toContain('OpenAI');
-    expect(f.upcoming.every((p) => p.active && p.nextExpected > '2026-11-09' && p.nextExpected.startsWith('2026-11'))).toBe(true);
+    expect(f.actualCents).toBe(10944); // recorded so far: unchanged
+    expect(f.stillToComeCents).toBe(f.expected.reduce((n, e) => n + e.cents, 0));
+    expect(f.atLeastCents).toBe(f.actualCents + f.stillToComeCents);
+    const providers = f.expected.map((e) => e.provider);
+    expect(providers).toContain('Anthropic');
+    expect(providers).toContain('OpenAI');
+    expect(f.expected.every((e) => e.date > '2026-11-09' && e.date.startsWith('2026-11'))).toBe(true);
+    // Each is the charge type's last actual charge: that of its latest pattern charge.
+    for (const e of f.expected) {
+      const last = rows.filter((r) => r.provider === e.provider && r.amountCents > 0).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+      expect(e.cents).toBeGreaterThan(0);
+      expect(last.date <= '2026-11-09').toBe(true);
+    }
+  });
+  it('has no range and no median of past months', () => {
+    const f = est() as Record<string, unknown>;
+    for (const k of ['lowCents', 'highCents', 'projectedCents', 'estimatedAdditionalCents', 'samples']) expect(k in f).toBe(false);
   });
   it('is deterministic', () => {
-    expect(forecastCurrentMonth(rows, '2026-11-09')).toEqual(forecastCurrentMonth(rows, '2026-11-09'));
+    expect(est()).toEqual(est());
   });
-  it('declines when history is too short', () => {
-    const f = forecastCurrentMonth(rows.filter((r) => r.date >= '2026-09-01'), '2026-11-09');
-    expect(f.status).toBe('insufficient');
+  it('still gives "at least what is recorded" when history is short, since nothing is projected from it', () => {
+    const short = rows.filter((r) => r.date >= '2026-09-01');
+    const f = forecastCurrentMonth(short, '2026-11-09');
+    expect(f.status).toBe('ok');
+    if (f.status === 'ok') expect(f.atLeastCents).toBe(f.actualCents);
   });
   it('declines when data is stale', () => {
     const f = forecastCurrentMonth(rows, '2027-03-01');

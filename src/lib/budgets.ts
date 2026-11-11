@@ -1,17 +1,18 @@
 import { dataSpan } from './analytics';
 import type { Category } from './categories';
 import { CATEGORIES, CATEGORY_LABELS } from './categories';
-import { forecastCurrentMonth } from './forecast';
+import { forecastCurrentMonth, type ExpectedCharge } from './forecast';
 import { formatEUR } from './money';
+import type { TypeInfo } from './overrides';
 import type { LedgerRow } from './types';
 
 /*
  * Budgets
  * -------
  * A monthly budget, in total and/or per category, compared with what has been spent
- * so far this month and with the month-end estimate (see forecast.ts). Saved in this
- * browser only. A category estimate uses the same method as the total, applied to that
- * category's charges.
+ * so far this month and with the month-end "at least" figure (see forecast.ts): what is
+ * recorded plus the recurring charges still due. Saved in this browser only. A category
+ * uses the same method, applied to that category's charges.
  */
 
 export interface Budgets {
@@ -49,10 +50,10 @@ export interface BudgetLine {
   label: string;
   budgetCents: number;
   actualCents: number;
-  /** Month-end estimate, or null when there is not enough history for one. */
-  projectedCents: number | null;
+  /** Recorded plus the recurring charges still due this month, or null when there is no estimate. The month costs at least this. */
+  atLeastCents: number | null;
   status: BudgetStatus;
-  /** One plain sentence: "On track to exceed by €40", "€120 left". */
+  /** One plain sentence: "Expected to exceed by at least €40", "€120 left". */
   summary: string;
 }
 
@@ -68,22 +69,23 @@ function line(
   label: string,
   budgetCents: number,
   actualCents: number,
-  projectedCents: number | null,
+  atLeastCents: number | null,
 ): BudgetLine {
   let status: BudgetStatus = 'under';
   let summary: string;
+  const stillToCome = atLeastCents === null ? 0 : atLeastCents - actualCents;
   if (actualCents > budgetCents) {
     status = 'over';
     summary = `Over budget by ${formatEUR(actualCents - budgetCents)}`;
-  } else if (projectedCents !== null && projectedCents > budgetCents) {
+  } else if (atLeastCents !== null && atLeastCents > budgetCents) {
     status = 'at-risk';
-    summary = `On track to exceed by ${formatEUR(projectedCents - budgetCents)}`;
-  } else if (projectedCents !== null) {
-    summary = `${formatEUR(budgetCents - actualCents)} left · estimated ${formatEUR(budgetCents - projectedCents)} under`;
+    summary = `Expected to exceed by at least ${formatEUR(atLeastCents - budgetCents)}`;
+  } else if (stillToCome > 0) {
+    summary = `${formatEUR(budgetCents - actualCents)} left · at least ${formatEUR(stillToCome)} of it still due`;
   } else {
     summary = `${formatEUR(budgetCents - actualCents)} left`;
   }
-  return { key, label, budgetCents, actualCents, projectedCents, status, summary };
+  return { key, label, budgetCents, actualCents, atLeastCents, status, summary };
 }
 
 export function evaluateBudgets<T extends LedgerRow>(
@@ -91,22 +93,25 @@ export function evaluateBudgets<T extends LedgerRow>(
   budgets: Budgets,
   today: string,
   categoryFor: (row: T) => Category,
+  /** The recurring charges still due this month, from `analyze`. Without them nothing is added to what is recorded. */
+  expected: ExpectedCharge[] = [],
+  typeOf?: (row: T) => TypeInfo,
 ): BudgetReport {
   const span = dataSpan(rows);
-  const total = forecastCurrentMonth(rows, today, span);
+  const total = forecastCurrentMonth(rows, today, span, expected, typeOf);
   const month = total.month;
-  const projectedOf = (f: ReturnType<typeof forecastCurrentMonth>) => (f.status === 'ok' ? f.projectedCents : null);
+  const atLeastOf = (f: ReturnType<typeof forecastCurrentMonth>) => (f.status === 'ok' ? f.atLeastCents : null);
 
   const lines: BudgetLine[] = [];
   if (budgets.totalCents !== null) {
-    lines.push(line('total', 'All spending', budgets.totalCents, total.actualCents, projectedOf(total)));
+    lines.push(line('total', 'All spending', budgets.totalCents, total.actualCents, atLeastOf(total)));
   }
   for (const c of CATEGORIES) {
     const b = budgets.byCategory[c];
     if (!b) continue;
     const subset = rows.filter((r) => categoryFor(r) === c);
-    const f = forecastCurrentMonth(subset, today, span);
-    lines.push(line(c, CATEGORY_LABELS[c], b, f.actualCents, projectedOf(f)));
+    const f = forecastCurrentMonth(subset, today, span, expected.filter((e) => e.category === c));
+    lines.push(line(c, CATEGORY_LABELS[c], b, f.actualCents, atLeastOf(f)));
   }
   return {
     month,

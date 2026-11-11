@@ -15,6 +15,7 @@ import {
   monthlyByCategory,
 } from './insights';
 import { dataSpan } from './analytics';
+import { formatEUR } from './money';
 import { quarterOf, quarterReport, quartersIn } from './tags';
 import type { LedgerRow } from './types';
 
@@ -293,13 +294,28 @@ describe('budgets', () => {
     expect(rep.lines[0].summary).toMatch(/^Over budget by €10\.00$/);
   });
 
-  it('says "on track to exceed" when the month-end estimate is above the budget', () => {
-    const rep = evaluateBudgets(rows, { totalCents: actual + 100, byCategory: {} }, TODAY, a.categoryOf);
+  it('says the month will cost at least more than the budget when recorded plus what is still due passes it', () => {
+    const rep = evaluateBudgets(rows, { totalCents: actual + 100, byCategory: {} }, TODAY, a.categoryOf, a.expected, a.typeOf);
     const line = rep.lines[0];
-    expect(line.projectedCents).not.toBeNull();
-    expect(line.projectedCents!).toBeGreaterThan(actual + 100);
+    expect(line.atLeastCents).not.toBeNull();
+    expect(line.atLeastCents!).toBe(actual + a.expected.reduce((n, e) => n + e.cents, 0));
+    expect(line.atLeastCents!).toBeGreaterThan(actual + 100);
     expect(line.status).toBe('at-risk');
-    expect(line.summary).toMatch(/^On track to exceed by /);
+    expect(line.summary).toBe(`Expected to exceed by at least ${formatEUR(line.atLeastCents! - (actual + 100))}`);
+  });
+
+  it('does not call a budget at risk on the strength of usage or one-time charges: only recorded plus recurring still due', () => {
+    // A budget just above recorded + still due is not at risk, however much usage normally follows.
+    const floor = actual + a.expected.reduce((n, e) => n + e.cents, 0);
+    const rep = evaluateBudgets(rows, { totalCents: floor + 1, byCategory: {} }, TODAY, a.categoryOf, a.expected, a.typeOf);
+    expect(rep.lines[0].status).toBe('under');
+    expect(rep.lines[0].summary).toMatch(/still due$/);
+  });
+
+  it('without the expected charges, nothing is added to what is recorded', () => {
+    const rep = evaluateBudgets(rows, { totalCents: actual + 100, byCategory: {} }, TODAY, a.categoryOf);
+    expect(rep.lines[0].atLeastCents).toBe(actual);
+    expect(rep.lines[0].status).toBe('under');
   });
 
   it('stays under with a generous budget, and evaluates category budgets on that category only', () => {
@@ -315,7 +331,7 @@ describe('budgets', () => {
   it('falls back to spent-so-far, with a reason, when there is no estimate', () => {
     const rep = evaluateBudgets(rows, { totalCents: 100, byCategory: {} }, '2027-06-01', a.categoryOf);
     expect(rep.note).toMatch(/No month-end estimate/);
-    expect(rep.lines[0].projectedCents).toBeNull();
+    expect(rep.lines[0].atLeastCents).toBeNull();
   });
 
   it('normalizes budgets read from storage', () => {
