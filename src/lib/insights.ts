@@ -387,6 +387,13 @@ function planSwitches<T extends LedgerRow>(
   return out;
 }
 
+/** The date a monthly charge falls on in `month`: its next expected date, rolled forward month by month until it reaches `month`. */
+function occurrenceIn(month: string, expected: string): string {
+  let d = expected;
+  for (let i = 0; i < 60 && monthOf(d) < month; i++) d = addOneMonthToDate(d);
+  return d;
+}
+
 function nextOccurrence(expected: string, asOf: string): string {
   let d = expected;
   // The next date may already be in the past when the newest import is a few weeks old: roll forward.
@@ -665,8 +672,10 @@ export function analyze<T extends LedgerRow>(
         // The pattern rule is trusted only while it is current: its latest charge was last month, and it is not a new price seen once or twice.
         if (!confirmedByYou && (p.provisional || monthOf(p.lastDate) !== lastMonth)) return [];
         const yearly = s.cadence === 'yearly';
-        const date = yearly ? s.renewal!.expected : nextOccurrence(p.nextExpected, asOf);
-        if (monthOf(date) !== thisMonth || date <= asOf) return [];
+        // Counted from the latest recorded charge, not from today: what is due after the data ends has not been seen yet, even if its
+        // usual day is before today. What was due before the data ends and never arrived is not coming.
+        const date = yearly ? s.renewal!.expected : occurrenceIn(thisMonth, p.nextExpected);
+        if (monthOf(date) !== thisMonth || date <= latestDate) return [];
         const last = lastOf(p.charges);
         const cents = newestOfType.get(typeKey(last))?.amountCents ?? s.billedCents;
         return [{ provider: s.provider, merchant: s.merchant, category: s.category, date, cents, confirmed: confirmedByYou, cadence: s.cadence }];

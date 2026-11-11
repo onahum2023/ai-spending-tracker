@@ -11,7 +11,9 @@ import type { LedgerRow } from './types';
  *   1. Recorded so far = everything dated in the current month, exactly as recorded.
  *   2. Still to come = only recurring charges with strong evidence that are due later this month: a subscription you
  *      confirmed, or one the pattern rule found (monthly, similar day and amount, 3+ months) whose latest charge was in
- *      the previous month. Each counts at its charge type's last actual charge, never an average.
+ *      the previous month. Each counts at its charge type's last actual charge, never an average. "Later" is counted from
+ *      the latest recorded charge, not from today: a charge due after the data ends has not been seen yet, even if its
+ *      usual day has passed; one due before the data ends that never arrived is not coming.
  *   3. At least = recorded + still to come.
  * Usage is not projected and not in the headline: what was spent on usage so far is shown on its own line. One-time
  * charges never feed the estimate (they are in "recorded" only because they happened).
@@ -20,6 +22,8 @@ import type { LedgerRow } from './types';
  */
 
 export const STALE_AFTER_DAYS = 45;
+/** The latest recorded charge is called old, and the card says so, when it is more than this many days before today. */
+export const OLD_DATA_DAYS = 7;
 
 /** A recurring charge the app expects later this month, and why it is trusted. */
 export interface ExpectedCharge {
@@ -42,6 +46,10 @@ export type Forecast =
       asOf: string;
       asOfDay: number;
       daysInMonth: number;
+      /** The date of the latest recorded charge: "still to come" is counted from here. */
+      dataEnd: string;
+      /** The latest recorded charge is more than a week old, so the estimate is missing recent statements. */
+      dataOld: boolean;
       /** Recorded so far this month. */
       actualCents: number;
       /** Recurring charges with strong evidence that are still due this month. */
@@ -90,9 +98,9 @@ export function forecastCurrentMonth<T extends LedgerRow>(
     };
   }
 
-  // Only what is still due later this month.
+  // Only what is due this month after the latest recorded charge.
   const due = expected
-    .filter((e) => monthOf(e.date) === month && e.date > asOf)
+    .filter((e) => monthOf(e.date) === month && e.date > span.lastDate)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : b.cents - a.cents));
   const stillToComeCents = due.reduce((n, e) => n + e.cents, 0);
 
@@ -102,6 +110,8 @@ export function forecastCurrentMonth<T extends LedgerRow>(
     asOf,
     asOfDay,
     daysInMonth: daysInMonth(month),
+    dataEnd: span.lastDate,
+    dataOld: addDays(span.lastDate, OLD_DATA_DAYS) < asOf,
     actualCents,
     stillToComeCents,
     atLeastCents: actualCents + stillToComeCents,

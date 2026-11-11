@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { href } from '../router';
 import { dateLabel, dateLabelShort, monthLabel, monthLabelLong } from '../lib/dates';
 import { forecastCurrentMonth, STALE_AFTER_DAYS } from '../lib/forecast';
 import { formatEUR } from '../lib/money';
@@ -37,7 +38,7 @@ export function ForecastCard() {
   return (
     <Card
       title={`${monthLabelLong(f.month)} so far`}
-      subtitle={`As of ${dateLabel(f.asOf)} · day ${f.asOfDay} of ${f.daysInMonth}`}
+      subtitle={f.dataEnd === f.asOf ? `As of ${dateLabel(f.asOf)} · day ${f.asOfDay} of ${f.daysInMonth}` : `As of last import, ${dateLabel(f.dataEnd)}`}
       actions={<ReadChip>Estimate</ReadChip>}
     >
       <div className="small secondary">Month-end total</div>
@@ -91,6 +92,13 @@ export function ForecastCard() {
         </p>
       )}
 
+      {f.dataOld && (
+        <p className="small muted" style={{ margin: '10px 0 0' }}>
+          Your data ends {dateLabelShort(f.dataEnd)}.{' '}
+          <a href={href(['data'])} style={{ textDecoration: 'underline' }}>Import newer statements</a> for a better estimate.
+        </p>
+      )}
+
       <div className="explain" style={{ marginTop: 12 }}>
         <Disclosure label="How is this estimated?">
           <ol>
@@ -102,7 +110,8 @@ export function ForecastCard() {
               <strong>Still to come</strong> adds only recurring charges that are still due later this month and that the app has strong
               reason to expect: a subscription you confirmed on its provider's page, or one found by the pattern rule (the same provider on
               a similar day and amount for 3+ months in a row) whose latest charge was last month. Each counts at that charge type's last
-              actual charge, not an average.
+              actual charge, not an average. "Due later" is counted from the latest recorded charge, not from today: a charge that falls after
+              the data ends has not been seen yet, even if its usual day has passed.
             </li>
             <li><strong>At least</strong> = recorded + still to come. The month can cost more; it should not cost less.</li>
             <li>

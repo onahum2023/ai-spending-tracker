@@ -46,10 +46,52 @@ describe('month-end estimate: the floor', () => {
     expect(f.atLeastCents).toBe(2000);
   });
 
-  it('does not add a charge whose day has already passed without it appearing', () => {
-    const { f } = estimate(series(JUN_OCT, 5, 2000)); // due Nov 5, today is Nov 9
+  it('counts a charge due between the last import and today: still to come, even though its usual day has passed', () => {
+    // Data ends 5 Nov, today is 11 Nov, the subscription usually lands around the 8th: not seen yet, so still to come.
+    const rows = [...series(JUN_OCT, 8, 2000), row('2026-11-05', 700, 'Other', 'OTHER ONE')];
+    const { f } = estimate(rows, '2026-11-11');
+    if (f.status !== 'ok') throw new Error('expected an estimate');
+    expect(f.dataEnd).toBe('2026-11-05');
+    expect(f.expected).toMatchObject([{ provider: 'Acme', date: '2026-11-08', cents: 2000 }]);
+    expect(f.stillToComeCents).toBe(2000);
+    expect(f.atLeastCents).toBe(700 + 2000);
+  });
+
+  it('counts a charge whose usual day is today, when the data ends before it', () => {
+    const rows = [...series(JUN_OCT, 11, 2000), row('2026-11-05', 700, 'Other', 'OTHER ONE')];
+    const { f } = estimate(rows, '2026-11-11');
+    if (f.status !== 'ok') throw new Error('expected an estimate');
+    expect(f.expected).toMatchObject([{ provider: 'Acme', date: '2026-11-11' }]);
+  });
+
+  it('does not count a charge that was due before the last import and never arrived', () => {
+    // Data ends 8 Nov; the subscription was due on the 5th and is not there.
+    const rows = [...series(JUN_OCT, 5, 2000), row('2026-11-08', 700, 'Other', 'OTHER ONE')];
+    const { f } = estimate(rows, '2026-11-11');
+    if (f.status !== 'ok') throw new Error('expected an estimate');
+    expect(f.dataEnd).toBe('2026-11-08');
+    expect(f.expected).toEqual([]);
+    expect(f.stillToComeCents).toBe(0);
+  });
+
+  it('does not count a charge due on the very day the data ends, since the import would have had it', () => {
+    const rows = [...series(JUN_OCT, 8, 2000), row('2026-11-08', 700, 'Other', 'OTHER ONE')];
+    const { f } = estimate(rows, '2026-11-11');
     if (f.status !== 'ok') throw new Error('expected an estimate');
     expect(f.expected).toEqual([]);
+  });
+
+  it('says the data is old, and where it ends, only when the latest charge is more than 7 days before today', () => {
+    const rows = (end: string) => [...series(JUN_OCT, 8, 2000), row(end, 700, 'Other', 'OTHER ONE')];
+    const f = (end: string) => estimate(rows(end), '2026-11-11').f;
+    const get = (end: string) => {
+      const x = f(end);
+      if (x.status !== 'ok') throw new Error('expected an estimate');
+      return x;
+    };
+    expect(get('2026-11-11')).toMatchObject({ dataOld: false, dataEnd: '2026-11-11' });
+    expect(get('2026-11-04').dataOld).toBe(false); // exactly 7 days
+    expect(get('2026-11-03').dataOld).toBe(true);
   });
 
   it('does not add a pattern whose latest charge is older than last month, unless you confirmed it', () => {
@@ -157,14 +199,17 @@ describe('month-end estimate: when there is none', () => {
     expect(estimate(rows).f).toEqual(estimate(rows).f);
   });
 
-  it('only counts charges due later this month, whatever it is given', () => {
-    const f = forecastCurrentMonth([row('2026-10-15', 2000)], TODAY, undefined, [
-      { provider: 'Acme', merchant: 'ACME PLAN', category: 'chat', date: '2026-11-08', cents: 500, confirmed: true, cadence: 'monthly' },
-      { provider: 'Acme', merchant: 'ACME PLAN', category: 'chat', date: '2026-12-02', cents: 700, confirmed: true, cadence: 'monthly' },
-      { provider: 'Acme', merchant: 'ACME PLAN', category: 'chat', date: '2026-11-20', cents: 900, confirmed: true, cadence: 'monthly' },
-    ]);
+  it('only counts charges due this month after the data ends, whatever it is given', () => {
+    const e = (date: string, cents: number) => ({ provider: 'Acme', merchant: 'ACME PLAN', category: 'chat' as const, date, cents, confirmed: true, cadence: 'monthly' as const });
+    const given = [e('2026-11-08', 500), e('2026-12-02', 700), e('2026-11-20', 900), e('2026-10-30', 100)];
+    // Data ends 15 Oct: the 8th and the 20th of November are after it, December is another month, 30 Oct is last month.
+    const f = forecastCurrentMonth([row('2026-10-15', 2000)], TODAY, undefined, given);
     if (f.status !== 'ok') throw new Error('expected an estimate');
-    expect(f.stillToComeCents).toBe(900);
+    expect(f.stillToComeCents).toBe(1400);
+    // Data ends 10 Nov: only the 20th is still to come.
+    const later = forecastCurrentMonth([row('2026-11-10', 2000)], TODAY, undefined, given);
+    if (later.status !== 'ok') throw new Error('expected an estimate');
+    expect(later.stillToComeCents).toBe(900);
   });
 });
 
