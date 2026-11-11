@@ -10,7 +10,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Trends is now **Insights**, grouped into Patterns, Shifts, Suggestions and Comparisons. `#/trends` opens Insights.
 - The monthly run-rate, "per year if nothing changes" and the next-30-days list are removed.
 - **Month-end estimate** is conservative: "At least €X" = recorded so far plus only recurring charges with strong evidence (confirmed by you, or found by the pattern rule with the latest charge last month), each at its last actual charge. The likely range is gone. Usage is not projected and shows on its own line; one-time charges never feed the estimate. Budgets use the same figure.
-- Clicking a bar in the monthly chart opens a side sheet with that month's transactions, largest first, with a link to the filtered Transactions page. The "vs same point" card opens it too.
+- Clicking a bar in the monthly chart opens a side sheet with that month's transactions, largest first, with a link to the filtered Transactions page. The "vs same point" and "Month over month" cards open it too, for the month they compare against.
 - A comparison card says so when either period holds one-time charges you confirmed (never a suggestion), and shows the comparison without them.
 - In the month drill-down, a confirmed type shows as it is, a suggestion shows muted as "Suggested: …", and a guess of one-time or an unknown type shows no pill.
 - Charge types that carry the same label are read as one plan: grouped in the Charge types table and chained in pattern detection.

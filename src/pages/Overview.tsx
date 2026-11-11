@@ -174,8 +174,8 @@ function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: 
         />
         <Kpi label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
         <Kpi
-          onClick={inProgress ? () => onOpenMonth(prev, day) : undefined}
-          hint={inProgress ? `List the transactions of ${monthShort(prev)} 1–${day}` : undefined}
+          onClick={inProgress ? () => onOpenMonth(prev, day) : prev >= span.firstMonth ? () => onOpenMonth(prev) : undefined}
+          hint={inProgress ? `List the transactions of ${monthShort(prev)} 1–${day}` : prev >= span.firstMonth ? `List the transactions of ${monthLabel(prev)}` : undefined}
           label={inProgress ? `vs same point in ${monthShort(prev)}` : 'Month over month'}
           value={
             inProgress ? (
