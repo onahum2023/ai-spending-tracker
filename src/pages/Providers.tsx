@@ -5,14 +5,12 @@ import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthShort } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
 import { KIND_LABELS, type ChargeKind } from '../lib/overrides';
+import { providerTrend, TREND_MIN_CENTS, TREND_MIN_PCT, type Trend } from '../lib/trend';
 import { reviewCounts } from '../lib/providerChargeTypes';
 import { navigate, providerHref } from '../router';
 import { useLedger } from '../store';
 
 type Key = 'provider' | 'period' | 'trend' | 'total' | 'count' | 'first' | 'last';
-
-/** Within this share of the earlier 3 months, a provider's spending counts as flat. */
-const FLAT_BAND = 0.05;
 
 const KINDS: ChargeKind[] = ['subscription', 'usage', 'other'];
 
@@ -30,20 +28,22 @@ export function Providers() {
   const allTotal = sumCents(transactions);
   const label = periodLabel(period);
 
-  // Spending in the last 3 complete months against the 3 before: sums of recorded charges, whatever the period picker says.
+  // Spending in the last 3 complete months against the 3 before, one-time charges left out: sums of recorded charges, whatever
+  // the period picker says.
   const trend = useMemo(() => {
     if (!span) return null;
     const L = lastCompleteMonth(span, today);
     const lastFrom = addMonths(L, -2);
     const prevFrom = addMonths(L, -5);
     const prevTo = addMonths(L, -3);
+    const recurringOrUsage = (r: (typeof transactions)[number]) => analysis.typeOf(r).kind !== 'other';
     return {
-      last: providerTotals(rowsInMonths(transactions, lastFrom, L)),
-      prev: providerTotals(rowsInMonths(transactions, prevFrom, prevTo)),
+      last: providerTotals(rowsInMonths(transactions, lastFrom, L).filter(recurringOrUsage)),
+      prev: providerTotals(rowsInMonths(transactions, prevFrom, prevTo).filter(recurringOrUsage)),
       lastLabel: `${monthShort(lastFrom)}–${monthLabel(L)}`,
       prevLabel: `${monthShort(prevFrom)}–${monthLabel(prevTo)}`,
     };
-  }, [transactions, span, today]);
+  }, [transactions, span, today, analysis]);
 
   // What each provider's charges are, by category and by commitment type (the app's read of them), for the filters.
   const traits = useMemo(() => {
@@ -211,22 +211,21 @@ function ShareFill({ provider, share }: { provider: string; share: number }) {
   return <div className="bar-fill" style={{ width: `${Math.max(share * 100, 1)}%`, background: colors.color(provider) }} />;
 }
 
-/** Last 3 complete months against the 3 before: an arrow and a word, never colour alone. */
+/** Last 3 complete months against the 3 before, one-time charges left out: an arrow and a word, never colour alone. */
 function TrendCell({ last, prev, labels }: { last: number; prev: number; labels: { lastLabel: string; prevLabel: string } }) {
-  if (last === 0 && prev === 0) return <span className="muted">—</span>;
-  const title = `${labels.lastLabel}: ${formatEUR(last)}. Before that, ${labels.prevLabel}: ${formatEUR(prev)}.`;
-  let arrow = '→';
-  let text = 'flat';
-  let cls = 'delta-flat';
-  if (prev === 0) {
-    arrow = '▲'; text = 'new'; cls = 'delta-up';
-  } else if (last === 0) {
-    arrow = '▼'; text = 'none'; cls = 'delta-down';
-  } else {
-    const pct = (last - prev) / prev;
-    if (pct > FLAT_BAND) { arrow = '▲'; text = `+${Math.round(pct * 100)}%`; cls = 'delta-up'; }
-    else if (pct < -FLAT_BAND) { arrow = '▼'; text = `${Math.round(pct * 100)}%`; cls = 'delta-down'; }
-  }
+  const t: Trend = providerTrend(last, prev);
+  if (t.direction === 'none') return <span className="muted">—</span>;
+  const title = `${labels.lastLabel}: ${formatEUR(last)}. Before that, ${labels.prevLabel}: ${formatEUR(prev)}. One-time charges are left out. An arrow needs a change of more than ${Math.round(TREND_MIN_PCT * 100)}% and more than ${formatEUR(TREND_MIN_CENTS)}.`;
+  const cls = t.direction === 'up' ? 'delta-up' : t.direction === 'down' ? 'delta-down' : 'delta-flat';
+  const arrow = t.direction === 'up' ? '▲' : t.direction === 'down' ? '▼' : '→';
+  const text =
+    t.direction === 'flat'
+      ? 'flat'
+      : t.kind === 'new'
+      ? 'new'
+      : t.kind === 'ended'
+      ? 'none'
+      : `${t.deltaCents > 0 ? '+' : ''}${Math.round((t.pct ?? 0) * 100)}%`;
   return (
     <span className={`${cls} num`} title={title}>
       <span aria-hidden="true">{arrow} </span>
