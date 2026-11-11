@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from './insights';
 import { sumCents } from './money';
-import { describeOneTime, oneTimeNote } from './oneTime';
+import { describeOneTime, describeOneTimeInList, formatSignedNoBreak, oneTimeNote } from './oneTime';
 import type { LedgerRow } from './types';
 
 const row = (date: string, cents: number, provider: string, merchant: string): LedgerRow => ({ provider, merchant, date, amountCents: cents });
@@ -66,5 +66,30 @@ describe('one-time charges in a comparison', () => {
     const a = analyze([imported], '2026-11-09');
     expect(a.typeOf(imported)).toMatchObject({ kind: 'other', source: 'import' });
     expect(oneTimeNote([imported], [], a.typeOf, sumCents)).toBeNull();
+  });
+});
+
+describe('the one line on a comparison card', () => {
+  const row = (date: string, cents: number, provider: string, merchant: string): LedgerRow => ({ provider, merchant, date, amountCents: cents });
+  const typeOf = (r: LedgerRow) => ({ kind: (r.merchant === 'EXAM' ? 'other' : 'subscription') as 'other' | 'subscription', source: 'you' as const });
+  const n = oneTimeNote([row('2026-11-04', 2005, 'Namecheap', 'EXAM'), row('2026-11-06', 2000, 'Acme', 'ACME')], [row('2026-10-06', 4650, 'Acme', 'ACME')], typeOf, sumCents)!;
+
+  it('gives the amount without the one-time charges, for the card; the detail is not part of it', () => {
+    // 4005 - 2005 = 2000 against 4650: -26.50
+    expect(n.withoutCents).toBe(-2650);
+    expect(formatSignedNoBreak(n.withoutCents).replace('\u2060', '')).toBe('−€26.50');
+  });
+
+  it('joins the real minus sign to the amount with a word joiner, so it cannot wrap', () => {
+    const s = formatSignedNoBreak(-2645);
+    expect(s).toBe('−\u2060€26.45');
+    expect(s[0]).toBe('\u2212'); // a real minus, not a hyphen
+    expect(formatSignedNoBreak(2645)).toBe('+\u2060€26.45');
+    expect(formatSignedNoBreak(0)).toBe('€0.00');
+  });
+
+  it('keeps the detail for a tooltip and for the drill-down', () => {
+    expect(describeOneTime(n)).toBe('Includes one-time €20.05 (Namecheap). Without it: −€26.50');
+    expect(describeOneTimeInList(n)).toBe('Includes one-time €20.05 (Namecheap)');
   });
 });

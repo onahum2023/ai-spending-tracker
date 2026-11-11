@@ -19,7 +19,7 @@ import {
 import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
 import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
 import type { Commitment } from '../lib/commitment';
-import { describeOneTime, oneTimeNote } from '../lib/oneTime';
+import { describeOneTime, formatSignedNoBreak, oneTimeNote } from '../lib/oneTime';
 import { reviewCounts } from '../lib/providerChargeTypes';
 import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
@@ -145,7 +145,11 @@ function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: 
   /** A second line under a comparison when either period holds one-time charges. Nothing when there are none. */
   const oneTime = (current: Transaction[], earlier: Transaction[]) => {
     const n = oneTimeNote(current, earlier, analysis.typeOf, sumCents);
-    return n ? <span className="kpi-note">{describeOneTime(n)}</span> : null;
+    return n ? (
+      <span className="kpi-note" title={describeOneTime(n)}>
+        <span className="nowrap">{formatSignedNoBreak(n.withoutCents)}</span> without one-time
+      </span>
+    ) : null;
   };
   const byMonth = totalsByMonth(transactions);
   const currentMonth = monthOf(today);

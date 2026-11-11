@@ -72,3 +72,17 @@ export function describeOneTime(n: OneTimeNote): string {
   if (n.currentCents > 0) return `Includes one-time ${formatEUR(n.currentCents)} (${namesOf(n.currentProviders)}). Without it: ${without}`;
   return `The other period includes one-time ${formatEUR(n.earlierCents)} (${namesOf(n.earlierProviders)}). Without it: ${without}`;
 }
+
+/** Joins the sign to the amount so a line can never break between them ("−" then "€26.45" on the next line). */
+const WORD_JOINER = '\u2060';
+
+/** "−€26.45" with a real minus sign and a word joiner after the sign. Zero has no sign. */
+export function formatSignedNoBreak(cents: number): string {
+  const signed = formatSignedEUR(cents);
+  return cents === 0 ? signed : `${signed[0]}${WORD_JOINER}${signed.slice(1)}`;
+}
+
+/** For the drill-down: what confirmed one-time charges the listed rows hold, e.g. "Includes one-time €20.05 (Namecheap)". */
+export function describeOneTimeInList(n: OneTimeNote): string {
+  return `Includes one-time ${formatEUR(n.currentCents)} (${namesOf(n.currentProviders)})`;
+}

@@ -4,6 +4,7 @@ import { COMMITMENT_LABELS, commitmentOf, type Commitment } from '../lib/commitm
 import { dateLabelShort, daysInMonth, monthLabelLong, monthShort } from '../lib/dates';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, sumCents } from '../lib/money';
+import { describeOneTimeInList, oneTimeNote } from '../lib/oneTime';
 import { typePill, WHY } from '../lib/overrides';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
@@ -39,6 +40,9 @@ export function MonthPanel({
     [transactions, month, throughDay, commitment, analysis],
   );
 
+  // Confirmed one-time charges in this list: the detail the comparison cards leave to a tooltip.
+  const oneTime = useMemo(() => oneTimeNote(rows, [], analysis.typeOf, sumCents), [rows, analysis]);
+
   // Esc closes; focus moves in on open and goes back to where it came from on close.
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
@@ -66,6 +70,7 @@ export function MonthPanel({
           </div>
           <button ref={closeRef} className="btn btn-sm" onClick={onClose} aria-label="Close">Close</button>
         </header>
+        {oneTime && <p className="sheet-note">{describeOneTimeInList(oneTime)}</p>}
         <div className="sheet-body">
           {rows.length === 0 ? (
             <div className="empty">No transactions in this period.</div>
