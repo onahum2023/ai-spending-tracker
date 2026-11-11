@@ -4,6 +4,7 @@ import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { monthLabelLong } from '../lib/dates';
 import { centsToPlain, formatEUR, parseAmountToCents } from '../lib/money';
 import { useLedger } from '../store';
+import { CardAction, CardSection } from './ui';
 
 /** "120", "120.5", "1 200,00", "€120" -> cents. Empty -> null (no budget). Throws a readable message when invalid. */
 export function parseBudgetInput(raw: string): number | null {
@@ -52,9 +53,8 @@ export function BudgetSection() {
 
   if (editing) {
     return (
-      <section className="side-section">
-        <h3>Budget</h3>
-        <p className="small muted" style={{ margin: '2px 0 10px' }}>Leave a field empty for no budget. Saved in this browser only.</p>
+      <CardSection label="Budget">
+        <p className="meta" style={{ margin: '4px 0 12px' }}>Leave a field empty for no budget. Saved in this browser only.</p>
         <BudgetForm
           initial={budgets}
           categories={present}
@@ -64,41 +64,36 @@ export function BudgetSection() {
             setEditing(false);
           }}
         />
-      </section>
+      </CardSection>
     );
   }
 
   if (!hasBudgets(budgets)) {
     return (
-      <section className="side-section">
-        <h3>Budget</h3>
-        <button type="button" className="link-btn" onClick={() => setEditing(true)}>Set a monthly budget</button>
-      </section>
+      <CardSection label="Budget">
+        <button type="button" className="link-btn" style={{ marginTop: 8 }} onClick={() => setEditing(true)}>Set a monthly budget</button>
+      </CardSection>
     );
   }
 
   return (
-    <section className="side-section">
-      <div className="row-between">
-        <h3>Budget · {monthLabelLong(report.month)}</h3>
-        <button type="button" className="link-btn small" onClick={() => setEditing(true)}>Edit</button>
-      </div>
-      <div className="stack" style={{ gap: 12, marginTop: 6 }}>
+    <CardSection label={`Budget · ${monthLabelLong(report.month)}`} action={<CardAction onClick={() => setEditing(true)}>Edit</CardAction>}>
+      <div className="stack" style={{ gap: 14, marginTop: 10 }}>
         {report.lines.map((l) => (
           <div key={l.key}>
-            <div className="row-between small">
-              <span style={{ fontWeight: 600 }}>{l.label}</span>
-              <span className="num muted">
-                {formatEUR(l.atLeastCents ?? l.actualCents)} of {formatEUR(l.budgetCents)}
+            <div className="row-between">
+              <span>{l.label}</span>
+              <span className="num amt-row">
+                {formatEUR(l.atLeastCents ?? l.actualCents)} <span className="meta" style={{ fontWeight: 400 }}>of {formatEUR(l.budgetCents)}</span>
               </span>
             </div>
             <BudgetBar line={l} />
-            <div className="small secondary">{l.summary}</div>
+            <div className="meta">{l.summary}</div>
           </div>
         ))}
-        {report.note && <p className="small muted">{report.note}</p>}
+        {report.note && <p className="meta">{report.note}</p>}
       </div>
-    </section>
+    </CardSection>
   );
 }
 
@@ -141,7 +136,7 @@ function BudgetForm({
       <span>{label}</span>
       <span className="budget-input">
         <span className="muted" aria-hidden="true">€</span>
-        <input className="input input-sm" inputMode="decimal" placeholder="no budget" value={value} onChange={(e) => onChange(e.target.value)} aria-label={`${label} budget per month, in euros`} />
+        <input className="input input-sm" inputMode="decimal" placeholder="500" value={value} onChange={(e) => onChange(e.target.value)} aria-label={`${label} budget per month, in euros`} />
       </span>
     </label>
   );

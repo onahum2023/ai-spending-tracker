@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { monthDrillDown, monthTotalThroughDay, rowsInMonths, filterPeriod, totalsByMonth } from '../lib/analytics';
 import { addMonths, dateLabelShort, dayOf, monthLabel, monthOf, monthShort, yearOf } from '../lib/dates';
 import { STALE_AFTER_DAYS, type ExpectedCharge, type Forecast } from '../lib/forecast';
@@ -8,22 +7,10 @@ import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 import { BudgetSection } from './BudgetSection';
-import { Change, Disclosure, ReadChip, StreamName } from './ui';
+import { Card, CardSection, Change, Disclosure, ReadChip, StatRow, StreamName } from './ui';
 
 /** The estimate for the month in progress, or null when the period is not that month. */
 export type SideForecast = Extract<Forecast, { status: 'ok' | 'insufficient' }>;
-
-function Row({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
-  return (
-    <div className="side-row">
-      <div className="side-row-main">
-        <span className="side-label">{label}</span>
-        <span className="side-value num">{value}</span>
-      </div>
-      {sub && <div className="side-sub">{sub}</div>}
-    </div>
-  );
-}
 
 /** "Compared with": plain rows that follow the period picker. Changes are an arrow in the accent colour. */
 function Compared({ period, inProgress, asOf }: { period: Period; inProgress: boolean; asOf: string }) {
@@ -54,9 +41,8 @@ function Compared({ period, inProgress, asOf }: { period: Period; inProgress: bo
     const yearMonths = span.months.filter((x) => yearOf(x) === y);
     const yearSoFar = y === yearOf(monthOf(today > span.lastDate ? today : span.lastDate));
     return (
-      <section className="side-section">
-        <h3>Compared with</h3>
-        <Row
+      <CardSection label="Compared with">
+        <StatRow
           label={`Previous month · ${monthLabel(prev)}`}
           value={hasPrev ? formatEUR(before) : '—'}
           sub={
@@ -76,7 +62,7 @@ function Compared({ period, inProgress, asOf }: { period: Period; inProgress: bo
           }
         />
         {inProgress && hasPrev && (
-          <Row
+          <StatRow
             label={`vs same point in ${monthShort(prev)}`}
             value={<Change before={prevSame} after={cur} showPct={false} />}
             sub={
@@ -87,12 +73,12 @@ function Compared({ period, inProgress, asOf }: { period: Period; inProgress: bo
             }
           />
         )}
-        <Row
+        <StatRow
           label={`${y} ${yearSoFar ? 'so far' : 'total'}`}
           value={formatEUR(sumCents(yearRows))}
           sub={`avg ${formatEUR(Math.round(sumCents(yearRows) / yearMonths.length))}/mo · ${monthShort(yearMonths[0])}–${monthShort(yearMonths[yearMonths.length - 1])}`}
         />
-      </section>
+      </CardSection>
     );
   }
 
@@ -111,11 +97,10 @@ function Compared({ period, inProgress, asOf }: { period: Period; inProgress: bo
     const partial = months.length < 12;
     const best = [...months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
     return (
-      <section className="side-section">
-        <h3>Compared with</h3>
-        <Row label={`${y - 1} total`} value={hasPrev ? formatEUR(sumCents(prevYearRows)) : '—'} sub={hasPrev ? undefined : 'No recorded data'} />
+      <CardSection label="Compared with">
+        <StatRow label={`${y - 1} total`} value={hasPrev ? formatEUR(sumCents(prevYearRows)) : '—'} sub={hasPrev ? undefined : 'No recorded data'} />
         {hasPrev && (
-          <Row
+          <StatRow
             label={partial ? `vs same months of ${y - 1}` : `vs ${y - 1}`}
             value={<Change before={samePrev} after={total} showPct={false} />}
             sub={
@@ -126,24 +111,23 @@ function Compared({ period, inProgress, asOf }: { period: Period; inProgress: bo
             }
           />
         )}
-        <Row
+        <StatRow
           label="Average per month"
           value={formatEUR(Math.round(total / months.length))}
           sub={`Highest: ${monthLabel(best)} (${formatEUR(byMonth.get(best) ?? 0)})`}
         />
-      </section>
+      </CardSection>
     );
   }
 
   const total = sumCents(transactions);
   const best = [...span.months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
   return (
-    <section className="side-section">
-      <h3>Overall</h3>
-      <Row label="Average per month" value={formatEUR(Math.round(total / span.months.length))} sub={`over ${span.months.length} months`} />
-      <Row label="Highest month" value={formatEUR(byMonth.get(best) ?? 0)} sub={monthLabel(best)} />
-      <Row label="Charges" value={transactions.length} sub={`since ${monthLabel(span.firstMonth)}`} />
-    </section>
+    <CardSection label="Averages">
+      <StatRow label="Average per month" value={formatEUR(Math.round(total / span.months.length))} sub={`over ${span.months.length} months`} />
+      <StatRow label="Highest month" value={formatEUR(byMonth.get(best) ?? 0)} sub={monthLabel(best)} />
+      <StatRow label="Charges" value={transactions.length} sub={`since ${monthLabel(span.firstMonth)}`} />
+    </CardSection>
   );
 }
 
@@ -154,21 +138,16 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
 
   if (forecast.status === 'insufficient') {
     return (
-      <section className="side-section">
-        <h3>Still due this month</h3>
-        <div className="notice notice-warn" style={{ marginTop: 6 }}>No estimate: {forecast.reason}</div>
-      </section>
+      <CardSection label="Still due this month">
+        <div className="notice notice-warn">No estimate: {forecast.reason}</div>
+      </CardSection>
     );
   }
   const f = forecast;
   return (
-    <section className="side-section">
-      <div className="row-between">
-        <h3>Still due this month</h3>
-        <ReadChip>Estimate</ReadChip>
-      </div>
+    <CardSection label="Still due this month" badge={<ReadChip>Estimate</ReadChip>}>
       {f.expected.length === 0 ? (
-        <p className="small muted" style={{ marginTop: 6 }}>No recurring charges are still due this month.</p>
+        <p className="meta" style={{ marginTop: 8 }}>No recurring charges are still due this month.</p>
       ) : (
         <div className="due-list">
           {f.expected.map((e) => (
@@ -182,7 +161,7 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
               </span>
               <span className="due-amount num" title={e.confirmed ? 'You confirmed this subscription' : 'Found by the pattern rule: monthly for 3+ months, last charged last month'}>
                 {formatEUR(e.cents)}
-                <span className="muted small"> · {dateLabelShort(e.date)}</span>
+                <span className="due-date"> · {dateLabelShort(e.date)}</span>
               </span>
             </div>
           ))}
@@ -190,20 +169,20 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
       )}
 
       {f.usageSoFarCents !== null && (
-        <p className="small" style={{ margin: '10px 0 0' }}>
-          <span className="secondary">Usage so far</span> <strong className="num">{formatEUR(f.usageSoFarCents)}</strong>
-          <span className="muted"> · not projected, not in the estimate</span>
+        <p className="meta" style={{ margin: '12px 0 0' }}>
+          Usage so far <strong className="num" style={{ color: 'var(--text-1)', fontWeight: 500 }}>{formatEUR(f.usageSoFarCents)}</strong>
+          {' '}· not projected, not in the estimate
         </p>
       )}
 
       {f.dataOld && (
-        <p className="small muted" style={{ margin: '8px 0 0' }}>
+        <p className="meta" style={{ margin: '8px 0 0' }}>
           Your last import is more than a week old.{' '}
           <a href={href(['data'])} style={{ textDecoration: 'underline' }}>Import newer statements</a> for a better estimate.
         </p>
       )}
 
-      <div className="explain" style={{ marginTop: 10 }}>
+      <div className="explain" style={{ marginTop: 12 }}>
         <Disclosure label="How is this estimated?">
           <ol>
             <li>
@@ -229,13 +208,13 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
           </p>
         </Disclosure>
       </div>
-    </section>
+    </CardSection>
   );
 }
 
 /**
- * The column beside the chart: how the period compares, what is still due this month (for the month in progress) and the
- * budget. Plain rows, not cards.
+ * The column beside the chart, one card: how the period compares, what is still due this month (for the month in progress) and the
+ * budget, as sections separated by dividers.
  */
 export function OverviewSide({
   period,
@@ -251,10 +230,10 @@ export function OverviewSide({
   dueColor: (e: ExpectedCharge) => string;
 }) {
   return (
-    <aside className="card overview-side" aria-label="Comparisons, what is still due and budget">
+    <Card className="overview-side" title={`${period.kind === 'month' ? 'Month' : period.kind === 'year' ? 'Year' : 'All time'} in context`}>
       <Compared period={period} inProgress={inProgress} asOf={asOf} />
       {inProgress && <StillDue forecast={forecast} colorOf={dueColor} />}
       <BudgetSection />
-    </aside>
+    </Card>
   );
 }

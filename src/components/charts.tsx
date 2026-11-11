@@ -200,7 +200,7 @@ function StackedMonthlyChart({
             </pattern>
           ))}
         </defs>
-        <CartesianGrid vertical={false} stroke="var(--grid)" />
+        <CartesianGrid vertical={false} stroke="var(--border)" />
         <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
         <YAxis domain={[0, axis.max]} ticks={axis.ticks} tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} allowDecimals={false} />
         <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
@@ -233,11 +233,7 @@ function StackedMonthlyChart({
               maxBarSize={32}
               radius={k.key === lastKey ? [3, 3, 0, 0] : 0}
               isAnimationActive={false}
-            >
-              {data.map((d) => (
-                <Cell key={String(d.month)} fillOpacity={faded(d.month)} />
-              ))}
-            </Bar>
+            />
           ))}
         {dueRow && (
           <ReferenceDot
@@ -326,6 +322,44 @@ export function MonthlyProviderChart({ rows, months, projection, selectedMonth, 
   );
 }
 
+/** One provider's months, in its colour: the same chart as the Overview's, with one series and no legend. */
+export function ProviderMonthlyChart({
+  provider,
+  rows,
+  months,
+  projection,
+  selectedMonth,
+  onSelectMonth,
+  height = 280,
+  fill,
+}: StackedProps & { provider: string }) {
+  const { colors } = useLedger();
+  const stack = useMemo(() => {
+    const by = new Map<string, number>(months.map((m) => [m, 0]));
+    for (const r of rows) {
+      const m = r.date.slice(0, 7);
+      if (by.has(m)) by.set(m, (by.get(m) ?? 0) + r.amountCents);
+    }
+    return months.map((m) => ({ month: m, totalCents: by.get(m) ?? 0, cents: { [provider]: by.get(m) ?? 0 } as Record<string, number> }));
+  }, [rows, months, provider]);
+  const series = useMemo(() => [{ key: provider, label: provider, color: colors.color(provider) }], [provider, colors]);
+  const keyOf = useMemo(() => () => provider, [provider]);
+  return (
+    <StackedMonthlyChart
+      stack={stack}
+      series={series}
+      projection={projection}
+      dueKeyOf={keyOf}
+      months={months}
+      selectedMonth={selectedMonth}
+      onSelectMonth={onSelectMonth}
+      height={height}
+      fill={fill}
+      legend={false}
+    />
+  );
+}
+
 export function MonthlyCategoryChart({
   rows,
   months,
@@ -401,46 +435,6 @@ export function TypeChart({
   );
 }
 
-// ---------- single provider by month ----------
-
-export function SingleSeriesMonthlyChart({
-  rows,
-  months,
-  color,
-  height = 220,
-}: {
-  rows: LedgerRow[];
-  months: string[];
-  color: string;
-  height?: number;
-}) {
-  const data = useMemo(() => {
-    const by = new Map<string, number>();
-    for (const r of rows) {
-      const m = r.date.slice(0, 7);
-      by.set(m, (by.get(m) ?? 0) + r.amountCents);
-    }
-    return months.map((m) => ({ month: m, cents: by.get(m) ?? 0, value: (by.get(m) ?? 0) / 100 }));
-  }, [rows, months]);
-
-  const Tip = ({ active, payload, label }: TipProps) => {
-    if (!active || !payload?.length) return null;
-    return <TipShell title={monthLabel(String(label))} total={payload[0].payload.cents} />;
-  };
-
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--grid)" />
-        <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
-        <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
-        <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
-        <Bar dataKey="value" fill={color} maxBarSize={24} radius={[3, 3, 0, 0]} isAnimationActive={false} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
 // ---------- monthly total with rolling average ----------
 
 export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: LedgerRow[]; months: string[]; height?: number }) {
@@ -476,7 +470,7 @@ export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: Ledger
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--grid)" />
+          <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
           <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
           <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
@@ -540,7 +534,7 @@ export function YearCompareChart({ rows, years, height = 260 }: { rows: LedgerRo
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--grid)" />
+          <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis dataKey="label" tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval={0} minTickGap={0} />
           <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
           <Tooltip content={<Tip />} cursor={{ stroke: 'var(--axis)' }} isAnimationActive={false} />

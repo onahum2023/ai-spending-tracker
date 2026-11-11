@@ -7,8 +7,8 @@ import { OVERRIDE_HELP, OVERRIDE_LABELS, typeLabel, WHY, type OverrideKind } fro
 import { groupChargeTypes, listChargeTypes, patternsByChargeType, suggestedSetting, type ChargeTypeGroup, type ChargeTypeSummary, type TypePatterns } from '../lib/providerChargeTypes';
 import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
-import { stoppedPills, StoppedDetail, SubscriptionDetail, subscriptionPills, type Pill } from './SubscriptionDetail';
-import { Card, Chevron, Disclosure, EmptyState, ReadChip } from './ui';
+import { stoppedPills, StoppedDetail, SubscriptionDetail, subscriptionPills, type RowPill } from './SubscriptionDetail';
+import { Card, Chevron, Disclosure, EmptyState, Pill, ReadChip } from './ui';
 
 const mergePatterns = (list: (TypePatterns<Transaction> | undefined)[]): TypePatterns<Transaction> | undefined => {
   const present = list.filter((x): x is TypePatterns<Transaction> => Boolean(x));
@@ -31,7 +31,7 @@ function LabelInput({ provider, merchant }: { provider: string; merchant: string
       className="input input-sm label-input"
       value={text}
       maxLength={MAX_LABEL_LENGTH}
-      placeholder="Add a label, e.g. Claude Pro"
+      placeholder="Claude Pro"
       aria-label={`Label for ${provider} charge type ${merchant.trim()}`}
       title="A name for this charge type, shown instead of the description. Charges and totals never change."
       onChange={(e) => setText(e.target.value)}
@@ -47,30 +47,54 @@ function LabelInput({ provider, merchant }: { provider: string; merchant: string
   );
 }
 
-/** The row under a charge type (or a plan) that opens to what the app reads about its recurring charges. */
-function PatternDetail({ id, open, patterns, report }: { id: string; open: boolean; patterns: TypePatterns<Transaction>; report: SubscriptionReport<Transaction> }) {
+/** What the app reads about the recurring charges of a charge type (or plan): the patterns found, with how they were found. */
+function PatternBlock({ patterns, report }: { patterns: TypePatterns<Transaction>; report: SubscriptionReport<Transaction> }) {
   return (
-    <tr id={id} hidden={!open} className="type-detail">
-      <td colSpan={6}>
-        <div className="type-detail-head">
-          <ReadChip />
-          <span className="small muted">What the app reads about this charge type</span>
-        </div>
-        {patterns.active.map((s) => (
-          <SubscriptionDetail key={`${s.merchant}|${s.pattern.firstDate}`} s={s} report={report} />
-        ))}
-        {patterns.stopped.map((s) => (
-          <StoppedDetail key={`${s.merchant}|${s.pattern.firstDate}`} s={s} />
-        ))}
-        <Disclosure label="How are these found?">
-          <p className="small muted" style={{ margin: 0 }}>
-            Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
-            so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
-            be told from a one-off charge: set this charge type to "Subscription · yearly" in this table.
-          </p>
-        </Disclosure>
-      </td>
-    </tr>
+    <div className="type-patterns">
+      <div className="type-detail-head">
+        <ReadChip />
+        <span className="meta">What the app reads about this charge type</span>
+      </div>
+      {patterns.active.map((s) => (
+        <SubscriptionDetail key={`${s.merchant}|${s.pattern.firstDate}`} s={s} report={report} />
+      ))}
+      {patterns.stopped.map((s) => (
+        <StoppedDetail key={`${s.merchant}|${s.pattern.firstDate}`} s={s} />
+      ))}
+      <Disclosure label="How are these found?">
+        <p className="meta" style={{ margin: 0 }}>
+          Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
+          so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
+          be told from a one-off charge: set this charge type to "Subscription · yearly" in its settings above.
+        </p>
+      </Disclosure>
+    </div>
+  );
+}
+
+const hasPatterns = (p?: TypePatterns<Transaction>) => Boolean(p && (p.active.length || p.stopped.length));
+
+const rowPills = (patterns: TypePatterns<Transaction> | undefined, report: SubscriptionReport<Transaction>): RowPill[] =>
+  patterns ? [...patterns.active.flatMap((s) => subscriptionPills(s, report)), ...patterns.stopped.flatMap((s) => stoppedPills(s))] : [];
+
+function Pills({ pills }: { pills: RowPill[] }) {
+  return (
+    <span className="type-pills">
+      {pills.map((p) => (
+        <Pill key={p.text} kind={p.kind}>
+          {p.text}
+        </Pill>
+      ))}
+    </span>
+  );
+}
+
+/** The chevron that opens a row. */
+function Toggle({ open, onClick, panelId, label }: { open: boolean; onClick: () => void; panelId: string; label: string }) {
+  return (
+    <button type="button" className="row-toggle" aria-expanded={open} aria-controls={panelId} aria-label={label} onClick={onClick}>
+      <Chevron open={open} />
+    </button>
   );
 }
 
@@ -82,53 +106,43 @@ function PatternDetail({ id, open, patterns, report }: { id: string; open: boole
 function PlanHeader({ g, patterns, report }: { g: ChargeTypeGroup; patterns?: TypePatterns<Transaction>; report: SubscriptionReport<Transaction> }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
-  const hasDetail = Boolean(patterns && (patterns.active.length || patterns.stopped.length));
-  const pills: Pill[] = patterns
-    ? [...patterns.active.flatMap((s) => subscriptionPills(s, report)), ...patterns.stopped.flatMap((s) => stoppedPills(s))]
-    : [];
+  const detail = hasPatterns(patterns);
   return (
     <>
       <tr className="plan-head">
         <td>
           <div className="type-name">
-            {hasDetail ? (
-              <button
-                type="button"
-                className="row-toggle"
-                aria-expanded={open}
-                aria-controls={panelId}
-                aria-label={`What the app reads about ${g.plan}`}
-                title="What the app reads about this plan"
-                onClick={() => setOpen((o) => !o)}
-              >
-                <Chevron open={open} />
-              </button>
-            ) : (
-              <span className="row-toggle-spacer" />
-            )}
+            {detail ? <Toggle open={open} onClick={() => setOpen((o) => !o)} panelId={panelId} label={`What the app reads about ${g.plan}`} /> : <span className="row-toggle-spacer" />}
             <div>
-              <div style={{ fontWeight: 600 }}>{g.plan}</div>
-              <div className="small muted">{g.types.length} descriptors, read as one plan</div>
-              {pills.length > 0 && (
-                <span className="type-pills">
-                  {pills.slice(0, 2).map((p) => (
-                    <span key={p.text} className={`chip ${p.cls}`.trim()}>{p.text}</span>
-                  ))}
-                </span>
-              )}
+              <div className="type-label" style={{ fontWeight: 600 }}>{g.plan}</div>
+              <div className="meta">{g.types.length} descriptors, read as one plan</div>
             </div>
           </div>
         </td>
+        <td className="meta">Each descriptor has its own type</td>
         <td className="amount">{g.count}</td>
         <td className="amount">{formatEUR(g.totalCents)}</td>
         <td className="date nowrap">{dateLabel(g.lastDate)}</td>
-        <td colSpan={2} className="small muted">Each descriptor keeps its own type and status below.</td>
+        <td>
+          <Pills pills={rowPills(patterns, report).slice(0, 3)} />
+        </td>
       </tr>
-      {hasDetail && <PatternDetail id={panelId} open={open} patterns={patterns!} report={report} />}
+      {detail && (
+        <tr id={panelId} hidden={!open} className="type-detail">
+          <td colSpan={6}>
+            <PatternBlock patterns={patterns!} report={report} />
+          </td>
+        </tr>
+      )}
     </>
   );
 }
 
+/**
+ * A charge type, read by default: its label (or its description on the statement), what it is read as, how many charges, the
+ * total, the last charge and what is worth a look. Everything you can change, and what the app reads about it, is in the row
+ * that opens under it.
+ */
 function ChargeTypeRow({ t, patterns, report, member = false }: { t: ChargeTypeSummary; patterns?: TypePatterns<Transaction>; report: SubscriptionReport<Transaction>; member?: boolean }) {
   const { setOverride } = useLedger();
   const [open, setOpen] = useState(false);
@@ -136,92 +150,66 @@ function ChargeTypeRow({ t, patterns, report, member = false }: { t: ChargeTypeS
   const suggested = suggestedSetting(t.guess);
   const reviewed = t.setting !== null;
   const guessText = typeLabel(t.guess);
-  const hasDetail = Boolean(patterns && (patterns.active.length || patterns.stopped.length));
-  const pills: Pill[] = patterns
-    ? [...patterns.active.flatMap((s) => subscriptionPills(s, report)), ...patterns.stopped.flatMap((s) => stoppedPills(s))]
-    : [];
+  const pills: RowPill[] = [...(reviewed ? [] : [{ text: 'App’s guess', kind: 'inferred' as const }]), ...rowPills(patterns, report)];
   return (
     <>
-    <tr className={member ? 'plan-member' : undefined}>
-      <td>
-        <div className="type-name">
-          {hasDetail ? (
-            <button
-              type="button"
-              className="row-toggle"
-              aria-expanded={open}
-              aria-controls={panelId}
-              aria-label={`What the app reads about ${t.name}`}
-              title="What the app reads about this charge type"
-              onClick={() => setOpen((o) => !o)}
-            >
-              <Chevron open={open} />
-            </button>
-          ) : (
-            <span className="row-toggle-spacer" />
-          )}
-          <div>
-            <div style={{ fontWeight: 500 }} title={t.rawVariants > 1 ? `${t.rawVariants} slightly different descriptions on the statement` : t.merchant.trim()}>
-              {t.name}
+      <tr className={member ? 'plan-member' : undefined}>
+        <td>
+          <div className="type-name">
+            <Toggle open={open} onClick={() => setOpen((o) => !o)} panelId={panelId} label={`Settings and details of ${t.name}`} />
+            <div title={t.rawVariants > 1 ? `${t.rawVariants} slightly different descriptions on the statement` : t.merchant.trim()}>
+              {t.label ? <span className="type-label">{t.label}</span> : <span className="mono">{t.name}</span>}
             </div>
-            {pills.length > 0 && (
-              <span className="type-pills">
-                {pills.slice(0, 2).map((p) => (
-                  <span key={p.text} className={`chip ${p.cls}`.trim()}>{p.text}</span>
-                ))}
-              </span>
-            )}
-            {t.label && <div className="small muted merchant-line">{t.descriptor}</div>}
-            {!t.label && t.rawVariants > 1 && <div className="small muted">{t.rawVariants} variations of the description</div>}
-            <div style={{ marginTop: 4 }}>
+          </div>
+        </td>
+        <td>{reviewed ? OVERRIDE_LABELS[t.setting!] : guessText}</td>
+        <td className="amount">{t.count}</td>
+        <td className="amount">{formatEUR(t.totalCents)}</td>
+        <td className="date nowrap">{dateLabel(t.lastDate)}</td>
+        <td>
+          <Pills pills={pills} />
+        </td>
+      </tr>
+      <tr id={panelId} hidden={!open} className="type-detail">
+        <td colSpan={6}>
+          <div className="detail-edit">
+            <label className="field">
+              Label
               <LabelInput provider={t.provider} merchant={t.merchant} />
-            </div>
+            </label>
+            <label className="field">
+              Type
+              <select
+                className="select"
+                value={t.setting ?? ''}
+                aria-label={`Charge type of ${t.name}`}
+                title={`Applies to all ${t.count} charge${t.count === 1 ? '' : 's'} of this type, and to new ones you import. Totals never change.`}
+                onChange={(e) => void setOverride(t.provider, t.merchant, (e.target.value || null) as OverrideKind | null)}
+              >
+                <option value="">{reviewed ? `Reset: let the app guess (${guessText})` : `App’s guess: ${guessText}`}</option>
+                {OPTIONS.map((k) => (
+                  <option key={k} value={k}>
+                    {OVERRIDE_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!reviewed && (
+              <button className="btn" onClick={() => void setOverride(t.provider, t.merchant, suggested)} aria-label={`Confirm ${t.name} as ${OVERRIDE_LABELS[suggested]}`}>
+                Confirm {OVERRIDE_LABELS[suggested]}
+              </button>
+            )}
           </div>
-        </div>
-      </td>
-      <td className="amount">{t.count}</td>
-      <td className="amount">{formatEUR(t.totalCents)}</td>
-      <td className="date nowrap">{dateLabel(t.lastDate)}</td>
-      <td>
-        <select
-          className="select input-sm"
-          value={t.setting ?? ''}
-          aria-label={`Charge type of ${t.name}`}
-          title={`Applies to all ${t.count} charge${t.count === 1 ? '' : 's'} of this type, and to new ones you import. Totals never change.`}
-          onChange={(e) => void setOverride(t.provider, t.merchant, (e.target.value || null) as OverrideKind | null)}
-        >
-          <option value="">{reviewed ? `Reset: let the app guess (${guessText})` : `Suggested: ${guessText}`}</option>
-          {OPTIONS.map((k) => (
-            <option key={k} value={k}>
-              {OVERRIDE_LABELS[k]}
-            </option>
-          ))}
-        </select>
-        {reviewed && <div className="small muted">{OVERRIDE_HELP[t.setting!]}</div>}
-        {!reviewed && (
-          <div className="small muted" title={WHY[t.guess.source]}>
-            {WHY[t.guess.source]}
-          </div>
-        )}
-      </td>
-      <td>
-        {reviewed ? (
-          <span className="chip chip-active">Confirmed</span>
-        ) : (
-          <div className="stack" style={{ gap: 6, alignItems: 'flex-start' }}>
-            <span className="chip chip-warn">To review</span>
-            <button
-              className="btn btn-sm"
-              onClick={() => void setOverride(t.provider, t.merchant, suggested)}
-              aria-label={`Confirm ${t.name} as ${OVERRIDE_LABELS[suggested]}`}
-            >
-              Confirm
-            </button>
-          </div>
-        )}
-      </td>
-    </tr>
-    {hasDetail && <PatternDetail id={panelId} open={open} patterns={patterns!} report={report} />}
+          <p className="meta" title={reviewed ? undefined : WHY[t.guess.source]}>
+            {reviewed ? OVERRIDE_HELP[t.setting!] : WHY[t.guess.source]}
+          </p>
+          <p className="meta">
+            Statement description: <span className="mono">{t.descriptor}</span>
+            {t.rawVariants > 1 ? ` · ${t.rawVariants} variations of it` : ''}
+          </p>
+          {hasPatterns(patterns) && <PatternBlock patterns={patterns!} report={report} />}
+        </td>
+      </tr>
     </>
   );
 }
@@ -231,7 +219,7 @@ function ChargeTypeRow({ t, patterns, report, member = false }: { t: ChargeTypeS
  * One-time / Other. A setting carries over to every charge of that charge type, past and future. Overview, Insights and the
  * Transactions page only show the result.
  */
-export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Transaction[]; actions?: React.ReactNode }) {
+export function ChargeTypesCard({ rows }: { provider: string; rows: Transaction[] }) {
   const { overrides, labels, analysis, setOverrides } = useLedger();
   const types = useMemo(() => listChargeTypes(rows, overrides, labels, analysis.typeOf), [rows, overrides, labels, analysis]);
   // The recurring charges the app found, each attached to the charge type of its latest charge.
@@ -242,25 +230,19 @@ export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Tra
   return (
     <Card
       title="Charge types"
-      subtitle={
-        types.length === 1
-          ? 'This provider has one kind of charge. Say what it is: it applies to every charge of this type, past and future.'
-          : `${types.length} kinds of charge, told apart by the statement description. Say what each is: it applies to every charge of that type, past and future.`
-      }
-      actions={
-        <div className="row wrap" style={{ gap: 12 }}>
-          {actions}
-          {toReview.length > 0 && (
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={() => void setOverrides(toReview.map((t) => ({ provider: t.provider, merchant: t.merchant, kind: suggestedSetting(t.guess) })))}
-            >
-              Confirm all {toReview.length} suggestion{toReview.length === 1 ? '' : 's'}
-            </button>
-          )}
-        </div>
-      }
+      subtitle="Each charge type is a distinct line on your statement"
     >
+      {toReview.length > 0 && (
+        <div className="card-toolbar">
+          <button
+            className="btn btn-primary"
+            onClick={() => void setOverrides(toReview.map((t) => ({ provider: t.provider, merchant: t.merchant, kind: suggestedSetting(t.guess) })))}
+          >
+            Confirm all {toReview.length} guess{toReview.length === 1 ? '' : 'es'}
+          </button>
+          <span className="meta">Open a row to change its label or type.</span>
+        </div>
+      )}
       {types.length === 0 ? (
         <EmptyState>No charges.</EmptyState>
       ) : (
@@ -269,10 +251,10 @@ export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Tra
             <thead>
               <tr>
                 <th>Charge type</th>
+                <th>Type</th>
                 <th className="amount">Charges</th>
                 <th className="amount">Total</th>
                 <th>Last charge</th>
-                <th>Type</th>
                 <th>Status</th>
               </tr>
             </thead>

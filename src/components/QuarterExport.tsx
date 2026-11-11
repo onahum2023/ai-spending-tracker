@@ -4,7 +4,7 @@ import { formatEUR } from '../lib/money';
 import { quarterLabel, quarterReport, quartersIn, tagsInUse, UNTAGGED } from '../lib/tags';
 import { href } from '../router';
 import { useLedger } from '../store';
-import { Card, EmptyState } from './ui';
+import { Card, CardNote, EmptyState } from './ui';
 
 /** Charges of one quarter, optionally one tag, as a CSV for expense claims or an accountant. */
 export function QuarterExport() {
@@ -23,7 +23,8 @@ export function QuarterExport() {
   };
 
   return (
-    <Card title="Export a quarter" subtitle="Charges for one quarter, optionally for one tag, for expense claims or your accountant">
+    <Card title="Export a quarter" subtitle="Charges for one quarter, optionally for one tag">
+      <CardNote>For expense claims or your accountant.</CardNote>
       {!report ? (
         <EmptyState>No transactions yet.</EmptyState>
       ) : (
@@ -50,7 +51,7 @@ export function QuarterExport() {
           </div>
 
           {report.rows.length === 0 ? (
-            <p className="small muted">No charges match.</p>
+            <p className="small secondary">No charges match.</p>
           ) : (
             <div className="table-wrap">
               <table className="table">
@@ -91,7 +92,7 @@ export function QuarterExport() {
               </a>
             )}
           </div>
-          <p className="small muted">
+          <p className="small secondary">
             Amounts are as charged, in euro. The ledger has no VAT figures, so VAT is not split out. The file includes a Tag column and can be
             re-imported.
           </p>

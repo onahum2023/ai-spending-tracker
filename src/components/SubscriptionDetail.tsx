@@ -2,10 +2,11 @@ import { CATEGORY_NOUNS } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal } from '../lib/dates';
 import type { StoppedSubscription, Subscription, SubscriptionReport } from '../lib/insights';
 import { formatEUR } from '../lib/money';
+import type { PillKind } from './ui';
 
 const joinNames = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
 
-export type Pill = { text: string; cls: string };
+export type RowPill = { text: string; kind: PillKind };
 
 /** Price moves of one stream in the last 6 months (the window of the Price changes card), newest first. */
 function recentChanges(s: { provider: string; merchant: string }, report: SubscriptionReport) {
@@ -23,19 +24,19 @@ function overlapOf(s: Subscription, report: SubscriptionReport) {
 }
 
 /** The small flags that go on a collapsed row: only what is worth noticing. */
-export function subscriptionPills(s: Subscription, report: SubscriptionReport): Pill[] {
-  const pills: Pill[] = [];
+export function subscriptionPills(s: Subscription, report: SubscriptionReport): RowPill[] {
+  const pills: RowPill[] = [];
   const latest = recentChanges(s, report)[0];
   if (latest) {
     const up = latest.toCents > latest.fromCents;
-    pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latest.month)}`, cls: up ? 'chip-over' : 'chip-accent' });
+    pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latest.month)}`, kind: 'attention' });
   }
-  if (overlapOf(s, report)) pills.push({ text: 'Overlap', cls: '' });
+  if (overlapOf(s, report)) pills.push({ text: 'Overlap', kind: 'attention' });
   return pills;
 }
 
-export function stoppedPills(s: StoppedSubscription): Pill[] {
-  return [{ text: s.chargesSince.length === 0 ? 'Stopped' : 'Stopped, still charging', cls: s.chargesSince.length === 0 ? '' : 'chip-warn' }];
+export function stoppedPills(s: StoppedSubscription): RowPill[] {
+  return [{ text: s.chargesSince.length === 0 ? 'Stopped' : 'Stopped, still charging', kind: s.chargesSince.length === 0 ? 'neutral' : 'attention' }];
 }
 
 /** What the app reads about one active subscription, as sentences. */

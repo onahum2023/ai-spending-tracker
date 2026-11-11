@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { OverviewSide } from '../components/OverviewSide';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Disclosure, EmptyState, ProviderDot, ReadChip, Segmented } from '../components/ui';
+import { Card, CardAction, Disclosure, EmptyState, ProviderDot, ReadChip, Segmented } from '../components/ui';
 import { filterPeriod, periodKey, periodLabel, summarizeProviders } from '../lib/analytics';
 import { dateLabel, daysInMonth, monthLabel, monthLabelLong, monthOf, yearOf } from '../lib/dates';
 import { forecastCurrentMonth, type ExpectedCharge } from '../lib/forecast';
@@ -58,23 +58,11 @@ export function Overview() {
   return (
     <div className="stack">
       <div className="overview-top">
-        <section className="card chart-card">
-          <div className="chart-head">
-            <div className="headline">
-              <div className="headline-label">{headline}</div>
-              <div className="headline-amount num">{formatEUR(sumCents(periodRows))}</div>
-              {inProgress && forecast.status === 'ok' && (
-                <div className="headline-est">
-                  {forecast.stillToComeCents > 0 && <span className="swatch-hatch" aria-hidden="true" />}
-                  <span>
-                    at least <strong className="num">{formatEUR(forecast.atLeastCents)}</strong> by month end
-                  </span>
-                  <ReadChip>Estimate</ReadChip>
-                </div>
-              )}
-              {inProgress && forecast.status === 'insufficient' && <div className="headline-est muted">No month-end estimate</div>}
-              {(inProgress || yearInProgress) && <div className="small muted">As of last import, {dateLabel(asOf)}</div>}
-            </div>
+        <Card
+          className="chart-card"
+          title={headline}
+          subtitle={inProgress || yearInProgress ? `As of last import, ${dateLabel(asOf)}` : undefined}
+          action={
             <Segmented<ChartView>
               label="Group by"
               value={view}
@@ -85,14 +73,28 @@ export function Overview() {
                 { value: 'type', label: 'Commitment' },
               ]}
             />
+          }
+        >
+          <div className="headline">
+            <div className="headline-amount amt-hero num">{formatEUR(sumCents(periodRows))}</div>
+            {inProgress && forecast.status === 'ok' && (
+              <div className="headline-est">
+                {forecast.stillToComeCents > 0 && <span className="swatch-hatch" aria-hidden="true" />}
+                <span>
+                  at least <strong className="num">{formatEUR(forecast.atLeastCents)}</strong> by month end
+                </span>
+                <ReadChip>Estimate</ReadChip>
+              </div>
+            )}
+            {inProgress && forecast.status === 'insufficient' && <div className="headline-est">No month-end estimate</div>}
           </div>
-          <div className="chart-caption small secondary">
+          <div className="chart-caption">
             Monthly spending by {VIEW_NAMES[view]}
             {period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}
             {view === 'type' && (
               <>
                 {' '}
-                <ReadChip>Suggestions until you confirm them</ReadChip>
+                <ReadChip>Suggested</ReadChip>
               </>
             )}
           </div>
@@ -108,15 +110,15 @@ export function Overview() {
           {view === 'type' && (
             <div style={{ marginTop: 10 }}>
               <Disclosure label="How are these found?">
-                <p className="small muted" style={{ margin: 0 }}>
-                  Amounts and dates are the ledger. Whether a charge is a subscription, usage or one-time is the app's read: a charge is a
-                  subscription once it has appeared monthly for three months in a row, and usage when the same descriptor is charged three
-                  or more times without that rhythm. A type you confirm on the provider's page replaces the app's read for that charge type.
+                <p className="small secondary" style={{ margin: 0 }}>
+                  Amounts and dates are the ledger. Whether a charge is a subscription, usage or one-time is the app's read, and stays a
+                  suggestion until you confirm it on the provider's page: a charge is a subscription once it has appeared monthly for three
+                  months in a row, and usage when the same descriptor is charged three or more times without that rhythm.
                 </p>
               </Disclosure>
             </div>
           )}
-        </section>
+        </Card>
         <OverviewSide period={period} inProgress={inProgress} forecast={forecast} asOf={asOf} dueColor={dueColor} />
       </div>
 
@@ -125,7 +127,7 @@ export function Overview() {
         <ChargesCard key={periodKey(period)} period={period} />
       </div>
       {today < span.lastDate && (
-        <p className="small muted">Note: some transactions are dated after today ({dateLabel(today)}).</p>
+        <p className="small secondary">Note: some transactions are dated after today ({dateLabel(today)}).</p>
       )}
     </div>
   );
@@ -140,7 +142,7 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
     <Card
       title="Largest contributors"
       subtitle={`${label} · ${formatEUR(total)} across ${summary.length} provider${summary.length === 1 ? '' : 's'}`}
-      actions={<a className="btn btn-sm btn-ghost" href={href(['providers'])}>All providers →</a>}
+      action={<CardAction href={href(['providers'])}>All providers</CardAction>}
     >
       {summary.length === 0 ? (
         <EmptyState>No spending recorded in this period.</EmptyState>
@@ -156,12 +158,12 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
                 <ProviderBarFill provider={s.provider} width={(s.totalCents / max) * 100} />
               </div>
               <span className="num bar-amount">
-                {formatEUR(s.totalCents)} <span className="muted small">{Math.round((s.totalCents / total) * 100)}%</span>
+                {formatEUR(s.totalCents)} <span className="small">{Math.round((s.totalCents / total) * 100)}%</span>
               </span>
             </a>
           ))}
           {summary.length > top.length && (
-            <a className="small muted" href={href(['providers'])}>
+            <a className="small secondary" href={href(['providers'])}>
               + {summary.length - top.length} more providers ({formatEUR(sumCents(summary.slice(8).map((s) => ({ amountCents: s.totalCents }))))})
             </a>
           )}
@@ -201,22 +203,18 @@ function ChargesCard({ period }: { period: Period }) {
     <Card
       title={title}
       subtitle={`${rows.length} transaction${rows.length === 1 ? '' : 's'}, largest first`}
+      action={<CardAction href={href(['transactions'], filter)}>Open in Transactions</CardAction>}
     >
       <div className={all ? 'charges-scroll' : undefined}>
         <TransactionTable rows={shown} showType={false} showTotal={all} initialSort={{ key: 'amount', dir: 'desc' }} emptyText="No charges recorded in this period." />
       </div>
-      <div className="card-foot">
-        {rows.length > TOP_CHARGES ? (
+      {rows.length > TOP_CHARGES && (
+        <div className="card-foot">
           <button type="button" className="link-btn" onClick={() => setAll((v) => !v)} aria-expanded={all}>
             {all ? `Show top ${TOP_CHARGES}` : `Show all ${rows.length}`}
           </button>
-        ) : (
-          <span />
-        )}
-        <a className="link-btn" href={href(['transactions'], filter)}>
-          Open in Transactions →
-        </a>
-      </div>
+        </div>
+      )}
     </Card>
   );
 }

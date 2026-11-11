@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, EmptyState, ProviderDot, SearchInput, SortHeader, type SortDir } from '../components/ui';
+import { Card, CardNote, EmptyState, Pill, ProviderDot, SearchInput, SortHeader, type SortDir } from '../components/ui';
 import { filterPeriod, lastCompleteMonth, periodLabel, providerTotals, rowsInMonths } from '../lib/analytics';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthShort } from '../lib/dates';
@@ -87,14 +87,16 @@ export function Providers() {
   return (
     <Card
       title={`${providers.length} providers`}
-      subtitle={`${activeInPeriod} with spending in ${label} · ${formatEUR(sumCents(periodRows))} in ${label} · ${formatEUR(allTotal)} all time${toReviewTotal ? ` · ${toReviewTotal} charge type${toReviewTotal === 1 ? '' : 's'} to review` : ''}`}
-      actions={
-        <div style={{ width: 240, maxWidth: '100%' }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Search providers" />
-        </div>
-      }
+      subtitle={`${formatEUR(sumCents(periodRows))} in ${label} · ${formatEUR(allTotal)} all time`}
     >
+      <CardNote>
+        {activeInPeriod} with spending in {label}
+        {toReviewTotal ? ` · ${toReviewTotal} charge type${toReviewTotal === 1 ? '' : 's'} to review` : ''}
+      </CardNote>
       <div className="filters" style={{ marginBottom: 12 }}>
+        <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
+          <SearchInput value={q} onChange={setQ} placeholder="Search providers, like Anthropic" />
+        </div>
         <label>
           Category
           <select className="select input-sm" value={category} aria-label="Filter by category" onChange={(e) => setCategory(e.target.value as Category | '')}>
@@ -159,7 +161,7 @@ export function Providers() {
                           <div className="bar-track" style={{ flex: 1 }}>
                             <ShareFill provider={p.provider} share={share} />
                           </div>
-                          <span className="small muted num" style={{ width: 34, textAlign: 'right' }}>
+                          <span className="small secondary num" style={{ width: 34, textAlign: 'right' }}>
                             {(share * 100).toFixed(share < 0.1 ? 1 : 0)}%
                           </span>
                         </div>
@@ -169,7 +171,7 @@ export function Providers() {
                       <td className="date">{dateLabel(p.lastDate)}</td>
                       <td>
                         {toReview.get(p.provider) ? (
-                          <span className="chip chip-warn">{toReview.get(p.provider)} to review</span>
+                          <Pill kind="attention">{toReview.get(p.provider)} to review</Pill>
                         ) : (
                           <span className="muted" title="Every charge type is confirmed">✓</span>
                         )}
@@ -193,7 +195,7 @@ export function Providers() {
                     <TrendCell last={trend.last.get(p.provider) ?? 0} prev={trend.prev.get(p.provider) ?? 0} labels={trend} />
                   </span>
                 )}
-                <span className="small muted" style={{ gridColumn: '1 / -1' }}>
+                <span className="small secondary" style={{ gridColumn: '1 / -1' }}>
                   {label}: {p.periodCents ? formatEUR(p.periodCents) : '—'} · {p.count} charges · {dateLabel(p.firstDate)} – {dateLabel(p.lastDate)}
                   {toReview.get(p.provider) ? ` · ${toReview.get(p.provider)} to review` : ''}
                 </span>

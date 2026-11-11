@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
 import { OverlapCard, PriceChangesCard, SavingsCard, StoppedCard } from '../components/SubscriptionCards';
-import { Card, Delta, Disclosure, EmptyState, ProviderDot, ProviderLink, ReadChip, Segmented, StreamName } from '../components/ui';
+import { Card, CardNote, Delta, Pill, Disclosure, EmptyState, ProviderDot, ProviderLink, ReadChip, Segmented, StreamName } from '../components/ui';
 import {
   concentration,
   filterPeriod,
@@ -125,7 +125,7 @@ function InsightGroup({ title, lead, why, children }: { title: string; lead: str
         {children}
         {why && (
           <Disclosure label="How are these found?">
-            <p className="small muted" style={{ margin: 0 }}>{why}</p>
+            <p className="small secondary" style={{ margin: 0 }}>{why}</p>
           </Disclosure>
         )}
       </div>
@@ -136,9 +136,9 @@ function InsightGroup({ title, lead, why, children }: { title: string; lead: str
 function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div>
-      <div className="small secondary">{label}</div>
-      <div className="num" style={{ fontSize: 19, fontWeight: 650 }}>{value}</div>
-      {sub && <div className="small muted">{sub}</div>}
+      <div className="section-label">{label}</div>
+      <div className="num amt-key">{value}</div>
+      {sub && <div className="meta">{sub}</div>}
     </div>
   );
 }
@@ -156,16 +156,17 @@ function SpendingTypes() {
   );
   return (
     <div className="grid cols-2">
-      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither" actions={<ReadChip />}>
+      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed" badge={<ReadChip />}>
+        <CardNote>On a schedule, pay as you go, or neither.</CardNote>
         <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
-      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`} actions={<ReadChip />}>
+      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`} badge={<ReadChip />}>
         <div className="stack" style={{ gap: 14 }}>
           <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
           <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
           <Row label="One-time / Other" now={c.after.otherCents} before={c.before.otherCents} />
           {sentence && <p className="small secondary">{sentence}</p>}
-          <p className="small muted">
+          <p className="small secondary">
             The app guesses each charge's type. A charge is a subscription once it has appeared monthly for three months in a row, and usage
             when the same descriptor is charged three or more times without that rhythm. Correct any of them on the provider's page.
           </p>
@@ -207,8 +208,8 @@ function YearComparison() {
                   <tr key={y}>
                     <td>
                       <strong>{y}</strong>
-                      {y === latestYear && span.lastMonth.slice(5) !== '12' && <span className="small muted"> · to date</span>}
-                      {y === years[0] && span.firstMonth.slice(5) !== '01' && <span className="small muted"> · from {monthShort(span.firstMonth)}</span>}
+                      {y === latestYear && span.lastMonth.slice(5) !== '12' && <span className="small secondary"> · to date</span>}
+                      {y === years[0] && span.firstMonth.slice(5) !== '01' && <span className="small secondary"> · from {monthShort(span.firstMonth)}</span>}
                     </td>
                     <td className="amount">{formatEUR(total)}</td>
                     <td className="amount">{formatEUR(ytd)}</td>
@@ -271,7 +272,7 @@ function ChangesCard() {
     <Card
       title="Biggest increases and decreases"
       subtitle={`${result.after} vs ${result.before}, by provider`}
-      actions={
+      action={
         <Segmented<ChangeWindow>
           label="Comparison window"
           value={win}
@@ -288,14 +289,14 @@ function ChangesCard() {
       ) : (
         <div className="stack" style={{ gap: 12 }}>
           <div>
-            <div className="small secondary" style={{ marginBottom: 4 }}>Increases (more spending)</div>
-            {ups.length ? ups.map((c) => <Row key={c.provider} c={c} />) : <div className="small muted">None</div>}
+            <div className="section-label" style={{ marginBottom: 4 }}>Increases (more spending)</div>
+            {ups.length ? ups.map((c) => <Row key={c.provider} c={c} />) : <div className="meta">None</div>}
           </div>
           <div>
-            <div className="small secondary" style={{ marginBottom: 4 }}>Decreases (less spending)</div>
-            {downs.length ? downs.map((c) => <Row key={c.provider} c={c} />) : <div className="small muted">None</div>}
+            <div className="section-label" style={{ marginBottom: 4 }}>Decreases (less spending)</div>
+            {downs.length ? downs.map((c) => <Row key={c.provider} c={c} />) : <div className="meta">None</div>}
           </div>
-          <div className="small muted">
+          <div className="small secondary">
             Net change: <Delta before={sumCents(result.changes.map((c) => ({ amountCents: c.beforeCents })))} after={sumCents(result.changes.map((c) => ({ amountCents: c.afterCents })))} />
           </div>
         </div>
@@ -324,7 +325,7 @@ function ConcentrationCard() {
     <Card
       title="Provider concentration"
       subtitle={win === 'all' ? 'Share of all-time spending' : `Share of spending, ${monthLabel(addMonths(span.lastMonth, -11))} – ${monthLabel(span.lastMonth)}`}
-      actions={
+      action={
         <Segmented<ConcWindow>
           label="Concentration window"
           value={win}
@@ -355,7 +356,7 @@ function ConcentrationCard() {
           </a>
         ))}
         {rest.length > 0 && (
-          <div className="row-between small muted">
+          <div className="row-between small secondary">
             <span className="bar-name"><span className="dot" style={{ background: colors.otherColor }} /><span>{rest.length} other providers</span></span>
             <span className="num">{formatEUR(rest.reduce((a, s) => a + s.cents, 0))} · {pct(restShare)}</span>
           </div>
@@ -371,9 +372,10 @@ function RecurringCard() {
   return (
     <Card
       title="Recurring-looking patterns"
-      subtitle="Charges from the same provider on a similar day and amount for 3+ consecutive months. These are observations from the data, not confirmed subscriptions."
-      actions={<ReadChip />}
+      subtitle="Same provider, similar day and amount, 3+ months in a row"
+      badge={<ReadChip />}
     >
+      <CardNote>These are observations from the data, not confirmed subscriptions.</CardNote>
       {patterns.length === 0 ? (
         <EmptyState>No recurring-looking patterns found.</EmptyState>
       ) : (
@@ -398,14 +400,14 @@ function RecurringCard() {
                   <td className="nowrap">{p.cadence === 'yearly' ? 'Yearly (set by you)' : `Monthly, ~${ordinal(p.typicalDay)}`}</td>
                   <td className="amount">
                     {formatEUR(p.typicalCents)}
-                    {p.minCents !== p.maxCents && <div className="small muted">{formatEUR(p.minCents)}–{formatEUR(p.maxCents)}</div>}
+                    {p.minCents !== p.maxCents && <div className="small secondary">{formatEUR(p.minCents)}–{formatEUR(p.maxCents)}</div>}
                   </td>
                   <td className="amount">{p.months}</td>
                   <td className="date">{rangeLabel(monthOf(p.firstDate), monthOf(p.lastDate))}</td>
                   <td>
-                    <span className={`chip ${p.active ? 'chip-active' : 'chip-ended'}`} title={p.active ? `Next expected around ${dateLabel(p.nextExpected)}` : `Last seen ${dateLabel(p.lastDate)}`}>
+                    <Pill kind="neutral" title={p.active ? `Next expected around ${dateLabel(p.nextExpected)}` : `Last seen ${dateLabel(p.lastDate)}`}>
                       {p.active ? 'Still appearing' : 'Stopped'}
-                    </span>
+                    </Pill>
                   </td>
                 </tr>
               ))}

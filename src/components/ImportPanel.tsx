@@ -80,7 +80,7 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
         <div className="row-between wrap">
           <div>
             <h3>Review import</h3>
-            <p className="small muted">{fileName}</p>
+            <p className="small secondary">{fileName}</p>
           </div>
           <div className="row">
             <button className="btn" onClick={() => setPreview(null)} disabled={busy}>
@@ -99,20 +99,20 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
         {plan && (
           <div className="stat-row">
             <div>
-              <div className="small muted">Rows in file</div>
+              <div className="small secondary">Rows in file</div>
               <div className="value num">{parse.rowsInFile}</div>
             </div>
             <div>
-              <div className="small muted">New, will be added</div>
+              <div className="small secondary">New, will be added</div>
               <div className="value num">{plan.toAdd.length}</div>
-              <div className="small muted num">{formatEUR(sumCents(plan.toAdd))}</div>
+              <div className="small secondary num">{formatEUR(sumCents(plan.toAdd))}</div>
             </div>
             <div>
-              <div className="small muted">Already stored</div>
+              <div className="small secondary">Already stored</div>
               <div className="value num">{plan.duplicates.length}</div>
             </div>
             <div>
-              <div className="small muted">Invalid rows</div>
+              <div className="small secondary">Invalid rows</div>
               <div className="value num" style={{ color: parse.errors.length ? 'var(--danger)' : undefined }}>
                 {parse.errors.length}
               </div>

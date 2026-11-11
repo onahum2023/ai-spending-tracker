@@ -6,7 +6,7 @@ import type { Transaction } from '../lib/types';
 import { navigate, providerHref } from '../router';
 import { useLedger } from '../store';
 import { TagInput } from './TagEditor';
-import { EmptyState, ProviderLink, SortHeader, type SortDir } from './ui';
+import { EmptyState, Pill, ProviderLink, SortHeader, type SortDir } from './ui';
 
 export type TxSortKey = 'date' | 'merchant' | 'provider' | 'type' | 'tag' | 'amount';
 
@@ -100,14 +100,14 @@ export function TransactionTable({
                 )}
                 {showType && (
                   <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
-                    <a className="chip" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
+                    <a className="type-text" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
                       {typeText(t)}
                     </a>
                   </td>
                 )}
                 {showTag && (
                   <td onClick={(e) => e.stopPropagation()}>
-                    {editableTags ? <TagInput tx={t} /> : t.tag ? <span className="chip">{t.tag}</span> : <span className="muted">—</span>}
+                    {editableTags ? <TagInput tx={t} /> : t.tag ? <Pill kind="neutral">{t.tag}</Pill> : <span className="muted">—</span>}
                   </td>
                 )}
                 <td className="amount">{formatEUR(t.amountCents)}</td>
@@ -152,7 +152,7 @@ export function TransactionTable({
               {t.tag ? ` · #${t.tag}` : ''}
             </span>
             {onDelete && (
-              <button className="btn btn-sm btn-ghost" style={{ gridColumn: '1 / -1', justifySelf: 'start' }} onClick={() => onDelete(t)}>
+              <button className="btn-text" style={{ gridColumn: '1 / -1', justifySelf: 'start' }} onClick={() => onDelete(t)}>
                 Delete this charge
               </button>
             )}

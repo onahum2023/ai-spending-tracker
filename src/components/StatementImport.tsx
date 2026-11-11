@@ -12,7 +12,7 @@ import { formatEUR, sumCents } from '../lib/money';
 import { exportCsv } from '../lib/download';
 import { useLedger } from '../store';
 import { AskClaude } from './AskClaude';
-import { SearchInput, Segmented } from './ui';
+import { Pill, SearchInput, Segmented } from './ui';
 
 const PAGE = 100;
 const KNOWN_PROVIDERS = [...new Set(VENDORS.map((v) => v.provider))].sort();
@@ -209,7 +209,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
               {r.error ? (
                 <div className="small" style={{ color: 'var(--danger)' }}>{r.error}</div>
               ) : (
-                <div className="small muted">
+                <div className="small secondary">
                   {r.format === 'amex' ? 'American Express export' : r.format === 'revolut-pdf' ? 'Revolut PDF statement' : 'Table export'} · {r.rows.length} lines · {period(r.rows)}
                   {r.notes.length > 0 && <div>{r.notes.join(' ')}</div>}
                 </div>
@@ -217,7 +217,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
             </div>
           ))}
           {merged.dropped > 0 && (
-            <div className="small muted">{merged.dropped} line{merged.dropped === 1 ? '' : 's'} appeared in more than one file and {merged.dropped === 1 ? 'was' : 'were'} counted once.</div>
+            <div className="small secondary">{merged.dropped} line{merged.dropped === 1 ? '' : 's'} appeared in more than one file and {merged.dropped === 1 ? 'was' : 'were'} counted once.</div>
           )}
         </div>
       )}
@@ -289,7 +289,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
                       <td className="date">{dateLabel(c.row.date)}</td>
                       <td>
                         <div className="merchant">{c.row.merchant}</div>
-                        <div className="small muted stmt-sub" title={[c.row.label, c.row.details, c.row.country].filter(Boolean).join(' · ')}>
+                        <div className="small secondary stmt-sub" title={[c.row.label, c.row.details, c.row.country].filter(Boolean).join(' · ')}>
                           {[c.row.label, summarizeDetails(c.row.details), c.row.country].filter(Boolean).join(' · ')}
                         </div>
                       </td>
@@ -320,7 +320,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
                         </td>
                       )}
                       <td className="small secondary why">
-                        {c.by !== 'rules' && <span className="chip chip-accent" style={{ marginRight: 4 }}>{c.by === 'you' ? 'You' : 'Claude'}</span>}
+                        {c.by !== 'rules' && <><Pill kind={c.by === 'you' ? 'neutral' : 'inferred'}>{c.by === 'you' ? 'You' : 'Claude'}</Pill>{' '}</>}
                         {c.reasons.join('. ')}
                       </td>
                       <td className="nowrap">
