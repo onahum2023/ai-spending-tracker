@@ -28,6 +28,23 @@ CI runs the same checks plus a production build. After changing dependencies, ru
 - Money is handled in integer cents; add a test with your change, and keep expected values independent of the code under test.
 - Keep pull requests focused. Small ones are squash-merged; larger ones that hold one commit per change may be merged with a merge commit.
 
+## Releasing
+
+Versions follow [Semantic Versioning](https://semver.org/) and every release is listed in [CHANGELOG.md](CHANGELOG.md). Add user-visible changes to the `Unreleased` section as you go. To release:
+
+1. In a pull request, set the new `version` in `package.json` (and `package-lock.json`, for example with `npm version <x.y.z> --no-git-tag-version`), and move the `Unreleased` notes under a new `## [x.y.z] - YYYY-MM-DD` heading.
+2. Merge it once CI is green.
+3. Tag the merge commit on `main` and push the tag:
+
+   ```bash
+   git tag -a vX.Y.Z -m "vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+4. Create a GitHub Release from that tag and paste in the changelog section.
+
+The About card shows the version from `package.json` plus the commit and date of the build, so the number must be bumped before tagging.
+
 ## License
 
 By contributing you agree that your contribution is released under the Apache License 2.0, like the rest of the project.
