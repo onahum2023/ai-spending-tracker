@@ -10,7 +10,6 @@ import { ProviderDot, Segmented } from './components/ui';
 import { generateDemo } from './lib/demoData';
 import { Overview } from './pages/Overview';
 import { ProviderDetail } from './pages/ProviderDetail';
-import { Subscriptions } from './pages/Subscriptions';
 import { Providers } from './pages/Providers';
 import { Transactions } from './pages/Transactions';
 import { Insights } from './pages/Insights';
@@ -21,7 +20,6 @@ import { LedgerProvider, useLedger } from './store';
 
 const icons: Record<string, ReactNode> = {
   overview: <path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z" />,
-  subscriptions: <path d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" />,
   providers: <path d="M4 6h16M4 12h16M4 18h10" />,
   transactions: <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />,
   insights: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
@@ -30,10 +28,9 @@ const icons: Record<string, ReactNode> = {
 
 const NAV = [
   { key: 'overview', label: 'Overview', path: [] as string[] },
-  { key: 'subscriptions', label: 'Subscriptions', path: ['subscriptions'] },
   { key: 'providers', label: 'Providers', path: ['providers'] },
-  { key: 'transactions', label: 'Transactions', path: ['transactions'] },
   { key: 'insights', label: 'Insights', path: ['insights'] },
+  { key: 'transactions', label: 'Transactions', path: ['transactions'] },
   { key: 'data', label: 'Data', path: ['data'] },
 ];
 
@@ -56,7 +53,7 @@ function BrandMark() {
 }
 
 /** Pages that moved. Old links and bookmarks land on the page that took over. */
-const MOVED: Record<string, string[]> = { trends: ['insights'] };
+const MOVED: Record<string, string[]> = { trends: ['insights'], subscriptions: [] };
 
 function Shell() {
   const route = useRoute();
@@ -86,11 +83,6 @@ function Shell() {
         title = 'Providers';
         page = <Providers />;
       }
-      break;
-    case 'subscriptions':
-      title = 'Subscriptions';
-      page = <Subscriptions />;
-      showPeriod = false;
       break;
     case 'transactions':
       title = 'Transactions';

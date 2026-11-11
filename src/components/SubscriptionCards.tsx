@@ -1,6 +1,6 @@
 import { STALE_AFTER_DAYS } from '../lib/forecast';
 import { dateLabel, monthShort } from '../lib/dates';
-import { UPCOMING_DAYS, type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type UpcomingCharge } from '../lib/insights';
+import { type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type UpcomingCharge } from '../lib/insights';
 import { formatEUR } from '../lib/money';
 import { Card, Delta, EmptyState, ProviderLink, ReadChip, StreamName, TypeNote } from './ui';
 
@@ -43,19 +43,6 @@ export function UpcomingList({ upcoming, fresh, latest, total }: { upcoming: Upc
         <span className="num">{formatEUR(total)}</span>
       </div>
     </div>
-  );
-}
-
-export function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcoming: UpcomingCharge[]; fresh: boolean; latest: string; asOf: string; total: number }) {
-  return (
-    <Card title={`Next ${UPCOMING_DAYS} days`} subtitle={`From ${dateLabel(asOf)}, on the day each recurring charge usually lands`}>
-      <UpcomingList upcoming={upcoming} fresh={fresh} latest={latest} total={total} />
-      {fresh && upcoming.length > 0 && (
-        <p className="small muted" style={{ marginTop: 8 }}>
-          Estimates from past months. Amounts, dates and plans can change, and unusual charges are not predicted.
-        </p>
-      )}
-    </Card>
   );
 }
 

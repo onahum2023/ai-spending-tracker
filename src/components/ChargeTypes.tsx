@@ -104,7 +104,7 @@ function ChargeTypeRow({ t }: { t: ChargeTypeSummary }) {
 
 /**
  * The charge types of one provider, and the one place where you say what each is: Subscription (monthly or yearly), Usage or
- * One-time / Other. A setting carries over to every charge of that charge type, past and future. The Subscriptions page and the
+ * One-time / Other. A setting carries over to every charge of that charge type, past and future. Overview, Insights and the
  * Transactions page only show the result.
  */
 export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Transaction[]; actions?: React.ReactNode }) {
