@@ -7,6 +7,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmented } from '../components/ui';
 import {
   filterPeriod,
+  monthDrillDown,
   monthTotal,
   monthTotalThroughDay,
   periodLabel,
@@ -16,8 +17,9 @@ import {
 } from '../lib/analytics';
 import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
 import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
+import { describeOneTime, oneTimeNote } from '../lib/oneTime';
 import { reviewCounts } from '../lib/providerChargeTypes';
-import type { Period } from '../lib/types';
+import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
@@ -129,8 +131,13 @@ export function Overview() {
 }
 
 function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: string, throughDay?: number) => void }) {
-  const { transactions, span, today } = useLedger();
+  const { transactions, span, today, analysis } = useLedger();
   if (!span) return null;
+  /** A second line under a comparison when either period holds one-time charges. Nothing when there are none. */
+  const oneTime = (current: Transaction[], earlier: Transaction[]) => {
+    const n = oneTimeNote(current, earlier, analysis.typeOf, sumCents);
+    return n ? <span className="kpi-note">{describeOneTime(n)}</span> : null;
+  };
   const byMonth = totalsByMonth(transactions);
   const currentMonth = monthOf(today);
 
@@ -183,11 +190,18 @@ function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: 
             inProgress ? (
               <>
                 {monthShort(prev)} 1–{day}: {formatEUR(prevSameDays)}. Full {monthShort(prev)} total was {formatEUR(before)}.
+                {oneTime(monthDrillDown(transactions, m), monthDrillDown(transactions, prev, day))}
               </>
             ) : before > 0 ? (
-              `${formatPct(pctChange(before, cur))} vs ${monthLabel(prev)}`
+              <>
+                {formatPct(pctChange(before, cur))} vs {monthLabel(prev)}
+                {oneTime(monthDrillDown(transactions, m), monthDrillDown(transactions, prev))}
+              </>
             ) : (
-              'No spending the month before'
+              <>
+                No spending the month before
+                {oneTime(monthDrillDown(transactions, m), [])}
+              </>
             )
           }
         />
@@ -221,7 +235,7 @@ function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: 
         <Kpi
           label={partial ? `vs same months of ${y - 1}` : `vs ${y - 1}`}
           value={hasPrev ? <Delta before={samePrev} after={total} showPct={false} /> : '—'}
-          sub={hasPrev ? <>{monthShort(months[0])}–{monthShort(months[months.length - 1])} {y - 1}: {formatEUR(samePrev)} ({formatPct(pctChange(samePrev, total))})</> : 'Nothing to compare'}
+          sub={hasPrev ? <>{monthShort(months[0])}–{monthShort(months[months.length - 1])} {y - 1}: {formatEUR(samePrev)} ({formatPct(pctChange(samePrev, total))}){oneTime(rows, rowsInMonths(transactions, `${y - 1}-${firstMM}`, `${y - 1}-${lastMM}`))}</> : 'Nothing to compare'}
         />
         <Kpi label="Average per month" value={formatEUR(Math.round(total / months.length))} sub={`Highest: ${monthLabel(best)} (${formatEUR(byMonth.get(best) ?? 0)})`} />
         <Kpi label="Providers with spending" value={new Set(rows.map((r) => r.provider)).size} sub={`in ${y}`} />

@@ -395,6 +395,7 @@ a.legend-item:hover { color: var(--ink); text-decoration: underline; }
 .kpi-btn:hover { background: var(--surface-hover); }
 .kpi-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .kpi-btn .kpi-value, .kpi-btn .kpi-sub { display: block; }
+.kpi-note { display: block; margin-top: 4px; }
 
 /* Side sheet: one month's transactions */
 .sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.35); display: flex; justify-content: flex-end; }
