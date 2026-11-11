@@ -4,6 +4,8 @@ A local, single-user dashboard for understanding what you spend on AI products a
 
 Everything runs in your browser and your data is never uploaded, unless you choose to ask Claude about statement lines with your own Anthropic API key. Data is stored in IndexedDB on your device. There is no backend, account, cookie or analytics. See the [privacy statement](src/content/privacy.ts) (served as `/privacy.html`).
 
+The app is meant to be **run locally** (see below). A hosted copy at <https://ai-spend-tracker.neotixhq.com> works as a demo, and you can use it with your own data too if you prefer not to run it yourself: it behaves the same, and your data stays in your browser either way.
+
 ![Overview](docs/screenshots/01-overview-month.jpg)
 
 ## Run it locally
@@ -198,22 +200,22 @@ PDF and Excel files are git-ignored anywhere in the repo as a second safety net.
 
 When a visitor imports their own CSV (from the banner's **Use my own data** or the Data page), duplicates are checked against stored data only, the demo is discarded, and only their rows are saved. Demo and real data never mix. **Exit demo** returns to the welcome screen. The demo also works when browser storage is blocked (some private windows).
 
-## Hosting on Vercel
+## Hosting your own copy
 
-The app is a static site: Vercel only serves the files in `dist/`. There are no server functions, and no data is sent anywhere.
-
-**Production domain.** `https://ai-spend-tracker.neotixhq.com` is attached to the production deployment only; previews keep their `*.vercel.app` addresses and name the production domain as canonical. Checked on 2026-11-10: HTTP/2 over a Let's Encrypt certificate that Vercel issues and renews, and the strict security headers from `vercel.json` are present. Vercel itself sends `Strict-Transport-Security: max-age=63072000`, so `vercel.json` does not set one (a shorter value would weaken it). `vercel.json` redirects `www.ai-spend-tracker.neotixhq.com` to the apex (permanent, path kept, matched on that exact host only), which takes effect once `www` is attached to the project and its DNS record points to Vercel. The project's own `*.vercel.app` production address should redirect the same way, by its exact host: add it to `vercel.json` once known (never by wildcard, which would redirect previews). The domain registration is managed in the owner's Namecheap account.
+The app is a static site, so any static host works. The repo is set up for Vercel, which only serves the files in `dist/`. There are no server functions, and no data is sent anywhere.
 
 1. Import the GitHub repo in Vercel. `vercel.json` sets the Vite framework, `npm run build` and the `dist` output, so no other settings are needed.
 2. Deploy. The hash-based routes (`#/providers`) need no rewrites.
 
+`src/content/site.ts` holds the production address, the owner and the contact. To host your own copy, change those and set `SITE_URL` when building (the canonical link, social card, `robots.txt` and `sitemap.xml` follow it). `vercel.json` also redirects the `www` host of the project's own domain to the apex: remove or edit that rule for your domain.
+
 What stays private:
 
-- A visitor's CSV is read with the browser's file API and saved in that browser's IndexedDB on their device. It is never uploaded, and nobody else can see it, including you. It is not synced across devices, and it is lost if the visitor clears site data.
+- A visitor's CSV is read with the browser's file API and saved in that browser's IndexedDB on their device. It is never uploaded, and nobody else can see it, including whoever runs the site. It is not synced across devices, and it is lost if the visitor clears site data.
 - Page filters live after the `#`, which browsers never send to the server.
-- `vercel.json` sends a strict **Content-Security-Policy**: the page can only load scripts and workers from its own origin, and can only make requests to its own origin plus `api.anthropic.com` (used solely by the opt-in Ask Claude button), so even a bug or injected script can't send data anywhere else. It also sends `Referrer-Policy: no-referrer` and related headers. `npm run preview` uses the same headers, so you can check a production build locally.
+- `vercel.json` sends a strict **Content-Security-Policy**: the page can only load scripts and workers from its own origin, and can only make requests to its own origin plus `api.anthropic.com` (used solely by the opt-in Ask Claude button), so even a bug or injected script can't send data anywhere else. It also sends `Referrer-Policy: no-referrer` and related headers. `npm run preview` uses the same headers, so you can check a production build locally. Vercel itself sends `Strict-Transport-Security`, so `vercel.json` does not set it.
 - After a successful import the app asks the browser to keep its storage (`navigator.storage.persist()`). Browsers may decline; Safari can still clear storage for sites not visited in a while.
-- Vercel keeps normal request logs (IP address, requested file) for one day on the Pro plan, its default, which has not been changed (Vercel documents 1 hour on Hobby, 1 day on Pro, 3 days on Enterprise and 30 days with Observability Plus; checked 2026-11-10). Those never include CSV contents. Don't add analytics or session-replay tools that record page content.
+- Vercel keeps normal request logs (IP address, requested file) for one day on the Pro plan, its default (1 hour on Hobby, 3 days on Enterprise, 30 days with Observability Plus). Those never include CSV contents. Don't add analytics or session-replay tools that record page content.
 - Only `public/` and the built app are deployed. The repo holds no real financial data; tests use a synthetic fixture. A test fails if any CSV other than the synthetic pack appears in `public/`.
 
 ## Synthetic demo data pack
@@ -303,6 +305,8 @@ src/
 scripts/          generate-demo-data.ts (writes the demo pack to disk)
 public/demo/      synthetic demo pack (the only data files that get deployed)
 vercel.json       Vercel build settings and security headers
+.github/workflows/ci.yml  typecheck, tests, license check and build on every push and pull request
+CONTRIBUTING.md   how to contribute; SECURITY.md  how to report a vulnerability
 private/          your real ledgers for local checks (git-ignored, never committed)
 inbox/            raw bank/card statements for local checks (git-ignored, never committed)
 ```
