@@ -432,11 +432,15 @@ export function TypeChart({
   rows,
   months,
   typeOf,
+  selectedMonth,
+  onSelectMonth,
   height = 260,
 }: {
   rows: LedgerRow[];
   months: string[];
   typeOf: (row: any) => TypeInfo;
+  selectedMonth?: string | null;
+  onSelectMonth?: (m: string) => void;
   height?: number;
 }) {
   const { typeColors } = useLedger();
@@ -455,7 +459,7 @@ export function TypeChart({
     if (!active || !payload?.length) return null;
     const p = payload[0].payload;
     return (
-      <TipShell title={monthLabel(String(label))} total={p.subscriptionCents + p.usageCents + p.otherCents}>
+      <TipShell title={monthLabel(String(label))} total={p.subscriptionCents + p.usageCents + p.otherCents} hint={onSelectMonth ? 'Click to open this month' : undefined}>
         {KINDS.map((k) => (
           <TipRow key={k} color={typeColors(k)} label={KIND_LABELS[k]} cents={p[`${k}Cents`]} />
         ))}
@@ -474,13 +478,25 @@ export function TypeChart({
         ))}
       </div>
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+        <BarChart
+          data={data}
+          margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+          onClick={(s: any) => {
+            const i = s?.activeTooltipIndex ?? s?.activeIndex;
+            if (onSelectMonth && i !== undefined && i !== null && data[Number(i)]) onSelectMonth(String(data[Number(i)].month));
+          }}
+          style={{ cursor: onSelectMonth ? 'pointer' : undefined }}
+        >
           <CartesianGrid vertical={false} stroke="var(--grid)" />
           <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
           <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
           <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
           {KINDS.map((k, i) => (
-            <Bar key={k} dataKey={k} stackId="s" fill={typeColors(k)} stroke="var(--surface)" strokeWidth={1} maxBarSize={24} radius={i === KINDS.length - 1 ? [3, 3, 0, 0] : 0} isAnimationActive={false} />
+            <Bar key={k} dataKey={k} stackId="s" fill={typeColors(k)} stroke="var(--surface)" strokeWidth={1} maxBarSize={24} radius={i === KINDS.length - 1 ? [3, 3, 0, 0] : 0} isAnimationActive={false}>
+              {data.map((d) => (
+                <Cell key={String(d.month)} fillOpacity={selectedMonth && d.month !== selectedMonth ? 0.38 : 1} />
+              ))}
+            </Bar>
           ))}
         </BarChart>
       </ResponsiveContainer>

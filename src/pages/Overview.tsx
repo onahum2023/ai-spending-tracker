@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts';
+import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
 import { ForecastCard } from '../components/ForecastCard';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, EmptyState, Kpi, ProviderDot, Segmented } from '../components/ui';
+import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmented } from '../components/ui';
 import {
   filterPeriod,
   monthTotal,
@@ -19,9 +19,12 @@ import type { Period } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
+type ChartView = 'provider' | 'category' | 'type';
+const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
+
 export function Overview() {
   const { transactions, span, period, setPeriod, today, analysis } = useLedger();
-  const [view, setView] = useState<'provider' | 'category'>('provider');
+  const [view, setView] = useState<ChartView>('provider');
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
 
   if (!span) return null;
@@ -37,16 +40,17 @@ export function Overview() {
 
       <div className="grid cols-2">
         <Card
-          title={`Monthly spending by ${view}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
-          subtitle="Click a month to explore it"
+          title={`Monthly spending by ${VIEW_NAMES[view]}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
+          subtitle={view === 'type' ? <>Click a month to explore it · <ReadChip /> Types are suggestions until you confirm them</> : 'Click a month to explore it'}
           actions={
-            <Segmented<'provider' | 'category'>
+            <Segmented<ChartView>
               label="Group by"
               value={view}
               onChange={setView}
               options={[
                 { value: 'provider', label: 'Provider' },
                 { value: 'category', label: 'Category' },
+                { value: 'type', label: 'Commitment' },
               ]}
             />
           }
@@ -58,6 +62,14 @@ export function Overview() {
               selectedMonth={period.kind === 'month' ? period.month : null}
               onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
             />
+          ) : view === 'type' ? (
+            <TypeChart
+              rows={transactions}
+              months={chartMonths}
+              typeOf={analysis.typeOf}
+              selectedMonth={period.kind === 'month' ? period.month : null}
+              onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
+            />
           ) : (
             <MonthlyCategoryChart
               rows={transactions}
@@ -66,6 +78,17 @@ export function Overview() {
               selectedMonth={period.kind === 'month' ? period.month : null}
               onSelectMonth={(m) => setPeriod({ kind: 'month', month: m })}
             />
+          )}
+          {view === 'type' && (
+            <div style={{ marginTop: 10 }}>
+              <Disclosure label="How are these found?">
+                <p className="small muted" style={{ margin: 0 }}>
+                  Amounts and dates are the ledger. Whether a charge is a subscription, usage or one-time is the app's read: a charge is a
+                  subscription once it has appeared monthly for three months in a row, and usage when the same descriptor is charged three
+                  or more times without that rhythm. A type you confirm on the provider's page replaces the app's read for that charge type.
+                </p>
+              </Disclosure>
+            </div>
           )}
         </Card>
         <div className="stack">
