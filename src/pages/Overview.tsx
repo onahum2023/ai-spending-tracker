@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
 import { ForecastCard } from '../components/ForecastCard';
+import { NextMonthCard } from '../components/NextMonthCard';
 import { TransactionTable } from '../components/TransactionTable';
 import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmented } from '../components/ui';
 import {
@@ -97,10 +98,11 @@ export function Overview() {
         </div>
       </div>
 
-      <div className="grid cols-2">
-        <ChargesCard period={period} />
+      <div className="grid cols-2-even">
+        <NextMonthCard />
         <ContributorsCard rows={periodRows} label={periodLabel(period)} />
       </div>
+      <ChargesCard period={period} />
       {today < span.lastDate && (
         <p className="small muted">Note: some transactions are dated after today ({dateLabel(today)}).</p>
       )}

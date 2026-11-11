@@ -271,10 +271,9 @@ a.legend-item:hover { color: var(--ink); text-decoration: underline; }
 .forecast-figs .value { font-size: 17px; font-weight: 650; }
 .swatch-solid { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); display: inline-block; }
 .swatch-hatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 60%, transparent) 0 2px, color-mix(in srgb, var(--accent) 22%, transparent) 2px 4px); }
-details.explain { margin-top: 12px; font-size: 12px; color: var(--ink-2); border-top: 1px solid var(--border); padding-top: 10px; }
-details.explain summary { cursor: pointer; font-weight: 600; color: var(--ink); }
-details.explain ol, details.explain ul { padding-left: 18px; margin: 8px 0; }
-details.explain li { margin: 3px 0; }
+.explain { font-size: 12px; color: var(--ink-2); border-top: 1px solid var(--border); padding-top: 10px; }
+.explain ol, .explain ul { padding-left: 18px; margin: 8px 0; }
+.explain li { margin: 3px 0; }
 
 /* ---------- changes ---------- */
 .change-row { display: grid; grid-template-columns: minmax(90px, 1.1fr) minmax(0, 2fr) 92px; gap: 10px; align-items: center; padding: 5px 0; font-size: 13px; }

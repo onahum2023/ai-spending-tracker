@@ -3,7 +3,7 @@ import { dateLabel, dateLabelShort, monthLabel, monthLabelLong, ordinal } from '
 import { forecastCurrentMonth, LOOKBACK_MONTHS } from '../lib/forecast';
 import { formatEUR } from '../lib/money';
 import { useLedger } from '../store';
-import { Card, ProviderLink } from './ui';
+import { Card, Disclosure, ProviderLink, ReadChip } from './ui';
 
 export function ForecastCard() {
   const { transactions, today, span, analysis } = useLedger();
@@ -11,7 +11,7 @@ export function ForecastCard() {
 
   if (f.status === 'insufficient') {
     return (
-      <Card title={`${monthLabelLong(f.month)} estimate`} subtitle="Month-end projection">
+      <Card title={`${monthLabelLong(f.month)} estimate`} subtitle="Month-end projection" actions={<ReadChip>Estimate</ReadChip>}>
         <div className="stack" style={{ gap: 10 }}>
           <div>
             <div className="small muted">Recorded so far</div>
@@ -32,6 +32,7 @@ export function ForecastCard() {
     <Card
       title={`${monthLabelLong(f.month)} estimate`}
       subtitle={`As of ${dateLabel(f.asOf)} · day ${f.asOfDay} of ${f.daysInMonth}`}
+      actions={<ReadChip>Estimate</ReadChip>}
     >
       <div className="small secondary">Projected month-end total</div>
       <div className="row" style={{ alignItems: 'baseline', gap: 10 }}>
@@ -80,8 +81,8 @@ export function ForecastCard() {
         </div>
       )}
 
-      <details className="explain">
-        <summary>How is this estimated?</summary>
+      <div className="explain" style={{ marginTop: 12 }}>
+        <Disclosure label="How is this estimated?">
         <ol>
           <li>
             <strong>Recorded</strong> is the sum of every transaction dated in {monthLabel(f.month)} so far
@@ -108,7 +109,8 @@ export function ForecastCard() {
           plan changes, or transactions not yet imported will move the real number.
           {f.asOfDay >= f.daysInMonth ? ' The month is over, so nothing is added.' : ''}
         </p>
-      </details>
+        </Disclosure>
+      </div>
     </Card>
   );
 }
