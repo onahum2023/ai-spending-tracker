@@ -21,7 +21,7 @@ export const META_DESCRIPTION =
   'See what you spend on AI tools, which charges are subscriptions, price changes and what renews next. Runs in your browser: your data is never uploaded.';
 
 export const FEATURES: { title: string; text: string }[] = [
-  { title: 'Subscriptions and run-rate', text: 'Your monthly commitment, a 30-day calendar of expected charges, and what ending each subscription would save.' },
+  { title: 'Subscriptions the app finds', text: 'Recurring charges found from your statements, with the reasoning one click away, and what ending each subscription would save.' },
   { title: 'Price changes and overlap', text: 'Spot a plan that went from €22 to €109, and several chat assistants you pay for at once.' },
   { title: 'Charge types you can correct', text: 'Every charge is a subscription, usage or one-time. The app guesses and you correct it, for a whole service or a single charge.' },
   { title: 'Budgets, tags and quarterly export', text: 'Set a monthly budget, tag charges Personal or Business, and export a quarter for expense claims.' },
@@ -36,7 +36,6 @@ export const STEPS: string[] = [
 /** Screenshots served from /screenshots. Every image has alt text. */
 export const SHOTS: { file: string; alt: string; caption: string; width: number; height: number }[] = [
   { file: 'overview.jpg', alt: 'The overview page: monthly spending by provider as a stacked bar chart, with this month’s estimate.', caption: 'Overview: spending by provider and a month-end estimate', width: 1280, height: 888 },
-  { file: 'next-month.jpg', alt: 'The Next month card on the overview: monthly run-rate and a calendar of the next 30 days, marked as an estimate.', caption: 'Next month: run-rate and the next 30 days, marked as estimates', width: 1280, height: 888 },
   { file: 'insights.jpg', alt: 'The insights page: price changes, stopped subscriptions and overlapping tools, each marked as the app’s read.', caption: 'Insights: price changes, stopped subscriptions and overlap', width: 1280, height: 888 },
 ];
 

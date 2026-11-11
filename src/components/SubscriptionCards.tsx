@@ -1,50 +1,7 @@
-import { STALE_AFTER_DAYS } from '../lib/forecast';
 import { dateLabel, monthShort } from '../lib/dates';
-import { type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type UpcomingCharge } from '../lib/insights';
+import type { OverlapGroup, PriceChange, StoppedSubscription, Subscription } from '../lib/insights';
 import { formatEUR } from '../lib/money';
 import { Card, Delta, EmptyState, ProviderLink, ReadChip, StreamName, TypeNote } from './ui';
-
-const weekday = (date: string) =>
-  new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' });
-
-/** The body of the next-30-days calendar: a list of expected charges with a total, or the reason there is none. */
-export function UpcomingList({ upcoming, fresh, latest, total }: { upcoming: UpcomingCharge[]; fresh: boolean; latest: string; total: number }) {
-  if (!fresh) {
-    return (
-      <div className="notice notice-warn">
-        No calendar: the latest recorded charge is from {dateLabel(latest)}, more than {STALE_AFTER_DAYS} days ago, so dates
-        would be guesswork. Import recent transactions to enable it.
-      </div>
-    );
-  }
-  if (upcoming.length === 0) return <EmptyState>No recurring charges are expected in this window.</EmptyState>;
-  return (
-    <div className="stack" style={{ gap: 0 }}>
-      {upcoming.map((u) => (
-        <div key={u.date + u.provider + u.merchant} className="cal-row">
-          <span className="cal-date num">
-            <span className="muted">{weekday(u.date)}</span> {dateLabel(u.date).replace(/ \d{4}$/, '')}
-          </span>
-          <span>
-            <ProviderLink provider={u.provider} />
-            <StreamName provider={u.provider} merchant={u.merchant} labelOnly />
-            {u.cadence === 'yearly' && (
-              <div className="small muted">
-                {u.overdue ? 'Yearly renewal, not seen yet' : u.estimated ? 'Yearly renewal, date estimated' : 'Yearly renewal'}
-              </div>
-            )}
-          </span>
-          <span className="num">{formatEUR(u.cents)}</span>
-        </div>
-      ))}
-      <div className="cal-row cal-total">
-        <span>{upcoming.length} expected</span>
-        <span />
-        <span className="num">{formatEUR(total)}</span>
-      </div>
-    </div>
-  );
-}
 
 export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
   return (
