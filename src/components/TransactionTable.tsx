@@ -30,6 +30,7 @@ const PAGE = 100;
 export function TransactionTable({
   rows,
   showProvider = true,
+  showType = true,
   sort: controlledSort,
   onSort,
   showTotal = true,
@@ -40,6 +41,8 @@ export function TransactionTable({
 }: {
   rows: Transaction[];
   showProvider?: boolean;
+  /** The Type column. Off where the table is narrow and the type is not the point. */
+  showType?: boolean;
   sort?: { key: TxSortKey; dir: SortDir };
   onSort?: (s: { key: TxSortKey; dir: SortDir }) => void;
   showTotal?: boolean;
@@ -74,7 +77,7 @@ export function TransactionTable({
               <SortHeader label="Date" k="date" sort={sort} onSort={setSort} />
               <SortHeader label="Merchant descriptor" k="merchant" sort={sort} onSort={setSort} defaultDir="asc" />
               {showProvider && <SortHeader label="Provider" k="provider" sort={sort} onSort={setSort} defaultDir="asc" />}
-              <SortHeader label="Type" k="type" sort={sort} onSort={setSort} defaultDir="asc" className="hide-sm" />
+              {showType && <SortHeader label="Type" k="type" sort={sort} onSort={setSort} defaultDir="asc" className="hide-sm" />}
               {showTag && <SortHeader label="Tag" k="tag" sort={sort} onSort={setSort} defaultDir="asc" />}
               <SortHeader label="Amount" k="amount" sort={sort} onSort={setSort} className="amount" />
               {onDelete && <th><span className="sr-only">Delete</span></th>}
@@ -95,11 +98,13 @@ export function TransactionTable({
                     <ProviderLink provider={t.provider} />
                   </td>
                 )}
-                <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
-                  <a className="chip" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
-                    {typeText(t)}
-                  </a>
-                </td>
+                {showType && (
+                  <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
+                    <a className="chip" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
+                      {typeText(t)}
+                    </a>
+                  </td>
+                )}
                 {showTag && (
                   <td onClick={(e) => e.stopPropagation()}>
                     {editableTags ? <TagInput tx={t} /> : t.tag ? <span className="chip">{t.tag}</span> : <span className="muted">—</span>}
@@ -126,7 +131,7 @@ export function TransactionTable({
           {showTotal && (
             <tfoot>
               <tr>
-                <td colSpan={(showProvider ? 3 : 2) + 1 + (showTag ? 1 : 0)}>
+                <td colSpan={2 + (showProvider ? 1 : 0) + (showType ? 1 : 0) + (showTag ? 1 : 0)}>
                   {rows.length} transaction{rows.length === 1 ? '' : 's'}
                 </td>
                 <td className="amount">{formatEUR(total)}</td>

@@ -68,6 +68,23 @@ export function Delta({ before, after, showPct = true }: { before: number; after
   );
 }
 
+/**
+ * A change in spending for the side column: an arrow and a sign in the accent colour, whichever way it goes. Direction is in
+ * the arrow and the sign, never in red or blue, because more spending is not bad in itself.
+ */
+export function Change({ before, after, showPct = true }: { before: number; after: number; showPct?: boolean }) {
+  const d = after - before;
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '';
+  const pct = pctChange(before, after);
+  return (
+    <span className="change num">
+      {arrow && <span aria-hidden="true">{arrow} </span>}
+      {formatSignedEUR(d)}
+      {showPct && pct !== null && <span className="change-pct"> ({formatPct(pct)})</span>}
+    </span>
+  );
+}
+
 export function ProviderDot({ provider }: { provider: string }) {
   const { colors } = useLedger();
   return <span className="dot" style={{ background: colors.color(provider) }} aria-hidden="true" />;

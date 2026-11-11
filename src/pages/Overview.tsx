@@ -1,28 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
-import { BudgetCard } from '../components/BudgetCard';
-import { ClosedMonthCard } from '../components/ClosedMonthCard';
-import { ForecastCard } from '../components/ForecastCard';
-import { MonthPanel } from '../components/MonthPanel';
+import { OverviewSide } from '../components/OverviewSide';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, Disclosure, EmptyState, Kpi, ProviderDot, ReadChip, Segmented } from '../components/ui';
-import {
-  filterPeriod,
-  monthDrillDown,
-  periodKey,
-  monthTotal,
-  monthTotalThroughDay,
-  periodLabel,
-  rowsInMonths,
-  summarizeProviders,
-  totalsByMonth,
-} from '../lib/analytics';
-import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
-import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
-import type { Commitment } from '../lib/commitment';
-import { describeOneTime, formatSignedNoBreak, oneTimeNote } from '../lib/oneTime';
-import { reviewCounts } from '../lib/providerChargeTypes';
-import type { Period, Transaction } from '../lib/types';
+import { Card, Disclosure, EmptyState, ProviderDot, ReadChip, Segmented } from '../components/ui';
+import { filterPeriod, periodKey, periodLabel, summarizeProviders } from '../lib/analytics';
+import { dateLabel, daysInMonth, monthLabel, monthLabelLong, monthOf, yearOf } from '../lib/dates';
+import { forecastCurrentMonth, type ExpectedCharge } from '../lib/forecast';
+import { formatEUR, sumCents } from '../lib/money';
+import type { Period } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
@@ -30,41 +15,66 @@ type ChartView = 'provider' | 'category' | 'type';
 const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
 
 export function Overview() {
-  const { transactions, span, period, today, analysis, overrides } = useLedger();
+  const { transactions, span, period, setPeriod, today, analysis, colors, categoryColors, typeColors } = useLedger();
   const [view, setView] = useState<ChartView>('provider');
-  // The month whose transactions are open in the side sheet, and, from the comparison card, only up to a day of it.
-  const [drill, setDrill] = useState<{ month: string; throughDay?: number; commitment?: Commitment } | null>(null);
-  const closeDrill = useCallback(() => setDrill(null), []);
-  // Changing the period (the Today button, for one) closes the drill-down.
-  const periodId = periodKey(period);
-  useEffect(() => setDrill(null), [periodId]);
-  // The month the estimate is about: the one that is still in progress.
+  // The month that is still in progress: where the estimate and the budget apply.
   const currentMonth = span ? monthOf(span.lastDate > today ? span.lastDate : today) : '';
   const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
-  const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
+  const forecast = useMemo(
+    () => forecastCurrentMonth(transactions, today, undefined, analysis.expected, analysis.typeOf),
+    [transactions, today, analysis],
+  );
 
   if (!span) return null;
+
+  // One "as of" date for the whole page: the last import.
+  const asOf = span.lastDate;
+  const inProgress = period.kind === 'month' && period.month === currentMonth;
+  const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
 
   const chartMonths =
     period.kind === 'all'
       ? span.months
       : span.months.filter((m) => yearOf(m) === (period.kind === 'year' ? period.year : yearOf(period.month)));
+  // Charges still due stack on the current month's bar, in whichever grouping the chart shows.
+  const projection =
+    forecast.status === 'ok' && forecast.expected.length > 0 && chartMonths.includes(forecast.month)
+      ? { month: forecast.month, charges: forecast.expected }
+      : undefined;
+  const dueColor = (e: ExpectedCharge) => (view === 'provider' ? colors.color(e.provider) : view === 'category' ? categoryColors(e.category) : typeColors('subscription'));
+
+  const selectedMonth = period.kind === 'month' ? period.month : null;
+  // A bar is a period: clicking one does what picking that month in the date selector does.
+  const openMonth = (month: string) => setPeriod({ kind: 'month', month });
+  const chartProps = { rows: transactions, months: chartMonths, projection, selectedMonth, onSelectMonth: openMonth, fill: true };
+
+  const headline =
+    period.kind === 'month'
+      ? `${monthLabelLong(period.month)} ${inProgress ? 'so far' : 'total'}`
+      : period.kind === 'year'
+        ? `${period.year} ${yearInProgress ? 'so far' : 'total'}`
+        : 'All time';
 
   return (
     <div className="stack">
-      <KpiRow period={period} onOpenMonth={(month, throughDay) => setDrill({ month, throughDay })} />
-      {toReview > 0 && (
-        <p className="small muted" style={{ margin: '-6px 0 0' }}>
-          {toReview} charge type{toReview === 1 ? '' : 's'} still follow{toReview === 1 ? 's' : ''} the app's suggestion.{' '}
-          <a href={href(['providers'])} style={{ textDecoration: 'underline' }}>Review on the Providers page</a>
-        </p>
-      )}
-
-      <div className="grid cols-2">
-        <Card
-          title={`Monthly spending by ${VIEW_NAMES[view]}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
-          subtitle={view === 'type' ? <>Click a month to list its transactions · <ReadChip /> Types are suggestions until you confirm them</> : 'Click a month to list its transactions'}
-          actions={
+      <div className="overview-top">
+        <section className="card chart-card">
+          <div className="chart-head">
+            <div className="headline">
+              <div className="headline-label">{headline}</div>
+              <div className="headline-amount num">{formatEUR(sumCents(periodRows))}</div>
+              {inProgress && forecast.status === 'ok' && (
+                <div className="headline-est">
+                  {forecast.stillToComeCents > 0 && <span className="swatch-hatch" aria-hidden="true" />}
+                  <span>
+                    at least <strong className="num">{formatEUR(forecast.atLeastCents)}</strong> by month end
+                  </span>
+                  <ReadChip>Estimate</ReadChip>
+                </div>
+              )}
+              {inProgress && forecast.status === 'insufficient' && <div className="headline-est muted">No month-end estimate</div>}
+              {(inProgress || yearInProgress) && <div className="small muted">As of last import, {dateLabel(asOf)}</div>}
+            </div>
             <Segmented<ChartView>
               label="Group by"
               value={view}
@@ -75,32 +85,26 @@ export function Overview() {
                 { value: 'type', label: 'Commitment' },
               ]}
             />
-          }
-        >
-          {view === 'provider' ? (
-            <MonthlyProviderChart
-              rows={transactions}
-              months={chartMonths}
-              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
-              onSelectMonth={(m) => setDrill({ month: m })}
-            />
-          ) : view === 'type' ? (
-            <TypeChart
-              rows={transactions}
-              months={chartMonths}
-              typeOf={analysis.typeOf}
-              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
-              onSelectMonth={(m) => setDrill({ month: m })}
-            />
-          ) : (
-            <MonthlyCategoryChart
-              rows={transactions}
-              months={chartMonths}
-              categoryFor={analysis.categoryOf}
-              selectedMonth={drill?.month ?? (period.kind === 'month' ? period.month : null)}
-              onSelectMonth={(m) => setDrill({ month: m })}
-            />
-          )}
+          </div>
+          <div className="chart-caption small secondary">
+            Monthly spending by {VIEW_NAMES[view]}
+            {period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}
+            {view === 'type' && (
+              <>
+                {' '}
+                <ReadChip>Suggestions until you confirm them</ReadChip>
+              </>
+            )}
+          </div>
+          <div className="chart-body">
+            {view === 'provider' ? (
+              <MonthlyProviderChart {...chartProps} />
+            ) : view === 'type' ? (
+              <TypeChart {...chartProps} typeOf={analysis.typeOf} />
+            ) : (
+              <MonthlyCategoryChart {...chartProps} categoryFor={analysis.categoryOf} />
+            )}
+          </div>
           {view === 'type' && (
             <div style={{ marginTop: 10 }}>
               <Disclosure label="How are these found?">
@@ -112,164 +116,17 @@ export function Overview() {
               </Disclosure>
             </div>
           )}
-        </Card>
-        <div className="stack">
-          {period.kind === 'month' && period.month !== currentMonth && (
-            <ClosedMonthCard month={period.month} onOpen={(commitment) => setDrill({ month: period.month, commitment })} />
-          )}
-          {period.kind === 'month' && period.month === currentMonth && <ForecastCard />}
-          <BudgetCard />
-        </div>
+        </section>
+        <OverviewSide period={period} inProgress={inProgress} forecast={forecast} asOf={asOf} dueColor={dueColor} />
       </div>
 
-      <div className="grid cols-2">
-        <ChargesCard period={period} />
+      <div className="grid cols-2-even">
         <ContributorsCard rows={periodRows} label={periodLabel(period)} />
+        <ChargesCard key={periodKey(period)} period={period} />
       </div>
-      {drill && (
-        <MonthPanel
-          month={drill.month}
-          throughDay={drill.throughDay}
-          commitment={drill.commitment}
-          onClose={closeDrill}
-          onShowFullMonth={() => setDrill({ month: drill.month })}
-          onShowAllTypes={() => setDrill({ month: drill.month, throughDay: drill.throughDay })}
-        />
-      )}
       {today < span.lastDate && (
         <p className="small muted">Note: some transactions are dated after today ({dateLabel(today)}).</p>
       )}
-    </div>
-  );
-}
-
-function KpiRow({ period, onOpenMonth }: { period: Period; onOpenMonth: (month: string, throughDay?: number) => void }) {
-  const { transactions, span, today, analysis } = useLedger();
-  if (!span) return null;
-  /** A second line under a comparison when either period holds one-time charges. Nothing when there are none. */
-  const oneTime = (current: Transaction[], earlier: Transaction[]) => {
-    const n = oneTimeNote(current, earlier, analysis.typeOf, sumCents);
-    return n ? (
-      <span className="kpi-note" title={describeOneTime(n)}>
-        <span className="nowrap">{formatSignedNoBreak(n.withoutCents)}</span> without one-time
-      </span>
-    ) : null;
-  };
-  const byMonth = totalsByMonth(transactions);
-  const currentMonth = monthOf(today);
-
-  if (period.kind === 'month') {
-    const m = period.month;
-    const prev = addMonths(m, -1);
-    const cur = byMonth.get(m) ?? 0;
-    const before = byMonth.get(prev) ?? 0;
-    const inProgress = m === currentMonth;
-    const day = dayOf(today);
-    const prevSameDays = monthTotalThroughDay(transactions, prev, day);
-    const y = yearOf(m);
-    const yearRows = filterPeriod(transactions, { kind: 'year', year: y });
-    const yearMonths = span.months.filter((x) => yearOf(x) === y);
-    const count = transactions.filter((t) => monthOf(t.date) === m).length;
-    const providers = new Set(transactions.filter((t) => monthOf(t.date) === m).map((t) => t.provider)).size;
-    const yearProviders = new Set(yearRows.map((t) => t.provider)).size;
-    const isLatest = m === span.lastMonth;
-    return (
-      <div className="grid kpis">
-        <Kpi
-          label={
-            <>
-              {monthLabelLong(m)}
-              {inProgress ? (
-                <span className="chip chip-warn">In progress</span>
-              ) : (
-                isLatest && <span className="chip chip-accent">Latest</span>
-              )}
-            </>
-          }
-          value={formatEUR(cur)}
-          sub={`${count} charge${count === 1 ? '' : 's'}${inProgress ? ` · through ${dateLabel(today)}` : ''}`}
-        />
-        <Kpi label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
-        <Kpi
-          onClick={inProgress ? () => onOpenMonth(prev, day) : prev >= span.firstMonth ? () => onOpenMonth(prev) : undefined}
-          hint={inProgress ? `List the transactions of ${monthShort(prev)} 1–${day}` : prev >= span.firstMonth ? `List the transactions of ${monthLabel(prev)}` : undefined}
-          label={inProgress ? `vs same point in ${monthShort(prev)}` : 'Month over month'}
-          value={
-            inProgress ? (
-              <Delta before={prevSameDays} after={cur} showPct={false} />
-            ) : before === 0 && cur === 0 ? (
-              '—'
-            ) : (
-              <Delta before={before} after={cur} showPct={false} />
-            )
-          }
-          sub={
-            inProgress ? (
-              <>
-                {monthShort(prev)} 1–{day}: {formatEUR(prevSameDays)}. Full {monthShort(prev)} total was {formatEUR(before)}.
-                {oneTime(monthDrillDown(transactions, m), monthDrillDown(transactions, prev, day))}
-              </>
-            ) : before > 0 ? (
-              <>
-                {formatPct(pctChange(before, cur))} vs {monthLabel(prev)}
-                {oneTime(monthDrillDown(transactions, m), monthDrillDown(transactions, prev))}
-              </>
-            ) : (
-              <>
-                No spending the month before
-                {oneTime(monthDrillDown(transactions, m), [])}
-              </>
-            )
-          }
-        />
-        <Kpi
-          label={`${y} total`}
-          value={formatEUR(sumCents(yearRows))}
-          sub={`${monthShort(yearMonths[0])}–${monthShort(yearMonths[yearMonths.length - 1])} · avg ${formatEUR(Math.round(sumCents(yearRows) / yearMonths.length))}/mo`}
-        />
-        <Kpi label="Providers with spending" value={providers} sub={`in ${monthShort(m)} · ${yearProviders} in ${y}`} />
-      </div>
-    );
-  }
-
-  if (period.kind === 'year') {
-    const y = period.year;
-    const months = span.months.filter((m) => yearOf(m) === y);
-    const rows = filterPeriod(transactions, period);
-    const total = sumCents(rows);
-    const prevYearRows = filterPeriod(transactions, { kind: 'year', year: y - 1 });
-    const hasPrev = prevYearRows.length > 0;
-    // Like-for-like: same calendar months last year
-    const firstMM = months[0].slice(5);
-    const lastMM = months[months.length - 1].slice(5);
-    const samePrev = sumCents(rowsInMonths(transactions, `${y - 1}-${firstMM}`, `${y - 1}-${lastMM}`));
-    const partial = months.length < 12;
-    const best = [...months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
-    return (
-      <div className="grid kpis">
-        <Kpi label={`${y} total`} value={formatEUR(total)} sub={`${rows.length} charges · ${monthShort(months[0])}–${monthShort(months[months.length - 1])}`} />
-        <Kpi label={`${y - 1} total`} value={hasPrev ? formatEUR(sumCents(prevYearRows)) : '—'} sub={hasPrev ? `${prevYearRows.length} charges` : 'No recorded data'} />
-        <Kpi
-          label={partial ? `vs same months of ${y - 1}` : `vs ${y - 1}`}
-          value={hasPrev ? <Delta before={samePrev} after={total} showPct={false} /> : '—'}
-          sub={hasPrev ? <>{monthShort(months[0])}–{monthShort(months[months.length - 1])} {y - 1}: {formatEUR(samePrev)} ({formatPct(pctChange(samePrev, total))}){oneTime(rows, rowsInMonths(transactions, `${y - 1}-${firstMM}`, `${y - 1}-${lastMM}`))}</> : 'Nothing to compare'}
-        />
-        <Kpi label="Average per month" value={formatEUR(Math.round(total / months.length))} sub={`Highest: ${monthLabel(best)} (${formatEUR(byMonth.get(best) ?? 0)})`} />
-        <Kpi label="Providers with spending" value={new Set(rows.map((r) => r.provider)).size} sub={`in ${y}`} />
-      </div>
-    );
-  }
-
-  const total = sumCents(transactions);
-  const best = [...span.months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
-  const latest = monthTotal(transactions, span.lastMonth);
-  return (
-    <div className="grid kpis">
-      <Kpi label="All-time total" value={formatEUR(total)} sub={`${transactions.length} charges since ${monthLabel(span.firstMonth)}`} />
-      <Kpi label={`Latest month · ${monthLabel(span.lastMonth)}`} value={formatEUR(latest)} sub={span.lastMonth === monthOf(today) ? 'In progress' : `Last charge ${dateLabel(span.lastDate)}`} />
-      <Kpi label="Average per month" value={formatEUR(Math.round(total / span.months.length))} sub={`over ${span.months.length} months`} />
-      <Kpi label="Highest month" value={formatEUR(byMonth.get(best) ?? 0)} sub={monthLabel(best)} />
-      <Kpi label="Providers" value={new Set(transactions.map((t) => t.provider)).size} sub="with recorded spending" />
     </div>
   );
 }
@@ -288,19 +145,19 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
       {summary.length === 0 ? (
         <EmptyState>No spending recorded in this period.</EmptyState>
       ) : (
-        <div className="bar-list">
+        <div className="bar-list compact">
           {top.map((s) => (
             <a key={s.provider} className="bar-item" href={providerHref(s.provider)}>
               <span className="bar-name">
                 <ProviderDot provider={s.provider} />
                 <span>{s.provider}</span>
               </span>
-              <span className="num">
-                {formatEUR(s.totalCents)} <span className="muted small">{Math.round((s.totalCents / total) * 100)}%</span>
-              </span>
               <div className="bar-track">
                 <ProviderBarFill provider={s.provider} width={(s.totalCents / max) * 100} />
               </div>
+              <span className="num bar-amount">
+                {formatEUR(s.totalCents)} <span className="muted small">{Math.round((s.totalCents / total) * 100)}%</span>
+              </span>
             </a>
           ))}
           {summary.length > top.length && (
@@ -319,30 +176,47 @@ function ProviderBarFill({ provider, width }: { provider: string; width: number 
   return <div className="bar-fill" style={{ width: `${width}%`, background: colors.color(provider) }} />;
 }
 
+const TOP_CHARGES = 5;
+
+/**
+ * The period's charges, largest first: the top few, then all of them. This is the way from the Overview into the transactions
+ * behind a bar: the footer opens the Transactions page already filtered to the period.
+ */
 function ChargesCard({ period }: { period: Period }) {
   const { transactions } = useLedger();
-  const rows = filterPeriod(transactions, period);
-  if (period.kind === 'month') {
-    return (
-      <Card
-        title={`Charges in ${monthLabel(period.month)}`}
-        subtitle={`${rows.length} transaction${rows.length === 1 ? '' : 's'}`}
-        actions={
-          <a className="btn btn-sm btn-ghost" href={href(['transactions'], { from: `${period.month}-01`, to: `${period.month}-${String(daysInMonth(period.month))}` })}>
-            Open in Transactions →
-          </a>
-        }
-      >
-        <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-          <TransactionTable rows={rows} emptyText="No charges recorded in this month." />
-        </div>
-      </Card>
-    );
-  }
-  const largest = [...rows].sort((a, b) => b.amountCents - a.amountCents).slice(0, 8);
+  const [all, setAll] = useState(false);
+  const rows = useMemo(
+    () => [...filterPeriod(transactions, period)].sort((a, b) => b.amountCents - a.amountCents || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    [transactions, period],
+  );
+  const shown = all ? rows : rows.slice(0, TOP_CHARGES);
+  const filter =
+    period.kind === 'month'
+      ? { from: `${period.month}-01`, to: `${period.month}-${String(daysInMonth(period.month))}` }
+      : period.kind === 'year'
+        ? { from: `${period.year}-01-01`, to: `${period.year}-12-31` }
+        : undefined;
+  const title = period.kind === 'month' ? `Charges in ${monthLabel(period.month)}` : `Largest charges · ${periodLabel(period)}`;
   return (
-    <Card title="Largest charges" subtitle={`${periodLabel(period)} · top ${largest.length} of ${rows.length}`}>
-      <TransactionTable rows={largest} showTotal={false} initialSort={{ key: 'amount', dir: 'desc' }} />
+    <Card
+      title={title}
+      subtitle={`${rows.length} transaction${rows.length === 1 ? '' : 's'}, largest first`}
+    >
+      <div className={all ? 'charges-scroll' : undefined}>
+        <TransactionTable rows={shown} showType={false} showTotal={all} initialSort={{ key: 'amount', dir: 'desc' }} emptyText="No charges recorded in this period." />
+      </div>
+      <div className="card-foot">
+        {rows.length > TOP_CHARGES ? (
+          <button type="button" className="link-btn" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+            {all ? `Show top ${TOP_CHARGES}` : `Show all ${rows.length}`}
+          </button>
+        ) : (
+          <span />
+        )}
+        <a className="link-btn" href={href(['transactions'], filter)}>
+          Open in Transactions →
+        </a>
+      </div>
     </Card>
   );
 }

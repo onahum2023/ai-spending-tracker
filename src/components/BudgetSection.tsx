@@ -4,7 +4,6 @@ import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { monthLabelLong } from '../lib/dates';
 import { centsToPlain, formatEUR, parseAmountToCents } from '../lib/money';
 import { useLedger } from '../store';
-import { Card } from './ui';
 
 /** "120", "120.5", "1 200,00", "€120" -> cents. Empty -> null (no budget). Throws a readable message when invalid. */
 export function parseBudgetInput(raw: string): number | null {
@@ -14,9 +13,6 @@ export function parseBudgetInput(raw: string): number | null {
   if (cents === null || cents <= 0) throw new Error(`"${raw.trim()}" is not an amount like 120 or 120.50`);
   return cents;
 }
-
-const STATUS_LABEL = { under: 'On track', 'at-risk': 'At risk', over: 'Over' } as const;
-const STATUS_CLASS = { under: 'chip-ok', 'at-risk': 'chip-warn', over: 'chip-over' } as const;
 
 function BudgetBar({ line }: { line: BudgetLine }) {
   const scale = Math.max(line.budgetCents, line.atLeastCents ?? 0, line.actualCents, 1);
@@ -37,7 +33,11 @@ function BudgetBar({ line }: { line: BudgetLine }) {
   );
 }
 
-export function BudgetCard() {
+/**
+ * The monthly budget, as plain rows in the side column: a link to set one, or, once set, a small bar of what is recorded plus
+ * what is still due against it.
+ */
+export function BudgetSection() {
   const { transactions, today, analysis, budgets, setBudgets } = useLedger();
   const [editing, setEditing] = useState(false);
   const report = useMemo(
@@ -52,7 +52,9 @@ export function BudgetCard() {
 
   if (editing) {
     return (
-      <Card title="Monthly budget" subtitle="Leave a field empty for no budget. Saved in this browser only.">
+      <section className="side-section">
+        <h3>Budget</h3>
+        <p className="small muted" style={{ margin: '2px 0 10px' }}>Leave a field empty for no budget. Saved in this browser only.</p>
         <BudgetForm
           initial={budgets}
           categories={present}
@@ -62,43 +64,41 @@ export function BudgetCard() {
             setEditing(false);
           }}
         />
-      </Card>
+      </section>
     );
   }
 
   if (!hasBudgets(budgets)) {
     return (
-      <Card title="Monthly budget" subtitle="Set a limit and see it against what is recorded plus what is still due">
-        <button className="btn" onClick={() => setEditing(true)}>Set a budget…</button>
-      </Card>
+      <section className="side-section">
+        <h3>Budget</h3>
+        <button type="button" className="link-btn" onClick={() => setEditing(true)}>Set a monthly budget</button>
+      </section>
     );
   }
 
   return (
-    <Card
-      title={`Budget · ${monthLabelLong(report.month)}`}
-      subtitle="Spent so far, plus recurring charges still due this month"
-      actions={<button className="btn btn-sm" onClick={() => setEditing(true)}>Edit</button>}
-    >
-      <div className="stack" style={{ gap: 16 }}>
+    <section className="side-section">
+      <div className="row-between">
+        <h3>Budget · {monthLabelLong(report.month)}</h3>
+        <button type="button" className="link-btn small" onClick={() => setEditing(true)}>Edit</button>
+      </div>
+      <div className="stack" style={{ gap: 12, marginTop: 6 }}>
         {report.lines.map((l) => (
           <div key={l.key}>
-            <div className="row-between">
-              <span style={{ fontWeight: 600 }}>{l.label}</span>
-              <span className={`chip ${STATUS_CLASS[l.status]}`}>{STATUS_LABEL[l.status]}</span>
-            </div>
-            <BudgetBar line={l} />
             <div className="row-between small">
-              <span className="secondary">{l.summary}</span>
+              <span style={{ fontWeight: 600 }}>{l.label}</span>
               <span className="num muted">
-                {formatEUR(l.actualCents)} of {formatEUR(l.budgetCents)}
+                {formatEUR(l.atLeastCents ?? l.actualCents)} of {formatEUR(l.budgetCents)}
               </span>
             </div>
+            <BudgetBar line={l} />
+            <div className="small secondary">{l.summary}</div>
           </div>
         ))}
         {report.note && <p className="small muted">{report.note}</p>}
       </div>
-    </Card>
+    </section>
   );
 }
 

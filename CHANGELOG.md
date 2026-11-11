@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- Overview is chart first. The five summary cards, the "In progress" pill and the "charge types still follow the app's suggestion" line are gone. A header over the chart gives the total ("November 2026 so far", "October 2026 total", "2026 so far", "All time") and, for the month in progress, "at least €X by month end" with a hatched swatch. The "so far" estimate card and the Monthly budget card are replaced by plain rows beside the chart: Compared with, Still due this month, and Budget.
+- The chart fills its card. The selected month is solid and the others faded; for the month in progress the charges still due are stacked on its bar as hatched segments in each series' colour, with a "≥ €X" label. The y-axis ends just above the tallest bar, projection included.
+- Clicking a bar now changes the period, like the date selector does (Year view switches to Month view for that month). This reverses the previous release, where a bar opened a side sheet of that month's transactions. The side sheet is removed; the way into a month's transactions is the "Charges in <month>" card (top 5, Show all, Open in Transactions). The closed-month card (a month's total split by commitment type) is removed with it; the Commitment grouping of the chart shows the same split.
+- Changes in the side column use an arrow in the accent colour, not red.
+- One "as of" date everywhere on the Overview: the last import. The same-point-in-previous-month comparison now counts the days up to that date, not up to today.
+- Provider colours: the dark-green slot is no longer used, so the six providers with their own colour (blue, orange, aqua, yellow, pink, violet) are easier to tell apart, including when faded; the rest are "Other".
+
 ## [0.2.0] - 2026-11-11
 
 ### Changed
