@@ -258,14 +258,14 @@ Versions follow Semantic Versioning. Changes are listed in [CHANGELOG.md](CHANGE
 | | |
 |---|---|
 | ![Welcome](docs/screenshots/00-welcome.jpg) Welcome screen | ![Year](docs/screenshots/02-overview-year.jpg) Overview, year view |
-| ![Providers](docs/screenshots/03-providers.jpg) Providers: trend and filters | ![Provider](docs/screenshots/04-provider-detail.jpg) Provider detail: subscriptions and charge types |
+| ![Providers](docs/screenshots/03-providers.jpg) Providers: trend and filters | ![Provider](docs/screenshots/04-provider-detail.jpg) Provider detail: charge types, each opening to what the app reads |
 | ![Transactions](docs/screenshots/05-transactions-filtered.jpg) Filtered transactions | ![Insights](docs/screenshots/06-insights.jpg) Insights: patterns |
 | ![Comparisons](docs/screenshots/07-insights-comparisons.jpg) Insights: comparisons | ![Import review](docs/screenshots/08-import-review-errors.jpg) Import review with errors |
 | ![Data](docs/screenshots/09-data.jpg) Data management | ![Dark](docs/screenshots/13-overview-dark.jpg) Dark mode |
-| ![Mobile](docs/screenshots/10-mobile-overview.jpg) Mobile overview | ![Mobile forecast](docs/screenshots/11-mobile-forecast.jpg) Mobile estimate |
-| ![Mobile transactions](docs/screenshots/12-mobile-transactions.jpg) Mobile transactions | |
+| ![Mobile](docs/screenshots/10-mobile-overview.jpg) Mobile overview | ![Mobile forecast](docs/screenshots/11-mobile-forecast.jpg) Mobile month-end estimate (at least) |
+| ![Mobile transactions](docs/screenshots/12-mobile-transactions.jpg) Mobile transactions | ![Month drill-down](docs/screenshots/20-month-drilldown.jpg) Month drill-down: one month's transactions, largest first |
 | ![Shifts and suggestions](docs/screenshots/16-insights-shifts-suggestions.jpg) Insights: price changes, stopped, overlap | ![Charge types](docs/screenshots/14-provider-charge-types.jpg) Provider charge types: type, label, category, to review |
-| ![Types](docs/screenshots/17-insights-types.jpg) Insights: subscription, usage and one-time | ![Budget](docs/screenshots/18-budget.jpg) Monthly budget against the estimate |
+| ![Types](docs/screenshots/17-insights-types.jpg) Insights: subscription, usage and one-time | ![Budget](docs/screenshots/18-budget.jpg) Monthly budget against what is recorded plus what is still due |
 | ![Quarter export](docs/screenshots/19-quarter-export.jpg) Export a quarter | |
 
 All screenshots show the synthetic demo data.

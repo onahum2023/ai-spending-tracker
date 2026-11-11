@@ -6,10 +6,15 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Changed
 - Five pages, organised by question: Overview (how much), Providers (who), Insights (what it says), Transactions, Data. The ledger is shown plainly; anything the app worked out is marked **App's read** or **Estimate**, with the reasoning one click away.
-- The Subscriptions page is gone. Its run-rate and next-30-days list are now the **Next month** card on Overview, per-provider subscription details are on the provider page, and price changes, stopped, overlap and savings are in Insights. `#/subscriptions` opens Overview.
+- The Subscriptions page is gone. Per-provider details are on the provider page (each charge type opens to what the app reads about it), and price changes, stopped, overlap and savings are in Insights. `#/subscriptions` opens Overview.
 - Trends is now **Insights**, grouped into Patterns, Shifts, Suggestions and Comparisons. `#/trends` opens Insights.
+- The monthly run-rate, "per year if nothing changes" and the next-30-days list are removed.
+- **Month-end estimate** is conservative: "At least €X" = recorded so far plus only recurring charges with strong evidence (confirmed by you, or found by the pattern rule with the latest charge last month), each at its last actual charge. The likely range is gone. Usage is not projected and shows on its own line; one-time charges never feed the estimate. Budgets use the same figure.
+- Clicking a bar in the monthly chart opens a side sheet with that month's transactions, largest first, with a link to the filtered Transactions page. The "vs same point" card opens it too.
+- A comparison card says so when either period holds one-time charges, and shows the comparison without them.
+- Charge types that carry the same label are read as one plan: grouped in the Charge types table and chained in pattern detection.
 - Overview's monthly chart can be grouped by commitment type (subscription, usage, one-time).
-- Providers shows a trend arrow per provider (last 3 complete months against the 3 before) and can be filtered by category and commitment type.
+- Providers shows a trend arrow per provider (last 3 complete months against the 3 before, one-time charges left out; an arrow only when the change is more than 5% and more than €5) and can be filtered by category and commitment type.
 - The "charge types still to review" banner is replaced by a single link on Overview.
 
 ## [0.1.0] - 2026-11-11
