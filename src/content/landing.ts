@@ -36,8 +36,8 @@ export const STEPS: string[] = [
 /** Screenshots served from /screenshots. Every image has alt text. */
 export const SHOTS: { file: string; alt: string; caption: string; width: number; height: number }[] = [
   { file: 'overview.jpg', alt: 'The overview page: monthly spending by provider as a stacked bar chart, with this month’s estimate.', caption: 'Overview: spending by provider and a month-end estimate', width: 1280, height: 888 },
-  { file: 'subscriptions.jpg', alt: 'The subscriptions page: monthly run-rate, active recurring charges and a calendar of the next 30 days.', caption: 'Subscriptions: run-rate and the next 30 days', width: 1280, height: 888 },
-  { file: 'insights.jpg', alt: 'Price changes, overlapping tools and stopped subscriptions.', caption: 'Price changes, overlap and stopped subscriptions', width: 1280, height: 888 },
+  { file: 'next-month.jpg', alt: 'The Next month card on the overview: monthly run-rate and a calendar of the next 30 days, marked as an estimate.', caption: 'Next month: run-rate and the next 30 days, marked as estimates', width: 1280, height: 888 },
+  { file: 'insights.jpg', alt: 'The insights page: price changes, stopped subscriptions and overlapping tools, each marked as the app’s read.', caption: 'Insights: price changes, stopped subscriptions and overlap', width: 1280, height: 888 },
 ];
 
 export const FAQ: { q: string; a: string }[] = [

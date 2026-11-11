@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- Five pages, organised by question: Overview (how much), Providers (who), Insights (what it says), Transactions, Data. The ledger is shown plainly; anything the app worked out is marked **App's read** or **Estimate**, with the reasoning one click away.
+- The Subscriptions page is gone. Its run-rate and next-30-days list are now the **Next month** card on Overview, per-provider subscription details are on the provider page, and price changes, stopped, overlap and savings are in Insights. `#/subscriptions` opens Overview.
+- Trends is now **Insights**, grouped into Patterns, Shifts, Suggestions and Comparisons. `#/trends` opens Insights.
+- Overview's monthly chart can be grouped by commitment type (subscription, usage, one-time).
+- Providers shows a trend arrow per provider (last 3 complete months against the 3 before) and can be filtered by category and commitment type.
+- The "charge types still to review" banner is replaced by a single link on Overview.
+
 ## [0.1.0] - 2026-11-11
 
 First public release. Versions before 1.0.0 may still change how the app behaves or what it stores; the project is usable, but not yet declared stable.
