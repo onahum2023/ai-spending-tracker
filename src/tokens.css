@@ -62,7 +62,8 @@
   --fs-meta: 13px;
   --fs-badge: 11px;
   --fs-axis: 11px;
-  --fs-hero: 32px;
+  --fs-hero: 48px; /* the one big figure of a page */
+  --fs-tile: 22px; /* a stat tile's value */
   --fs-key: 20px;
   --fs-row: 14px;
 

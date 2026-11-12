@@ -91,14 +91,13 @@ p { margin: 0; }
 .card-sub { margin: 2px 0 0; font-size: var(--fs-sub); font-weight: 400; line-height: 1.4; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 4px 16px; flex: none; max-width: 100%; }
 .card-body { flex: 1 1 auto; min-width: 0; }
-.card-section { padding: 16px 0; border-top: 1px solid var(--card-border); }
-.card-section:first-child { border-top: 0; padding-top: 0; }
-.card-section:last-child { padding-bottom: 0; }
+/* sections inside a card are separated by space, not lines (tables and lists keep their own dividers) */
+.card-section + .card-section { margin-top: var(--sp-4); }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .section-label { font-size: var(--fs-label); font-weight: 600; line-height: 1.4; letter-spacing: 0; color: var(--text-2); }
 
 /* amounts */
-.amt-hero { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.amt-hero { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .amt-key { font-size: var(--fs-key); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
 .amt-row { font-size: var(--fs-row); font-weight: 500; }
 
@@ -223,7 +222,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 55%, transparent) 0 3px, color-mix(in srgb, var(--accent) 22%, transparent) 3px 6px);
 }
 .swatch-hatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 60%, transparent) 0 2px, color-mix(in srgb, var(--accent) 22%, transparent) 2px 4px); }
-.explain { font-size: 12px; color: var(--text-2); border-top: 1px solid var(--border); padding-top: 10px; }
+.explain { font-size: 12px; color: var(--text-2); }
 .explain ol, .explain ul { padding-left: 18px; margin: 8px 0; }
 .explain li { margin: 3px 0; }
 
@@ -337,7 +336,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 /* ---------- tags ---------- */
 .tag-input { width: 100%; }
 .tag-input::placeholder { color: var(--text-3); }
-.bulk-tag { padding: 0 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.bulk-tag { padding: 0; margin-bottom: var(--sp-3); }
 
 /* ---------- overrides ---------- */
 .treat-as { max-width: 190px; font-size: 12px; }
@@ -360,7 +359,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .chart-card { min-height: 480px; }
 .chart-card .card-body { display: flex; flex-direction: column; }
 .headline { margin-bottom: 4px; }
-.headline-amount { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.headline-amount { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .headline-est { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-meta); color: var(--text-2); margin-top: 4px; }
 .headline-est strong { color: var(--text-1); font-weight: 600; }
 .chart-caption { margin: 14px 0 6px; color: var(--text-2); font-size: var(--fs-meta); }
@@ -414,7 +413,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .stat-grid { display: grid; gap: var(--card-gap); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .stat-tile { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-width: 0; padding: var(--sp-3); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); }
 .stat-tile-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.stat-tile .amt-key { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-tile .amt-key { font-size: var(--fs-tile); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sparkline { flex: none; stroke: var(--text-3); }
 .sparkline-accent { stroke: var(--accent); }
 
@@ -425,7 +424,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 /* One page, same standards as the app: sans font, neutral background, the shared card. */
 .welcome { max-width: 880px; margin: 0 auto; }
 .welcome-hero .card-body { display: flex; flex-direction: column; gap: var(--sp-2); }
-.welcome-title { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.welcome-title { font-size: 32px; /* its own size; the Welcome page gets its own pass */ font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
 .welcome-lead { font-size: var(--fs-title); color: var(--text-2); max-width: 640px; }
 .welcome-actions { margin: var(--sp-1) 0; }
 .welcome-shot { display: block; margin-top: var(--sp-2); }
