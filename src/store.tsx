@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { dataSpan, summarizeProviders, type DataSpan, type ProviderSummary } from './lib/analytics';
 import { EMPTY_BUDGETS, normalizeBudgets, type Budgets } from './lib/budgets';
 import { normalizeProviderCategories, withProviderCategory, type Category, type ProviderCategory } from './lib/categories';
-import { buildProviderColors, categoryColor, typeColor, useColorScheme, type ProviderColors } from './lib/colors';
+import { buildProviderColors, categoryColor, typeColor, useColorScheme, type ProviderColors, type Scheme } from './lib/colors';
 import { todayLocal } from './lib/dates';
 import { normalizeTagRules, withTagRule, type TagRule } from './lib/tags';
 import { DEMO_FLAG } from './lib/localPrefs';
@@ -40,6 +40,8 @@ interface Ledger {
   /** All-time provider summaries, largest first. */
   providers: ProviderSummary[];
   colors: ProviderColors;
+  /** Light or dark, as the browser asks for. */
+  scheme: Scheme;
   categoryColors: (c: Category) => string;
   typeColors: (k: ChargeKind) => string;
   /** Recurring patterns, subscriptions and categories, computed once for the displayed transactions. */
@@ -343,6 +345,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     span,
     providers,
     colors,
+    scheme,
     categoryColors: (c: Category) => categoryColor(c, scheme),
     typeColors: (k: ChargeKind) => typeColor(k, scheme),
     analysis,

@@ -60,7 +60,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
         <Card
           className="chart-card"
           title={title}
-          subtitle={inProgress || yearInProgress ? `As of last import, ${dateLabel(span.lastDate)}` : undefined}
+          subtitle={inProgress || yearInProgress ? `Data through ${dateLabel(span.lastDate)}` : undefined}
         >
           <div className="headline">
             <div className="headline-amount amt-hero num">{formatEUR(sumCents(periodRows))}</div>

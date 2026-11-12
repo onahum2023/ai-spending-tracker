@@ -4,7 +4,7 @@ import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
 import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
-import { providerInitials } from './avatar';
+import { avatarColors, providerInitials } from './avatar';
 import { sparklinePath } from './sparkline';
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -163,13 +163,14 @@ export function SeriesDot({ provider }: { provider: string }) {
 }
 
 /**
- * A provider's avatar: a circle with its one or two initials in white on the provider's colour (the colour the charts use;
- * "Other providers" and any provider without a colour of its own are grey).
+ * A provider's avatar: a circle with its one or two initials in a dark shade of the provider's colour (the colour the charts use)
+ * on a light tint of it, like the pills. "Other providers" and any provider without a colour of its own are grey. The contrast is
+ * checked for every palette colour in avatar.test.ts.
  */
 export function ProviderAvatar({ provider, size = 24 }: { provider: string; size?: number }) {
-  const { colors } = useLedger();
+  const { colors, scheme } = useLedger();
   return (
-    <span className="avatar" style={{ background: colors.color(provider), width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden="true">
+    <span className="avatar" style={{ ...avatarColors(colors.color(provider), scheme), width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden="true">
       {providerInitials(provider)}
     </span>
   );

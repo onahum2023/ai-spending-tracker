@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APP_PATH, DEMO_PATH, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, renderNoscript, renderWelcomeMeta, STEPS } from './welcome';
+import { APP_PATH, DEMO_PATH, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, OVERVIEW_SHOT, renderNoscript, renderWelcomeMeta, STEPS } from './welcome';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
 import { PRODUCTION_URL } from './site';
 
@@ -48,6 +48,15 @@ describe('welcome page', () => {
     expect(noscript).toContain(`href="${PRIVACY_PATH}"`);
     expect(noscript).not.toMatch(/<script|\son[a-z]+=/i);
     expect(noscript.match(/<h1[ >]/g)).toHaveLength(1);
+  });
+
+  it('shows the Overview below the buttons, with a dark version, alt text and a size', () => {
+    const page = read('src/pages/Welcome.tsx');
+    expect(page.indexOf('welcome-actions')).toBeLessThan(page.indexOf('<picture'));
+    expect(page).toContain('prefers-color-scheme: dark');
+    for (const f of [OVERVIEW_SHOT.light, OVERVIEW_SHOT.dark]) expect(existsSync(join(root, 'public', f))).toBe(true);
+    expect(OVERVIEW_SHOT.alt.length).toBeGreaterThan(20);
+    expect(OVERVIEW_SHOT.width).toBeGreaterThan(0);
   });
 
   it('points at files that exist', () => {

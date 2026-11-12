@@ -10,6 +10,9 @@ const DARK = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', 
 const OTHER_LIGHT = '#a3a19a';
 const OTHER_DARK = '#6c6b66';
 
+/** Every colour in the palette, in both schemes, with the grey of "Other" last. Used to check that text on a tint of each stays readable. */
+export const PALETTE: Record<Scheme, string[]> = { light: [...LIGHT, OTHER_LIGHT], dark: [...DARK, OTHER_DARK] };
+
 export const OTHER_KEY = 'Other providers';
 const PROVIDER_SLOTS = [0, 1, 2, 3, 4, 6];
 export const SERIES_SLOTS = PROVIDER_SLOTS.length;

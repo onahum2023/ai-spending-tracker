@@ -106,7 +106,7 @@ function Shell() {
       showPeriod = false;
       break;
     default:
-      if (span) meta = `Last import ${dateLabel(span.lastDate)}`;
+      if (span) meta = `Data through ${dateLabel(span.lastDate)}`;
   }
 
   return (

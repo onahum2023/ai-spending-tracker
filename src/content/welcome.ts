@@ -32,6 +32,15 @@ export const STEPS: string[] = [
   'Explore your spending. Nothing leaves your browser.',
 ];
 
+/** The Overview with the demo data, below the buttons on the Welcome page: light, and dark for a browser in dark mode. Files in public/screenshots. */
+export const OVERVIEW_SHOT = {
+  light: '/screenshots/overview.jpg',
+  dark: '/screenshots/overview-dark.jpg',
+  alt: 'The Overview page with demo data: this month’s total and month-end estimate, monthly spending by provider as a stacked bar chart, and what is still due this month.',
+  width: 1280,
+  height: 888,
+};
+
 export const FAQ: { q: string; a: string }[] = [
   {
     q: 'Which banks and file formats work?',

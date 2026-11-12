@@ -1,6 +1,6 @@
 import { AboutCard } from '../components/AboutCard';
 import { Button, Card, CardAction, Disclosure } from '../components/ui';
-import { FAQ, FEATURES, HEADLINE, PRIVACY_SENTENCE, STEPS, SUBHEAD } from '../content/welcome';
+import { FAQ, FEATURES, HEADLINE, OVERVIEW_SHOT, PRIVACY_SENTENCE, STEPS, SUBHEAD } from '../content/welcome';
 import { PRIVACY_PATH } from '../content/privacy';
 import { href, navigate } from '../router';
 import { useLedger } from '../store';
@@ -39,6 +39,10 @@ export function Welcome() {
         <p className="meta">
           {mode === 'empty' ? 'The demo uses invented data for 24 providers and saves nothing.' : mode === 'demo' ? 'Every transaction in the demo is invented. Nothing is saved.' : 'Your data is stored in this browser.'}
         </p>
+        <picture className="welcome-shot">
+          <source media="(prefers-color-scheme: dark)" srcSet={OVERVIEW_SHOT.dark} />
+          <img src={OVERVIEW_SHOT.light} alt={OVERVIEW_SHOT.alt} width={OVERVIEW_SHOT.width} height={OVERVIEW_SHOT.height} />
+        </picture>
       </Card>
 
       <Card title="What it does">

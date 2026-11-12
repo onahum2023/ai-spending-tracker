@@ -407,8 +407,8 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 @media (max-width: 560px) { .bar-list.compact .bar-item { grid-template-columns: minmax(0, 1fr) minmax(40px, 0.7fr) auto; } }
 
 /* ---------- shared components ---------- */
-/* provider avatar: white initials on the provider's colour */
-.avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; color: #fff; font-weight: 600; letter-spacing: 0; line-height: 1; user-select: none; }
+/* provider avatar: dark initials on a light tint of the provider's colour (colours set inline, see avatarColors) */
+.avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 600; letter-spacing: 0; line-height: 1; user-select: none; }
 
 /* stat tile: label, value, meta, and an optional sparkline on the right */
 .stat-grid { display: grid; gap: var(--card-gap); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
@@ -428,6 +428,8 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .welcome-title { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
 .welcome-lead { font-size: var(--fs-title); color: var(--text-2); max-width: 640px; }
 .welcome-actions { margin: var(--sp-1) 0; }
+.welcome-shot { display: block; margin-top: var(--sp-2); }
+.welcome-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--border-strong); border-radius: var(--card-radius); background: var(--surface); }
 .feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
 .feature-grid p { margin-top: 4px; color: var(--text-1); }
 .steps { margin: 0; padding-left: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }

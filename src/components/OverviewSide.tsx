@@ -177,7 +177,7 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
 
       {f.dataOld && (
         <p className="meta" style={{ margin: '8px 0 0' }}>
-          Your last import is more than a week old.{' '}
+          Your data is more than a week old.{' '}
           <Button variant="text" href={href(['data'])}>Import newer statements</Button> for a better estimate.
         </p>
       )}
@@ -186,14 +186,14 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
         <Disclosure label="How is this estimated?">
           <ol>
             <li>
-              <strong>Recorded so far</strong> is the sum of every transaction dated in {monthLabel(f.month)} up to the last import
+              <strong>Recorded so far</strong> is the sum of every transaction dated in {monthLabel(f.month)} up to the date the data runs through
               {lastRecorded ? ` (${dateLabelShort(lastRecorded)})` : ''}. It is the ledger, unchanged.
             </li>
             <li>
               <strong>Still due</strong> adds only recurring charges that are due later this month and that the app has strong reason to
               expect: a subscription you confirmed on its provider's page, or one found by the pattern rule (the same provider on a
               similar day and amount for 3+ months in a row) whose latest charge was last month. Each counts at that charge type's last
-              actual charge, not an average. "Later" is counted from the last import, not from today: a charge that falls after the data
+              actual charge, not an average. "Later" is counted from the date the data runs through, not from today: a charge that falls after the data
               ends has not been seen yet, even if its usual day has passed.
             </li>
             <li><strong>At least</strong> = recorded + still due. The month can cost more; it should not cost less.</li>
@@ -203,7 +203,7 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
             </li>
           </ol>
           <p className="muted">
-            Nothing is shown when the last import is more than {STALE_AFTER_DAYS} days old.
+            Nothing is shown when the data is more than {STALE_AFTER_DAYS} days old.
             {f.asOfDay >= f.daysInMonth ? ' The month is over, so nothing is added.' : ''}
           </p>
         </Disclosure>

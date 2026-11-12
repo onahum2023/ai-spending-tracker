@@ -34,7 +34,7 @@ export function DataPage() {
       <div className="stat-grid">
         <StatTile label="Transactions" value={transactions.length} meta={`${providers.length} provider${providers.length === 1 ? '' : 's'}`} />
         <StatTile label="Total recorded" value={formatEUR(sumCents(transactions))} meta={span ? `${dateLabel(span.firstDate)} – ${dateLabel(span.lastDate)}` : undefined} />
-        <StatTile label="Latest import" value={span ? dateLabel(span.lastDate) : '—'} meta="Date of the newest charge" />
+        <StatTile label="Data through" value={span ? dateLabel(span.lastDate) : '—'} meta="Date of the newest charge" />
         <StatTile label="Stored" value={demo ? 'In memory' : 'Locally'} meta={demo ? 'Demo data, not stored' : 'In this browser, never uploaded'} />
       </div>
       <Card

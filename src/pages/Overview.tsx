@@ -27,7 +27,7 @@ export function Overview() {
 
   if (!span) return null;
 
-  // One "as of" date for the whole page: the last import.
+  // One "as of" date for the whole page: where the data runs through (shown as "Data through").
   const asOf = span.lastDate;
   const inProgress = period.kind === 'month' && period.month === currentMonth;
   const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
@@ -61,7 +61,6 @@ export function Overview() {
         <Card
           className="chart-card"
           title={headline}
-          subtitle={inProgress || yearInProgress ? `As of last import, ${dateLabel(asOf)}` : undefined}
           action={
             <Segmented<ChartView>
               label="Group by"
