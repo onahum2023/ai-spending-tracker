@@ -20,11 +20,13 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. With no data in the browser the app opens on the **Welcome** page: **Explore demo data** or **Import your own data**. Once data exists the app opens on Overview, and **About** in the top bar brings the Welcome page back at any time. Old links such as `/app`, `/app.html`, `/#/subscriptions` and `/#/trends` still work: they forward to `/` and open Overview and Insights. Your ways in:
+Open http://localhost:5173. With no data in the browser the app opens on the **Welcome** page: **Try it with demo data** or **Import your statements**. Once data exists the app opens on Overview, and **About** in the top bar brings the Welcome page back at any time. Old links such as `/app`, `/app.html`, `/#/subscriptions` and `/#/trends` still work: they forward to `/` and open Overview and Insights. Your ways in:
 
 - **Explore demo data** generates invented data in memory (see [Demo mode](#demo-mode)). Nothing is saved.
 - **Bank or card statements** (**Import your own data** opens the Data page): drop the exports you already download from your bank or card; the app picks out the AI charges (see [Statement extractor](#statement-extractor)).
 - **Ledger CSV**: import a file that is already in the ledger format. **Download example CSV** saves one to look at.
+
+The Welcome page is written for people who try many AI tools and lose track of what they pay for. Its hero preview and its three example insights (the monthly total and where it is heading, a price change, overlapping services) are the app's own components rendered from the demo data in a read-only, demo-only ledger (`LedgerProvider demoOnly`), so they never go stale and never touch what is stored in your browser. The words are in `src/content/welcome.ts`.
 
 On later visits your stored data loads automatically. To start over, use **Data → Clear local data**.
 
@@ -274,7 +276,7 @@ All screenshots show the synthetic demo data.
 
 | Address | What | Source |
 |---|---|---|
-| `/` | The app. With no data it opens on the Welcome page (what it does, demo or import, how it works, privacy, questions); **About** opens it any time. `/?demo=1` starts the demo. The search and social tags are in `index.html`, and a browser without scripts sees the same headline and privacy sentence. | `index.html`, `src/pages/Welcome.tsx`, `src/content/welcome.ts` |
+| `/` | The app. With no data it opens on the Welcome page (a landing page in full-width sections: a hero with a live preview of the Overview, "Sound familiar?", three example insights, how it works, a privacy band, questions and a closing call to action); **About** opens it any time. `/?demo=1` starts the demo. The search and social tags are in `index.html`, and a browser without scripts sees the same headline and privacy sentence. | `index.html`, `src/pages/Welcome.tsx`, `src/content/welcome.ts` |
 | `/app` (`app.html`) | The old address of the tracker. Forwards to `/`, keeping the query and the `#/…` part. | `app.html`, `src/legacyApp.ts` |
 | `/privacy` (`privacy.html`) | The privacy statement (published 2026-11-10; set `PRIVACY_IS_DRAFT` back to true to show a draft notice and `noindex` again). Static HTML. | `privacy.html`, `src/content/privacy.ts` |
 
