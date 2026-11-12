@@ -27,7 +27,7 @@ p { margin: 0; }
 .topnav-inner { display: flex; align-items: stretch; gap: var(--sp-4); max-width: 1360px; height: 56px; margin: 0 auto; padding: 0 var(--page-pad); }
 .brand { display: flex; align-items: center; gap: var(--sp-1); font-weight: 650; font-size: var(--fs-title); color: var(--text-1); }
 .brand-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; flex: none; }
-.topnav-links { display: flex; align-items: stretch; gap: var(--sp-1); margin-right: auto; }
+.topnav-links { display: flex; align-items: stretch; gap: var(--sp-1); }
 .topnav-links a, .topnav-about {
   display: inline-flex; align-items: center; padding: 0 var(--sp-1); border-bottom: 2px solid transparent;
   color: var(--text-2); font-size: var(--fs-body); font-weight: 500; white-space: nowrap;
@@ -35,8 +35,8 @@ p { margin: 0; }
 .topnav-links a:hover, .topnav-about:hover { color: var(--text-1); }
 .topnav-links a.active { color: var(--text-1); border-bottom-color: var(--accent); }
 /* About is secondary: smaller and muted until you are on it */
-.topnav-about { margin-left: auto; font-size: var(--fs-meta); font-weight: 400; color: var(--text-3); }
-.topnav-links + .topnav-about { margin-left: 0; }
+.topnav-about { font-size: var(--fs-meta); font-weight: 400; color: var(--text-3); }
+.topnav-right { display: flex; align-items: stretch; gap: var(--sp-3); margin-left: auto; }
 .topnav-about.active { color: var(--text-1); border-bottom-color: var(--accent); }
 .topnav a:focus-visible { outline-offset: -2px; }
 
@@ -68,7 +68,6 @@ p { margin: 0; }
 @media (max-width: 860px) {
   .topnav-links { display: none; }
   .topnav-inner { gap: var(--sp-3); }
-  .topnav-about { margin-left: auto; }
   .main { padding-bottom: calc(var(--sp-5) + 56px + env(safe-area-inset-bottom)); }
   .tabbar {
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--border);
@@ -269,12 +268,6 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .m-card .m-card-meta { grid-column: 1 / -1; color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; }
 .m-card .m-card-action { grid-column: 1 / -1; justify-self: start; }
 
-/* ---------- demo ---------- */
-.demo-banner {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
-  padding: 8px 12px; margin-bottom: 16px; border-radius: 8px; font-size: 13px;
-  background: var(--warn-bg); color: var(--warn-ink);
-}
 
 /* ---------- statement import ---------- */
 .file-list { display: flex; flex-direction: column; gap: 6px; }
@@ -457,3 +450,12 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
   .hero-tiles .stat-tile { flex-direction: column; align-items: flex-start; gap: var(--sp-1); }
   .hero-tiles .tile-grid { gap: var(--sp-4) var(--sp-3); }
 }
+
+/* ---------- demo pill and its menu ---------- */
+.demo-menu { position: relative; display: flex; align-items: center; }
+.demo-pill { cursor: pointer; font-family: inherit; gap: 4px; padding: 4px 12px; }
+.demo-pill:hover { background: color-mix(in srgb, var(--text-1) 12%, transparent); }
+.demo-caret { font-size: 9px; }
+.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 176px; padding: 4px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--card-radius); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; }
+.menu a, .menu button { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: var(--control-radius); background: none; color: var(--text-1); font: inherit; font-size: var(--fs-body); text-align: left; cursor: pointer; }
+.menu a:hover, .menu button:hover { background: var(--surface-hover); }

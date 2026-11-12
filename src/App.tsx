@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PeriodPicker } from './components/PeriodPicker';
 import { dateLabel } from './lib/dates';
 import { DataPage } from './pages/DataPage';
@@ -124,13 +124,15 @@ function Shell() {
               </a>
             ))}
           </nav>
-          <a className={`topnav-about${section === 'about' ? ' active' : ''}`} href={href(['about'])} aria-current={section === 'about' ? 'page' : undefined}>
-            About
-          </a>
+          <div className="topnav-right">
+            {mode === 'demo' && <DemoPill />}
+            <a className={`topnav-about${section === 'about' ? ' active' : ''}`} href={href(['about'])} aria-current={section === 'about' ? 'page' : undefined}>
+              About
+            </a>
+          </div>
         </div>
       </header>
       <main className="main">
-        {mode === 'demo' && <DemoBanner onData={section === 'data'} />}
         {welcome ? (
           <Welcome />
         ) : (
@@ -163,23 +165,54 @@ function Shell() {
   );
 }
 
-function DemoBanner({ onData }: { onData: boolean }) {
+/**
+ * Shown in the top bar, on every page, while the demo runs: a small neutral pill. It opens a menu with the two ways out: go and use
+ * your own data, or leave the demo. It replaces the full-width banner.
+ */
+function DemoPill() {
   const { exitDemo } = useLedger();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
   return (
-    <div className="demo-banner" role="status">
-      <span>
-        <strong>Demo mode.</strong> Every transaction here is invented. Nothing is saved.
-      </span>
-      <span className="row wrap" style={{ gap: 8 }}>
-        {!onData && (
-          <Button href={href(['data'])}>
+    <div className="demo-menu" ref={box}>
+      <button
+        type="button"
+        className="pill pill-neutral demo-pill"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Every transaction here is invented. Nothing is saved."
+        onClick={() => setOpen((o) => !o)}
+      >
+        Demo data <span aria-hidden="true" className="demo-caret">▾</span>
+      </button>
+      {open && (
+        <div className="menu" role="menu">
+          <a role="menuitem" href={href(['data'])} onClick={() => setOpen(false)}>
             Use my own data
-          </Button>
-        )}
-        <Button onClick={exitDemo}>
-          Exit demo
-        </Button>
-      </span>
+          </a>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              exitDemo();
+            }}
+          >
+            Exit demo
+          </button>
+        </div>
+      )}
     </div>
   );
 }
