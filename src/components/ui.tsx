@@ -262,6 +262,8 @@ type ButtonOwn = {
   arrow?: boolean;
   /** A square, icon-only button (give it an aria-label). */
   icon?: boolean;
+  /** A taller button (44px) for the one call to action of a landing page. Everywhere else buttons are 32px. */
+  large?: boolean;
   className?: string;
   children?: ReactNode;
 };
@@ -271,8 +273,8 @@ type ButtonProps =
 
 /** The one button. 32px high, 8px radius, 13px medium. Renders a link when it has an `href`. */
 export function Button(props: ButtonProps) {
-  const { variant = 'secondary', arrow = false, icon = false, className, children, ...rest } = props;
-  const cls = cx('btn', variant !== 'secondary' && `btn-${variant}`, icon && 'btn-icon', className);
+  const { variant = 'secondary', arrow = false, icon = false, large = false, className, children, ...rest } = props;
+  const cls = cx('btn', variant !== 'secondary' && `btn-${variant}`, icon && 'btn-icon', large && 'btn-large', className);
   const content = (
     <>
       {children}

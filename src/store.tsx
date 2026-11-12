@@ -120,8 +120,12 @@ function buildDemoTransactions(today: string): Transaction[] {
   return generateDemo({ end: today }).map((r, i) => ({ ...r, id: i + 1, importId: 0, sourceRow: i + 2 }));
 }
 
-export function LedgerProvider({ children }: { children: ReactNode }) {
-  const [load, setLoad] = useState<LoadState>({ status: 'loading' });
+/**
+ * `demoOnly` is for a read-only preview inside the real app (the Welcome page): the demo data, in memory, whatever is stored in this
+ * browser. It never reads or writes storage, never touches the demo flag, and is always in demo mode.
+ */
+export function LedgerProvider({ children, demoOnly = false }: { children: ReactNode; demoOnly?: boolean }) {
+  const [load, setLoad] = useState<LoadState>(demoOnly ? { status: 'ready' } : { status: 'loading' });
   const [stored, setStored] = useState<Transaction[]>([]);
   const [imports, setImports] = useState<ImportRecord[]>([]);
   const [storedBudgets, setStoredBudgets] = useState<Budgets>(EMPTY_BUDGETS);
@@ -137,7 +141,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [demoCategories, setDemoCategories] = useState<ProviderCategory[]>([]);
   const [storedTagRules, setStoredTagRules] = useState<TagRule[]>([]);
   const [demoTagRules, setDemoTagRules] = useState<TagRule[]>([]);
-  const [demoOn, setDemoOn] = useState(readDemoFlag);
+  const [demoOn, setDemoOn] = useState(demoOnly ? true : readDemoFlag);
   const [period, setPeriodState] = useState<Period | null>(null);
   const scheme = useColorScheme();
   const today = todayLocal();
@@ -177,10 +181,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    if (!demoOnly) void reload();
+  }, [reload, demoOnly]);
 
-  const mode: DataMode = stored.length > 0 ? 'mine' : demoOn ? 'demo' : 'empty';
+  const mode: DataMode = demoOnly ? 'demo' : stored.length > 0 ? 'mine' : demoOn ? 'demo' : 'empty';
   const demoBase = useMemo(() => (mode === 'demo' ? buildDemoTransactions(today) : []), [mode, today]);
   const demoRows = useMemo(() => {
     const kept = demoDeleted.size ? demoBase.filter((t) => !demoDeleted.has(t.id)) : demoBase;

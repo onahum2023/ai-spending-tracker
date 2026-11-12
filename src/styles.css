@@ -125,6 +125,8 @@ p { margin: 0; }
 /* text action: accent text, no underline, no box. Reads inline in a sentence, too. */
 .btn-text { display: inline; height: auto; padding: 0; border: 0; background: none; color: var(--text-accent); line-height: inherit; }
 .btn-text:hover { background: none; color: var(--text-1); }
+.btn-text { white-space: normal; text-align: left; }
+.card-actions .btn-text { white-space: nowrap; }
 .btn-text:focus-visible { border-radius: 3px; }
 .btn-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .btn-danger:hover { background: var(--danger-wash); }
@@ -337,8 +339,8 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .treat-as-own { border-color: var(--accent); color: var(--text-accent); }
 .treat-as-wrap { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .stream-label { font-weight: 500; color: var(--text-2); }
-.about-list { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
-.about-list dd { margin: 0; }
+.about-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0; }
+.about-list dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .app-foot { display: flex; gap: 16px; margin-top: 32px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-3); }
 .app-foot a:hover { color: var(--text-1); text-decoration: underline; }
 .app-foot-owner { margin-left: auto; }
@@ -403,23 +405,6 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 
 /* raw statement descriptors: monospace; labels you chose stay in the body font */
 .descriptor { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; white-space: pre-wrap; }
-
-/* ---------- welcome ---------- */
-/* One page, same standards as the app: sans font, neutral background, the shared card. */
-.welcome { max-width: 880px; margin: 0 auto; }
-.welcome-hero .card-body { display: flex; flex-direction: column; gap: var(--sp-2); }
-.welcome-title { font-size: 32px; /* its own size; the Welcome page gets its own pass */ font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
-.welcome-lead { font-size: var(--fs-title); color: var(--text-2); max-width: 640px; }
-.welcome-actions { margin: var(--sp-1) 0; }
-.welcome-shot { display: block; margin-top: var(--sp-2); }
-.welcome-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--border-strong); border-radius: var(--card-radius); background: var(--surface); }
-.feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
-.feature-grid p { margin-top: 4px; color: var(--text-1); }
-.steps { margin: 0; padding-left: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }
-.faq { display: flex; flex-direction: column; gap: var(--sp-2); }
-.faq .disclosure-btn { font-size: var(--fs-body); font-weight: 600; color: var(--text-1); }
-.faq .disclosure-body { margin-left: var(--sp-3); }
-@media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; gap: var(--sp-3); } .welcome-title { font-size: var(--fs-key); } }
 
 /* ---------- overview: hero row, chart row, charges row ---------- */
 /* row 1: the hero sits on the page background, beside one card of four stat tiles */
@@ -489,4 +474,64 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
     position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 41; width: auto; max-height: 80vh; border-width: 1px 0 0;
     border-radius: var(--card-radius) var(--card-radius) 0 0; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.2);
   }
+}
+
+/* ---------- welcome: a landing page ---------- */
+/* Full-width sections separated by space, no boxes around them. Content is at most --w-max wide. Colour only where it carries meaning. */
+.main-welcome { max-width: none; padding: 0 0 var(--sp-4); }
+.w-inner { width: 100%; max-width: var(--w-max); margin: 0 auto; padding: 0 var(--page-pad); }
+.w-hero { padding-top: calc(var(--sp-5) * 2); }
+.w-section { padding-top: calc(var(--sp-5) * 2); }
+.w-display { max-width: 20ch; font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.03em; line-height: 1.08; }
+.w-lead { max-width: 620px; margin-top: var(--sp-3); font-size: 20px; line-height: 1.5; color: var(--text-2); }
+.w-h2 { font-size: var(--fs-h2); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.w-body { font-size: var(--fs-landing-body); line-height: 1.55; }
+.w-actions { margin-top: var(--sp-4); gap: var(--sp-2); }
+.w-trust { margin-top: var(--sp-2); font-size: var(--fs-meta); color: var(--text-2); }
+.btn-large { height: 44px; padding: 0 var(--sp-4); font-size: 15px; }
+
+/* the live preview of the Overview: a picture of the app, so nothing in it reacts */
+.w-preview { margin: var(--sp-5) 0 0; }
+.w-preview-frame { padding: var(--sp-3); border: 1px solid var(--border-strong); border-radius: calc(var(--card-radius) + 4px); pointer-events: none; user-select: none; }
+.w-preview-frame .chart-fill-box { min-height: 260px; }
+.w-preview figcaption, .w-preview .meta { margin-top: var(--sp-1); }
+
+/* sound familiar: three large lines */
+.w-familiar { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 820px; margin-top: var(--sp-4); }
+.w-familiar p { font-size: clamp(22px, 2.6vw, 30px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.3; }
+
+/* what you'll find out: three samples of the app, each with a plain line under it */
+.w-examples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); margin-top: var(--sp-4); align-items: stretch; }
+.w-example { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.w-example > .card { flex: 1; }
+.w-example-line { font-size: var(--fs-landing-body); line-height: 1.5; color: var(--text-1); }
+.w-overlap-list { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+/* how it works: a simple row */
+.w-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); margin: var(--sp-4) 0 0; padding: 0; list-style: none; }
+.w-steps li { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.35; }
+.w-steps li:not(:last-child)::after { content: '→'; margin-left: var(--sp-2); color: var(--text-3); }
+
+/* privacy: a full-width band */
+.w-band { margin-top: calc(var(--sp-5) * 2); padding: calc(var(--sp-5) * 2) 0; background: var(--surface); border-block: 1px solid var(--border); }
+.w-band .w-h2 { font-size: clamp(28px, 3.6vw, 40px); max-width: 22ch; }
+.w-band .w-body { max-width: 680px; margin-top: var(--sp-3); color: var(--text-2); }
+.w-band .w-body:first-of-type { color: var(--text-1); }
+.w-band p:last-child { margin-top: var(--sp-3); font-size: var(--fs-landing-body); }
+
+/* questions */
+.w-faq { display: flex; flex-direction: column; max-width: 820px; margin-top: var(--sp-3); }
+.w-faq > div { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.w-faq .disclosure-btn { font-size: var(--fs-landing-body); font-weight: 600; color: var(--text-1); }
+.w-faq .disclosure-body { margin-top: var(--sp-1); margin-left: var(--sp-3); max-width: 680px; }
+.w-faq .disclosure-body .w-body { color: var(--text-2); }
+
+.w-closing .w-h2 { font-size: clamp(28px, 3.6vw, 40px); }
+.w-about { margin-top: calc(var(--sp-5) * 2); }
+
+@media (max-width: 900px) {
+  .w-examples, .w-steps { grid-template-columns: 1fr; }
+  .w-steps li:not(:last-child)::after { content: none; }
+  /* on a phone the preview is the app's own cards, full width, so its figures are never cut */
+  .w-preview-frame { padding: 0; border: 0; }
 }

@@ -183,7 +183,7 @@ describe('privacy statement matches the app', () => {
 
   it('says the same sentence everywhere it is repeated', () => {
     expect(read('README.md')).toContain(PRIVACY_SENTENCE);
-    expect(read('src/pages/Welcome.tsx')).toContain('PRIVACY_SENTENCE');
+    expect(read('src/content/welcome.ts')).toContain('PRIVACY_SENTENCE'); // the no-script text; the Welcome page has its own two lines (welcome.test.ts)
     expect(renderPrivacyBody()).toContain(PRIVACY_SENTENCE.replace(/&/g, '&amp;'));
   });
 
