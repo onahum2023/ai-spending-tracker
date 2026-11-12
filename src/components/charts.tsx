@@ -86,7 +86,7 @@ interface Series {
 }
 
 /** The bars that are not selected, once a month is selected. */
-const FADED = 0.45;
+const FADED = 0.38; // periods other than the selected one
 const DUE_PREFIX = 'due:';
 
 /** Cents per series key of the charges still due, with `keyOf` choosing the series each one belongs to. */
