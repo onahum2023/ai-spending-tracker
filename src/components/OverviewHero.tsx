@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { filterPeriod, monthDrillDown, monthTotalThroughDay, rowsInMonths, totalsByMonth } from '../lib/analytics';
-import { OTHER_KEY } from '../lib/colors';
 import { addMonths, dateLabelShort, dayOf, monthLabel, monthOf, monthShort, yearOf } from '../lib/dates';
 import { STALE_AFTER_DAYS, type Forecast } from '../lib/forecast';
 import { formatEUR, sumCents } from '../lib/money';
@@ -8,7 +7,7 @@ import { describeOneTime, formatSignedNoBreak, oneTimeNote } from '../lib/oneTim
 import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
-import { Button, Card, Change, Chevron, Disclosure, ProviderAvatar, ReadChip, StatTile, StreamName } from './ui';
+import { Button, Card, Change, Chevron, Disclosure, ProviderAvatar, ReadChip, StackDot, StatTile, StreamName } from './ui';
 
 /** The estimate for the month in progress. */
 export type HeroForecast = Extract<Forecast, { status: 'ok' | 'insufficient' }>;
@@ -63,7 +62,7 @@ export function OverviewHero({
 const STACK_MAX = 4;
 
 /**
- * One clickable row in the hero card: an overlapping stack of the providers still due (four at most, then "+N"), "N charges still
+ * One clickable row in the hero card: an overlapping stack of dots in the colours of the providers still due (four at most, then "+N"), "N charges still
  * due · €X" and a chevron. It opens a popover anchored to the row (a bottom sheet on a phone), so the card never changes height.
  * Nothing is rendered when nothing is still due (the caller checks).
  */
@@ -114,14 +113,15 @@ function StillDueRow({ forecast: f }: { forecast: Extract<Forecast, { status: 'o
       >
         <span className="avatar-stack" aria-hidden="true">
           {shown.map((p) => (
-            <ProviderAvatar key={p} provider={p} size={24} />
+            <StackDot key={p} provider={p} />
           ))}
-          {more > 0 && <ProviderAvatar provider={OTHER_KEY} size={24} text={`+${more}`} />}
+          {more > 0 && <span className="stack-more">+{more}</span>}
         </span>
         <span>
           {n} charge{n === 1 ? '' : 's'} still due · <span className="num">{formatEUR(sum)}</span>
         </span>
-        <Chevron open={open} />
+        {/* always right-pointing: the row opens a popover, it does not expand in place */}
+        <Chevron open={false} />
       </button>
       {open && (
         <>

@@ -14,7 +14,9 @@ export const APP_PATH = '/';
 export const DEMO_PATH = `${APP_PATH}?demo=1`;
 
 export const SITE_NAME = 'AI Spending Tracker';
-export const HEADLINE = "You've tried a lot of AI tools. Do you know what you're still paying for?";
+/** Small, secondary, above the headline: who the page is for. */
+export const EYEBROW = "For people who've tried a lot of AI tools";
+export const HEADLINE = "Do you know what you're still paying for?";
 export const SUBHEAD = 'See every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.';
 /** The short name of what the app is, for the title of a shared link. */
 export const SHARE_TITLE = 'What do you spend on AI tools?';
@@ -115,6 +117,7 @@ export function renderWelcomeMeta(siteUrl: string): string {
 export function renderNoscript(): string {
   return `<noscript>
   <main style="max-width:640px;margin:0 auto;padding:32px 16px;font-family:system-ui,sans-serif;line-height:1.5">
+    <p>${esc(EYEBROW)}</p>
     <h1>${esc(HEADLINE)}</h1>
     <p>${esc(SUBHEAD)}</p>
     <p><strong>This app needs JavaScript.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>

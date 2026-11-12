@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APP_PATH, CLOSING_TITLE, DEMO_PATH, EXAMPLE_LINES, FAMILIAR, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, PRIVACY_LINES, PRIVACY_TITLE, renderNoscript, renderWelcomeMeta, STEPS, SUBHEAD, TRUST_LINE } from './welcome';
+import { APP_PATH, CLOSING_TITLE, DEMO_PATH, EXAMPLE_LINES, EYEBROW, FAMILIAR, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, PRIVACY_LINES, PRIVACY_TITLE, renderNoscript, renderWelcomeMeta, STEPS, SUBHEAD, TRUST_LINE } from './welcome';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
 import { PRODUCTION_URL } from './site';
 
@@ -10,7 +10,8 @@ const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 describe('welcome page', () => {
   it('sells: the hero, the way in, the trust line and the sections come in the order of the brief', () => {
-    expect(HEADLINE).toBe("You've tried a lot of AI tools. Do you know what you're still paying for?");
+    expect(EYEBROW).toBe("For people who've tried a lot of AI tools");
+    expect(HEADLINE).toBe("Do you know what you're still paying for?");
     expect(SUBHEAD).toBe('See every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.');
     expect(TRUST_LINE).toBe('No account. No upload.');
     expect(FAMILIAR).toEqual([
@@ -28,6 +29,7 @@ describe('welcome page', () => {
     expect(page).toContain('Import your statements');
     expect(page).toContain('Import more data');
     expect(page).toContain('Open Overview');
+    expect(page.indexOf('className="w-eyebrow"')).toBeLessThan(page.indexOf('<h1 className="w-display">'));
     const order = ['<h1 className="w-display">', 'title="Sound familiar?"', "title=\"What you'll find out\"", 'title="How it works"', 'className="w-band"', 'title="Questions"', 'className="w-section w-closing"', '<AboutCard />'].map((t) => page.indexOf(t));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);

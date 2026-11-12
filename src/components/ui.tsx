@@ -163,6 +163,15 @@ export function ProviderAvatar({ provider, size = 24, text }: { provider: string
   );
 }
 
+/**
+ * A plain round dot in the provider's colour, for stacking: where avatars overlap, their initials would be cut off. Give the
+ * stack a ring colour (`--ring`) and the dots keep apart.
+ */
+export function StackDot({ provider, size = 16 }: { provider: string; size?: number }) {
+  const { colors } = useLedger();
+  return <span className="stack-dot" style={{ background: colors.color(provider), width: size, height: size }} aria-hidden="true" />;
+}
+
 export function ProviderLink({ provider }: { provider: string }) {
   return (
     <a className="provider-cell" href={providerHref(provider)} onClick={(e) => e.stopPropagation()}>

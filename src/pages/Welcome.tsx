@@ -5,7 +5,7 @@ import { OverviewChartCard, useOverviewData } from '../components/OverviewParts'
 import { Button, Disclosure } from '../components/ui';
 import { WelcomeExamples } from '../components/WelcomeExamples';
 import { PRIVACY_PATH } from '../content/privacy';
-import { CLOSING_TITLE, FAMILIAR, FAQ, HEADLINE, PRIVACY_LINES, PRIVACY_TITLE, STEPS, SUBHEAD, TRUST_LINE } from '../content/welcome';
+import { CLOSING_TITLE, EYEBROW, FAMILIAR, FAQ, HEADLINE, PRIVACY_LINES, PRIVACY_TITLE, STEPS, SUBHEAD, TRUST_LINE } from '../content/welcome';
 import { href, navigate } from '../router';
 import { LedgerProvider, useLedger, type DataMode } from '../store';
 import { sumCents } from '../lib/money';
@@ -64,6 +64,7 @@ function WelcomePage({ mode, onExplore }: { mode: DataMode; onExplore: () => voi
     <div className="welcome">
       <section className="w-hero">
         <div className="w-inner">
+          <p className="w-eyebrow">{EYEBROW}</p>
           <h1 className="w-display">{HEADLINE}</h1>
           <p className="w-lead">{SUBHEAD}</p>
           <div className="row wrap w-actions">
