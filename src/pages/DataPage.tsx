@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
-import { Card, CardNote, ConfirmDialog, Button, Table } from '../components/ui';
+import { Button, Card, CardNote, ConfirmDialog, StatTile, Table } from '../components/ui';
 import { exportCsv } from '../lib/download';
 import { StatementImport } from '../components/StatementImport';
 import { dateLabel } from '../lib/dates';
@@ -32,6 +32,12 @@ export function DataPage() {
 
   return (
     <div className="stack">
+      <div className="stat-grid">
+        <StatTile label="Transactions" value={transactions.length} meta={`${providers.length} provider${providers.length === 1 ? '' : 's'}`} />
+        <StatTile label="Total recorded" value={formatEUR(sumCents(transactions))} meta={span ? `${dateLabel(span.firstDate)} – ${dateLabel(span.lastDate)}` : undefined} />
+        <StatTile label="Latest import" value={span ? dateLabel(span.lastDate) : '—'} meta="Date of the newest charge" />
+        <StatTile label="Stored" value={demo ? 'In memory' : 'Locally'} meta={demo ? 'Demo data, not stored' : 'In this browser, never uploaded'} />
+      </div>
       <Card
         title={demo ? 'Use your own data: extract AI charges from statements' : 'Extract AI charges from bank or card statements'}
         subtitle="Excel, CSV and Revolut PDF, read in your browser"
@@ -55,12 +61,6 @@ export function DataPage() {
               ? 'Generated in your browser each time you open the demo.'
               : 'Stored in IndexedDB on this device. It is not synced to other devices.'}
           </CardNote>
-          <div className="stat-row" style={{ gridTemplateColumns: 'repeat(3, auto)', justifyContent: 'start' }}>
-            <div><div className="section-label">Transactions</div><div className="value num">{transactions.length}</div></div>
-            <div><div className="section-label">Providers</div><div className="value num">{providers.length}</div></div>
-            <div><div className="section-label">Total</div><div className="value num">{formatEUR(sumCents(transactions))}</div></div>
-          </div>
-          {span && <p className="meta" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
           <div className="row wrap" style={{ marginTop: 16 }}>
             <Button
               onClick={() => exportCsv(transactions, demo ? 'ai-spending-example.csv' : undefined)}

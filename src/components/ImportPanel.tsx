@@ -186,7 +186,7 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
           The file is read in your browser and saved only on this device. Nothing is uploaded.
         </p>
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Button variant="primary" onClick={() => inputRef.current?.click()} disabled={busy}>
+          <Button onClick={() => inputRef.current?.click()} disabled={busy}>
             Choose CSV file…
           </Button>
           {extraActions}
