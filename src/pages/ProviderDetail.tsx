@@ -3,7 +3,7 @@ import { ProviderMonthlyChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
 import { TagRuleInput, TagSuggestions } from '../components/TagEditor';
 import { ChargeTypesCard } from '../components/ChargeTypes';
-import { Card, CardAction, CardSection, EmptyState, ReadChip, StatRow } from '../components/ui';
+import { Button, Card, CardAction, CardSection, EmptyState, Field, ReadChip, Select, StatRow } from '../components/ui';
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
 import { filterPeriod, periodLabel } from '../lib/analytics';
 import { dateLabel, monthLabel, monthOf, yearOf } from '../lib/dates';
@@ -26,7 +26,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
     return (
       <Card title="Provider not found">
         <EmptyState>
-          No transactions for “{provider}”. <a href={href(['providers'])} style={{ textDecoration: 'underline' }}>Back to providers</a>
+          No transactions for “{provider}”. <Button variant="text" href={href(['providers'])}>Back to providers</Button>
         </EmptyState>
       </Card>
     );
@@ -98,10 +98,8 @@ export function ProviderDetail({ provider }: { provider: string }) {
           <CardSection label="Provider settings">
             <div className="stack" style={{ gap: 12, marginTop: 12 }}>
               <TagRuleInput provider={provider} saved={tagRules.find((r) => r.provider === provider)?.tag ?? ''} />
-              <label className="field" title="Charts, budgets and overlap use this category for every charge from this provider. Totals never change.">
-                Category
-                <select
-                  className="select"
+              <Field label="Category" title="Charts, budgets and overlap use this category for every charge from this provider. Totals never change.">
+                <Select
                   value={ownCategory}
                   aria-label={`Category for ${provider}`}
                   onChange={(e) => void setProviderCategory(provider, isCategory(e.target.value) ? e.target.value : null)}
@@ -110,8 +108,8 @@ export function ProviderDetail({ provider }: { provider: string }) {
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             </div>
           </CardSection>
         </Card>

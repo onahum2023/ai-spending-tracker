@@ -6,7 +6,7 @@ import { formatEUR, sumCents } from './lib/money';
 import { DataPage } from './pages/DataPage';
 import { exportCsv } from './lib/download';
 import { StatementImport } from './components/StatementImport';
-import { Card, ProviderDot, Segmented } from './components/ui';
+import { Button, Card, ProviderAvatar, Segmented } from './components/ui';
 import { generateDemo } from './lib/demoData';
 import { Overview } from './pages/Overview';
 import { ProviderDetail } from './pages/ProviderDetail';
@@ -72,8 +72,8 @@ function Shell() {
     case 'providers':
       if (providerName) {
         title = (
-          <span className="row" style={{ gap: 10 }}>
-            <ProviderDot provider={providerName} />
+          <span className="row" style={{ gap: 12 }}>
+            <ProviderAvatar provider={providerName} size={28} />
             {providerName}
           </span>
         );
@@ -120,7 +120,7 @@ function Shell() {
           <div><strong>{transactions.length}</strong> transactions</div>
           <div><strong>{formatEUR(sumCents(transactions))}</strong> recorded</div>
           {span && <div>Latest: {dateLabel(span.lastDate)}</div>}
-          <div style={{ marginTop: 6 }}>{mode === 'demo' ? 'Demo data, not stored' : 'Stored locally in this browser'}</div>
+          <div style={{ marginTop: 8 }}>{mode === 'demo' ? 'Demo data, not stored' : 'Stored locally in this browser'}</div>
         </div>
       </aside>
       <main className="main">
@@ -150,15 +150,15 @@ function DemoBanner({ onData }: { onData: boolean }) {
       <span>
         <strong>Demo mode.</strong> Every transaction here is invented. Nothing is saved.
       </span>
-      <span className="row wrap" style={{ gap: 6 }}>
+      <span className="row wrap" style={{ gap: 8 }}>
         {!onData && (
-          <a className="btn" href={href(['data'])}>
+          <Button href={href(['data'])}>
             Use my own data
-          </a>
+          </Button>
         )}
-        <button className="btn btn-sm" onClick={exitDemo}>
+        <Button onClick={exitDemo}>
           Exit demo
-        </button>
+        </Button>
       </span>
     </div>
   );
@@ -176,18 +176,18 @@ function Welcome() {
         </div>
         <p className="secondary">
           See what you spend on AI tools and services, which providers it goes to, and how it changes month to month.{' '}
-          {PRIVACY_SENTENCE} <a href={PRIVACY_PATH} style={{ textDecoration: 'underline' }}>Privacy statement</a>
+          {PRIVACY_SENTENCE} <Button variant="text" href={PRIVACY_PATH}>Privacy statement</Button>
         </p>
         <div className="welcome-demo">
           <div>
             <strong>Just looking?</strong>
-            <p className="small secondary">Explore the app with invented data for 24 AI providers. Nothing is saved.</p>
+            <p className="meta">Explore the app with invented data for 24 AI providers. Nothing is saved.</p>
           </div>
-          <button className="btn btn-primary" onClick={startDemo}>
+          <Button variant="primary" onClick={startDemo}>
             Explore demo data
-          </button>
+          </Button>
         </div>
-        <div className="stack" style={{ gap: 10 }}>
+        <div className="stack" style={{ gap: 12 }}>
           <div className="row-between wrap">
             <strong>Use your own data</strong>
             <Segmented<'statements' | 'ledger'>
@@ -203,7 +203,7 @@ function Welcome() {
           {source === 'statements' ? (
             <StatementImport
               intro={
-                <p className="small secondary">
+                <p className="meta">
                   Drop the statements you already download from your bank or card. The app finds the AI charges, explains each
                   decision, and lets you review anything it is unsure about before saving.
                 </p>
@@ -212,9 +212,9 @@ function Welcome() {
           ) : (
             <ImportPanel
               extraActions={
-                <button className="btn" onClick={() => exportCsv(generateDemo({ end: today }), 'ai-spending-example.csv')}>
+                <Button onClick={() => exportCsv(generateDemo({ end: today }), 'ai-spending-example.csv')}>
                   Download example CSV
-                </button>
+                </Button>
               }
             />
           )}
@@ -246,10 +246,10 @@ function Root() {
             This app keeps your data in the browser's IndexedDB, which isn't available right now. Private browsing
             windows and some privacy settings block it.
           </p>
-          <p className="small secondary" style={{ marginBottom: 14 }}>Details: {load.message}</p>
+          <p className="meta" style={{ marginBottom: 16 }}>Details: {load.message}</p>
           <div className="row wrap">
-            <button className="btn btn-primary" onClick={() => void reload()}>Try again</button>
-            <button className="btn" onClick={startDemo}>Explore demo data instead</button>
+            <Button variant="primary" onClick={() => void reload()}>Try again</Button>
+            <Button onClick={startDemo}>Explore demo data instead</Button>
           </div>
         </Card>
       </div>

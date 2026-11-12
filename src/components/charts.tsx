@@ -251,7 +251,7 @@ function StackedMonthlyChart({
   return (
     <div className={fill ? 'chart-fill' : undefined}>
       {legend && (
-        <div className="legend" style={{ marginBottom: 10 }}>
+        <div className="legend" style={{ marginBottom: 12 }}>
           {series.map((k) =>
             k.href ? (
               <a key={k.key} className="legend-item" href={k.href}>
@@ -464,7 +464,7 @@ export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: Ledger
 
   return (
     <div>
-      <div className="legend" style={{ marginBottom: 10 }}>
+      <div className="legend" style={{ marginBottom: 12 }}>
         <span className="legend-item"><span className="dot" style={{ background: 'var(--accent)' }} />Monthly spending</span>
         <span className="legend-item"><span className="legend-line" style={{ background: 'var(--text-2)' }} />3-month average</span>
       </div>
@@ -524,7 +524,7 @@ export function YearCompareChart({ rows, years, height = 260 }: { rows: LedgerRo
 
   return (
     <div>
-      <div className="legend" style={{ marginBottom: 10 }}>
+      <div className="legend" style={{ marginBottom: 12 }}>
         {[...years].reverse().map((y) => (
           <span key={y} className="legend-item">
             <span className="legend-line" style={{ background: yearColor(y) }} />

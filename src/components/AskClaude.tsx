@@ -5,7 +5,7 @@ import { SERVICE_TYPE_LABELS } from '../lib/extract/types';
 import type { Classified } from '../lib/extract/classify';
 import { payloadFor, type Verdict } from '../lib/extract/review';
 import { forgetApiKey, KEY_STORE } from '../lib/localPrefs';
-import { Pill, type PillKind } from './ui';
+import { Pill, type PillKind, Button, Input, Table, Descriptor } from './ui';
 
 
 function readKey(): string {
@@ -107,29 +107,28 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
   if (!open) {
     return (
       <div className="ask-claude row-between wrap">
-        <span className="small secondary">
+        <span className="meta">
           Not sure? You can decide each line yourself with Include / Exclude. Optionally, Claude can review these {items.length} line{items.length === 1 ? '' : 's'} if you have an Anthropic API key.
         </span>
-        <button className="btn btn-sm" onClick={() => setOpen(true)}>Ask Claude…</button>
+        <Button onClick={() => setOpen(true)}>Ask Claude…</Button>
       </div>
     );
   }
 
   return (
-    <div className="ask-claude stack" style={{ gap: 10 }}>
+    <div className="ask-claude stack" style={{ gap: 12 }}>
       <div className="row-between wrap">
         <strong>Ask Claude about {items.length} line{items.length === 1 ? '' : 's'}</strong>
-        <button className="btn btn-sm btn-ghost" onClick={() => setOpen(false)} disabled={!!busy}>Close</button>
+        <Button variant="text" onClick={() => setOpen(false)} disabled={!!busy}>Close</Button>
       </div>
-      <p className="small secondary">
+      <p className="meta">
         Only these lines leave your browser, sent directly to Anthropic's API with your key: date, amount, the line's description
         exactly as your bank wrote it (it can include a city or a payment reference), your bank's short name, foreign amount,
         country and why the rules were unsure. No file names or other columns. Check the preview first and leave out any line
         you would rather not send. Claude's answers appear on each line; you can still change them. Usually costs a few cents.
       </p>
       <div className="row wrap" style={{ gap: 8 }}>
-        <input
-          className="input"
+        <Input
           style={{ flex: '1 1 260px' }}
           type="password"
           autoComplete="off"
@@ -137,8 +136,8 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           aria-label="Anthropic API key"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-        />
-        <label className="row small secondary" style={{ gap: 6 }}>
+         />
+        <label className="row meta" style={{ gap: 8 }}>
           <input
             type="checkbox"
             checked={remember}
@@ -150,14 +149,14 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           />
           Remember on this device
         </label>
-        <button className="btn btn-sm btn-ghost" onClick={() => (preview ? setPreview(null) : showPreview())}>
+        <Button variant="text" onClick={() => (preview ? setPreview(null) : showPreview())}>
           {preview ? 'Hide' : 'Show'} exactly what is sent
-        </button>
-        <button className="btn btn-primary" onClick={run} disabled={!apiKey.trim() || !!busy}>
+        </Button>
+        <Button variant="primary" onClick={run} disabled={!apiKey.trim() || !!busy}>
           {busy ?? 'Ask Claude'}
-        </button>
+        </Button>
       </div>
-      {remember && <p className="small secondary">The key is stored in this browser only. Untick to forget it.</p>}
+      {remember && <p className="meta">The key is stored in this browser only. Untick to forget it.</p>}
       {error && <div className="notice notice-error">{error}</div>}
       {preview && <pre className="ask-preview">{JSON.stringify(preview, null, 2)}</pre>}
     </div>
@@ -196,21 +195,20 @@ function ClaudeResults({
     else tally.no++;
   }
   return (
-    <div className="ask-claude stack" style={{ gap: 10 }}>
+    <div className="ask-claude stack" style={{ gap: 12 }}>
       <div className="row-between wrap">
         <strong>Claude answered {rows.length} of {items.length} line{items.length === 1 ? '' : 's'}</strong>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn btn-sm btn-ghost" onClick={() => onSetAll(true)}>Select all</button>
-          <button className="btn btn-sm btn-ghost" onClick={() => onSetAll(false)}>Select none</button>
+          <Button variant="text" onClick={() => onSetAll(true)}>Select all</Button>
+          <Button variant="text" onClick={() => onSetAll(false)}>Select none</Button>
         </div>
       </div>
       {notice && <div className="notice notice-error">{notice}</div>}
-      <p className="small secondary">
+      <p className="meta">
         Nothing has changed yet. Untick any answer you disagree with, then confirm. You can still change any line afterwards.
         {unanswered > 0 && <> Claude did not answer {unanswered} line{unanswered === 1 ? '' : 's'}; they stay in review.</>}
       </p>
-      <div className="table-wrap card" style={{ maxHeight: 360, overflowY: 'auto' }}>
-        <table className="table stmt-table">
+      <Table scrollHeight={360} tableClassName="stmt-table">
           <thead>
             <tr>
               <th />
@@ -233,32 +231,31 @@ function ClaudeResults({
                     <input type="checkbox" checked={on} onChange={() => onToggle(c.row.id)} aria-label={`Accept the answer for ${c.row.merchant}`} />
                   </td>
                   <td className="date">{dateLabel(c.row.date)}</td>
-                  <td><div className="merchant">{c.row.merchant}</div></td>
+                  <td><Descriptor>{c.row.merchant}</Descriptor></td>
                   <td className="amount">{formatEUR(c.row.amountCents)}</td>
                   <td>
                     <Pill kind={o.kind}>{o.label}</Pill>
-                    <div className="small secondary">{v.confidence} confidence</div>
+                    <div className="meta">{v.confidence} confidence</div>
                   </td>
                   <td className="small">
                     {v.is_ai_spending && v.confidence !== 'low' ? [v.provider, v.type ? SERVICE_TYPE_LABELS[v.type] : null].filter(Boolean).join(' · ') || '—' : '—'}
                   </td>
-                  <td className="small secondary why">{v.reason}<div className="muted">{o.note}</div></td>
+                  <td className="meta why">{v.reason}<div className="muted">{o.note}</div></td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
-      </div>
+        </Table>
       <div className="row-between wrap">
-        <div className="small secondary">
+        <div className="meta">
           Will apply {accepted.size}: <strong className="num">{tally.ai}</strong> to AI charges, <strong className="num">{tally.no}</strong> to Not AI,{' '}
           <strong className="num">{tally.unsure}</strong> unsure (stay in review).
         </div>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn btn-ghost" onClick={onDiscard}>Discard answers</button>
-          <button className="btn btn-primary" onClick={onConfirm} disabled={accepted.size === 0}>
+          <Button variant="text" onClick={onDiscard}>Discard answers</Button>
+          <Button variant="primary" onClick={onConfirm} disabled={accepted.size === 0}>
             Apply {accepted.size} answer{accepted.size === 1 ? '' : 's'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

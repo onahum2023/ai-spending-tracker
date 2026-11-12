@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
-import { Card, CardNote, ConfirmDialog } from '../components/ui';
+import { Card, CardNote, ConfirmDialog, Button, Table } from '../components/ui';
 import { exportCsv } from '../lib/download';
 import { StatementImport } from '../components/StatementImport';
 import { dateLabel } from '../lib/dates';
@@ -60,26 +60,25 @@ export function DataPage() {
             <div><div className="section-label">Providers</div><div className="value num">{providers.length}</div></div>
             <div><div className="section-label">Total</div><div className="value num">{formatEUR(sumCents(transactions))}</div></div>
           </div>
-          {span && <p className="small secondary" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
-          <div className="row wrap" style={{ marginTop: 14 }}>
-            <button
-              className="btn"
+          {span && <p className="meta" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
+          <div className="row wrap" style={{ marginTop: 16 }}>
+            <Button
               onClick={() => exportCsv(transactions, demo ? 'ai-spending-example.csv' : undefined)}
               disabled={!transactions.length}
             >
               {demo ? 'Download demo as CSV' : 'Export all as CSV'}
-            </button>
+            </Button>
             {demo ? (
-              <button className="btn" onClick={exitDemo}>
+              <Button onClick={exitDemo}>
                 Exit demo
-              </button>
+              </Button>
             ) : (
-              <button className="btn btn-danger" onClick={() => setConfirming(true)} disabled={!transactions.length}>
+              <Button variant="danger" onClick={() => setConfirming(true)} disabled={!transactions.length}>
                 Clear local data…
-              </button>
+              </Button>
             )}
           </div>
-          <p className="small secondary" style={{ marginTop: 10 }}>
+          <p className="meta" style={{ marginTop: 12 }}>
             Exports use the import format (Merchant, Provider, Amount, Date, plus Type and Tag when used), so an export can be re-imported
             or loaded on another device. The file holds transactions only: budgets, corrections, labels, categories, tag rules and the import history are not in it.
           </p>
@@ -93,8 +92,7 @@ export function DataPage() {
           {imports.length === 0 ? (
             <p className="muted">No imports yet.</p>
           ) : (
-            <div className="table-wrap">
-              <table className="table">
+            <Table>
                 <thead>
                   <tr>
                     <th>When</th><th>File</th><th className="amount">Rows</th><th className="amount">Added</th><th className="amount">Skipped</th><th className="amount">Invalid</th>
@@ -112,12 +110,11 @@ export function DataPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </Table>
           )}
         </Card>
         <Card title="How duplicates are handled">
-          <div className="stack small secondary" style={{ gap: 8 }}>
+          <div className="stack meta" style={{ gap: 8 }}>
             <p>
               The CSV has no transaction IDs, so a record is identified by all four values together:
               date, provider, merchant descriptor and amount (exact match).
@@ -151,9 +148,9 @@ export function DataPage() {
             This permanently removes all {transactions.length} transactions ({formatEUR(sumCents(transactions))}), their tags, your budgets,
             your corrections, labels, categories and tag rules, a remembered Anthropic API key, and the import history from this browser. It can't be undone.
           </p>
-          <button className="btn btn-sm" onClick={() => exportCsv(transactions)}>
+          <Button onClick={() => exportCsv(transactions)}>
             Export a backup first
-          </button>
+          </Button>
         </ConfirmDialog>
       )}
     </div>

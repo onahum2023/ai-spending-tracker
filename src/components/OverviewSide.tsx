@@ -7,7 +7,7 @@ import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 import { BudgetSection } from './BudgetSection';
-import { Card, CardSection, Change, Disclosure, ReadChip, StatRow, StreamName } from './ui';
+import { Button, Card, CardSection, Change, Disclosure, ReadChip, StatRow, StreamName } from './ui';
 
 /** The estimate for the month in progress, or null when the period is not that month. */
 export type SideForecast = Extract<Forecast, { status: 'ok' | 'insufficient' }>;
@@ -178,7 +178,7 @@ function StillDue({ forecast, colorOf }: { forecast: SideForecast; colorOf: (e: 
       {f.dataOld && (
         <p className="meta" style={{ margin: '8px 0 0' }}>
           Your last import is more than a week old.{' '}
-          <a href={href(['data'])} style={{ textDecoration: 'underline' }}>Import newer statements</a> for a better estimate.
+          <Button variant="text" href={href(['data'])}>Import newer statements</Button> for a better estimate.
         </p>
       )}
 

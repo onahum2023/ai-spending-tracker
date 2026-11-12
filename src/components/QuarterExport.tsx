@@ -4,7 +4,7 @@ import { formatEUR } from '../lib/money';
 import { quarterLabel, quarterReport, quartersIn, tagsInUse, UNTAGGED } from '../lib/tags';
 import { href } from '../router';
 import { useLedger } from '../store';
-import { Card, CardNote, EmptyState } from './ui';
+import { Button, Card, CardNote, EmptyState, Field, Select, Table } from './ui';
 
 /** Charges of one quarter, optionally one tag, as a CSV for expense claims or an accountant. */
 export function QuarterExport() {
@@ -30,31 +30,28 @@ export function QuarterExport() {
       ) : (
         <div className="stack" style={{ gap: 12 }}>
           <div className="filters">
-            <label>
-              Quarter
-              <select className="select" value={q} onChange={(e) => setQuarter(e.target.value)}>
+            <Field inline label="Quarter">
+              <Select value={q} onChange={(e) => setQuarter(e.target.value)}>
                 {quarters.map((x) => (
                   <option key={x} value={x}>{quarterLabel(x)}</option>
                 ))}
-              </select>
-            </label>
-            <label>
-              Tag
-              <select className="select" value={tag} onChange={(e) => setTag(e.target.value)}>
+              </Select>
+            </Field>
+            <Field inline label="Tag">
+              <Select value={tag} onChange={(e) => setTag(e.target.value)}>
                 <option value="">All charges</option>
                 {tags.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
                 <option value={UNTAGGED}>{UNTAGGED}</option>
-              </select>
-            </label>
+              </Select>
+            </Field>
           </div>
 
           {report.rows.length === 0 ? (
-            <p className="small secondary">No charges match.</p>
+            <p className="meta">No charges match.</p>
           ) : (
-            <div className="table-wrap">
-              <table className="table">
+            <Table>
                 <thead>
                   <tr>
                     <th>Tag</th>
@@ -78,21 +75,20 @@ export function QuarterExport() {
                     <td className="amount">{formatEUR(report.totalCents)}</td>
                   </tr>
                 </tfoot>
-              </table>
-            </div>
+              </Table>
           )}
 
           <div className="row wrap">
-            <button className="btn" onClick={download} disabled={report.rows.length === 0}>
+            <Button onClick={download} disabled={report.rows.length === 0}>
               Download {report.rows.length} charge{report.rows.length === 1 ? '' : 's'} as CSV
-            </button>
+            </Button>
             {tags.length === 0 && (
-              <a className="small" href={href(['transactions'])} style={{ textDecoration: 'underline' }}>
+              <Button variant="text" href={href(['transactions'])}>
                 Nothing is tagged yet: tag charges on the Transactions page
-              </a>
+              </Button>
             )}
           </div>
-          <p className="small secondary">
+          <p className="meta">
             Amounts are as charged, in euro. The ledger has no VAT figures, so VAT is not split out. The file includes a Tag column and can be
             re-imported.
           </p>

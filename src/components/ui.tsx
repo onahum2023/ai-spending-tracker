@@ -191,10 +191,14 @@ export function Money({ cents }: { cents: number }) {
 export function SearchInput({
   value,
   onChange,
+  label,
   placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** What it searches, for screen readers. */
+  label: string;
+  /** A real example of what to type, in muted text. */
   placeholder: string;
 }) {
   return (
@@ -203,7 +207,7 @@ export function SearchInput({
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" />
       </svg>
-      <Input type="search" value={value} placeholder={placeholder} aria-label={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <Input type="search" value={value} placeholder={placeholder} aria-label={label} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -318,9 +322,9 @@ export function Select({ className, children, ...rest }: ComponentProps<'select'
 }
 
 /** A label (13px, secondary) over a control. */
-export function Field({ label, title, className, children }: { label: ReactNode; title?: string; className?: string; children: ReactNode }) {
+export function Field({ label, title, className, inline = false, children }: { label: ReactNode; title?: string; className?: string; inline?: boolean; children: ReactNode }) {
   return (
-    <label className={cx('field', className)} title={title}>
+    <label className={cx('field', inline && 'field-inline', className)} title={title}>
       {label}
       {children}
     </label>
@@ -329,12 +333,13 @@ export function Field({ label, title, className, children }: { label: ReactNode;
 
 /**
  * The one table. Header: 12px semibold secondary, no background, 1px dividers. Rows: 44px at least, 14px text. Numbers sit in cells
- * with `className="amount"` (right-aligned) and text in plain cells (left). `className` goes on the scrolling wrapper.
+ * with `className="amount"` (right-aligned) and text in plain cells (left). `className` goes on the scrolling wrapper;
+ * `scrollHeight` turns the wrapper into a bordered box that scrolls past that height (a long list inside a card).
  */
-export function Table({ className, children }: { className?: string; children: ReactNode }) {
+export function Table({ className, tableClassName, scrollHeight, children }: { className?: string; tableClassName?: string; scrollHeight?: number; children: ReactNode }) {
   return (
-    <div className={cx('table-wrap', className)}>
-      <table className="table">{children}</table>
+    <div className={cx('table-wrap', scrollHeight !== undefined && 'table-scroll', className)} style={scrollHeight !== undefined ? { maxHeight: scrollHeight } : undefined}>
+      <table className={cx('table', tableClassName)}>{children}</table>
     </div>
   );
 }
@@ -489,10 +494,4 @@ export function ReadChip({ children = 'App’s read' }: { children?: ReactNode }
       {children}
     </Pill>
   );
-}
-
-// Temporary aliases for the pages that have not moved to the shared components yet. Removed in the next commit.
-export const ProviderDot = SeriesDot;
-export function Delta({ before, after, showPct = true }: { before: number; after: number; showPct?: boolean }) {
-  return <Change before={before} after={after} showPct={showPct} />;
 }

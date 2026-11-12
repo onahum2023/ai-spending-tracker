@@ -3,7 +3,7 @@ import { MAX_TAG_LENGTH } from '../lib/csv';
 import { cleanTag, SUGGESTED_TAGS, tagsInUse } from '../lib/tags';
 import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
-import { ConfirmDialog } from './ui';
+import { Button, ConfirmDialog, Field, Input } from './ui';
 
 export const TAG_LIST_ID = 'tag-suggestions';
 
@@ -34,8 +34,8 @@ export function TagInput({ tx }: { tx: Transaction }) {
     void setTags([tx.id], t || null);
   };
   return (
-    <input
-      className="input input-sm tag-input"
+    <Input
+      className="tag-input"
       list={TAG_LIST_ID}
       value={draft}
       placeholder="Add tag"
@@ -68,9 +68,8 @@ export function BulkTag({ rows }: { rows: Transaction[] }) {
   return (
     <div className="bulk-tag">
       <div className="row wrap">
-        <span className="small secondary">Tag the {rows.length} charge{rows.length === 1 ? '' : 's'} shown as</span>
-        <input
-          className="input input-sm"
+        <span className="meta">Tag the {rows.length} charge{rows.length === 1 ? '' : 's'} shown as</span>
+        <Input
           list={TAG_LIST_ID}
           value={draft}
           maxLength={MAX_TAG_LENGTH}
@@ -81,21 +80,20 @@ export function BulkTag({ rows }: { rows: Transaction[] }) {
             setMessage(null);
           }}
           style={{ width: 220 }}
-        />
-        <button
-          className="btn btn-sm"
+         />
+        <Button
           disabled={!tag || rows.length === 0}
           onClick={() => (replaced > 0 ? setConfirm(tag) : void apply(tag))}
         >
           Apply
-        </button>
+        </Button>
         {tagged > 0 && (
-          <button className="btn btn-sm btn-ghost" onClick={() => void apply(null)}>
+          <Button variant="text" onClick={() => void apply(null)}>
             Remove tags from these
-          </button>
+          </Button>
         )}
       </div>
-      {message && <div className="small secondary" role="status" style={{ marginTop: 6 }}>{message}</div>}
+      {message && <div className="meta" role="status" style={{ marginTop: 8 }}>{message}</div>}
       {confirm && (
         <ConfirmDialog
           title="Replace existing tags?"
@@ -126,13 +124,12 @@ export function TagRuleInput({ provider, saved }: { provider: string; saved: str
     void setTagRule(provider, t || null);
   };
   return (
-    <label
-      className="field"
+    <Field
+      label="Tag new charges"
       title="Charges imported from now on that arrive without a tag get this one. A tag in the file wins, and charges already stored are not changed."
     >
-      Tag new charges
-      <input
-        className="input tag-input"
+      <Input
+        className="tag-input"
         list={TAG_LIST_ID}
         value={draft}
         placeholder="Business"
@@ -142,6 +139,6 @@ export function TagRuleInput({ provider, saved }: { provider: string; saved: str
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
       />
-    </label>
+    </Field>
   );
 }
