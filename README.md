@@ -20,10 +20,10 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 for the landing page, then **Explore demo data** or **Import your own data**, or go straight to the app at http://localhost:5173/app.html (on Vercel: `/app`). Old links such as `/#/subscriptions` and `/#/trends` still work: the landing page sends them to the app, which opens Overview and Insights. On first visit the app shows the welcome screen:
+Open http://localhost:5173. With no data in the browser the app opens on the **Welcome** page: **Explore demo data** or **Import your own data**. Once data exists the app opens on Overview, and **About** in the top bar brings the Welcome page back at any time. Old links such as `/app`, `/app.html`, `/#/subscriptions` and `/#/trends` still work: they forward to `/` and open Overview and Insights. Your ways in:
 
 - **Explore demo data** generates invented data in memory (see [Demo mode](#demo-mode)). Nothing is saved.
-- **Bank or card statements**: drop the exports you already download from your bank or card; the app picks out the AI charges (see [Statement extractor](#statement-extractor)).
+- **Bank or card statements** (**Import your own data** opens the Data page): drop the exports you already download from your bank or card; the app picks out the AI charges (see [Statement extractor](#statement-extractor)).
 - **Ledger CSV**: import a file that is already in the ledger format. **Download example CSV** saves one to look at.
 
 On later visits your stored data loads automatically. To start over, use **Data → Clear local data**.
@@ -47,17 +47,17 @@ npm run licenses:check  # fail on a non-permissive dependency license or an out-
 | **Providers** (who) | All providers with all-time total, spending in the selected period, a **trend arrow** (the last 3 complete months against the 3 before, one-time charges left out; an arrow only when the change is more than 5% and more than €5, otherwise flat), share, transaction count, and first / most recent charge. Search, sort any column, and filter by category and commitment type. Click a provider for its detail page, laid out like the Overview: a chart card (that provider's months for the selected year, following the period picker; click a bar to pick that month; the charges still due stack on the current month, and the axis starts at the provider's first charge) beside an **At a glance** card (all-time total with rank and share, charges, typical charge, last charge, and the provider's settings: a tag for new charges and a category). Below, its **charge types** (the one place to say what each is): a row shows the label or statement description, what it is read as, charges, total, last charge and status pills ("App's guess" until you confirm it; price change, overlap, stopped); open a row to change its label or type and to see its schedule, next charge, price history, overlap and whether anything still charges. Charge types with the same label are one plan. Then its full transaction history. A "To review" column shows how many charge types you have not confirmed yet. |
 | **Transactions** | Searchable, sortable table with original merchant descriptors and amounts. Filter by provider and date range (or "Use selected period"). Filters live in the URL, so provider pages and the overview link straight into a filtered view. Click a row to jump to its provider. Each charge can carry a tag (Personal, Business, a client), singly or for everything shown at once, and a charge imported by mistake can be deleted (with a confirmation). The type of a charge is shown but not changed here: it links to the provider page. |
 | **Insights** | What the data says, in four groups. **Patterns**: monthly spending with a 3-month average, subscription, usage and one-time over time ("more tools or more usage?"), and recurring-looking patterns. **Shifts**: price changes ("went from €22.49 to €109.38 in Jun") and stopped subscriptions with a check that nothing still charges. **Suggestions**: overlapping tools ("2 chat assistants · €130/month combined") and what ending each would save. **Comparisons**: year-over-year by calendar month, yearly totals with like-for-like comparison, biggest increases and decreases by provider (last 3 months vs the 3 before, or year to date vs last year), and provider concentration. Anything the app worked out is marked **App's read**, with the reasoning behind a "How are these found?" toggle. See [Insights](#insights). |
-| **Data** | Import more CSVs (with a review step), export all transactions as CSV (budgets, corrections, labels, categories and tag rules are not in the file), export one quarter (optionally one tag) for expense claims, clear local data (requires typing `DELETE`), import history, and the duplicate policy in plain language. |
+| **Data** | A row of tiles (transactions, total recorded, latest import, where the data is stored), then import more CSVs (with a review step), export all transactions as CSV (budgets, corrections, labels, categories and tag rules are not in the file), export one quarter (optionally one tag) for expense claims, clear local data (requires typing `DELETE`), import history, and the duplicate policy in plain language. |
 
 **The ledger is fact, everything else is inference.** Amounts, dates and providers are shown plainly. Anything the app worked out (a subscription, a next charge, a stopped one, an estimate, a charge's type) is marked as the app's read or an estimate, and the reasoning is one click away.
 
-Works on desktop and mobile, in light and dark mode. Provider colours are assigned once by all-time spend and stay the same across every chart; the 6 largest providers get their own colour and the rest share a grey "Other".
+Works on desktop and mobile, in light and dark mode. A top bar carries the five pages and **About** (the Welcome page); on a phone the five pages are a bottom tab bar. Every page is built from the same few components (card, stat tile, pill, provider avatar, table, button, input, segmented control) in `src/components/ui.tsx`, with the colours, type sizes and spacing in `src/tokens.css`. Provider colours are assigned once by all-time spend and stay the same across every chart; the 6 largest providers get their own colour and the rest share a grey "Other".
 
 ## Statement extractor
 
 Most people do not have a clean ledger; they have bank and card statements. The extractor turns those into ledger rows, in the browser:
 
-1. **Read.** Drop one or more files on the welcome screen or the Data page.
+1. **Read.** Drop one or more files on the Data page.
    - **Excel (.xlsx) or CSV** exports: the header row and columns are found by name (English, Dutch, German, French), including the American Express transaction export and common bank CSVs (Revolut, ING-style "Af/Bij"). Day/month order and whether charges are positive or negative are worked out from the data.
    - **Revolut PDF statements**: only settled *Account transactions* are used; Pending, Reverted, Pockets and Deposit sections are skipped.
    - Lines that appear in two overlapping files are counted once. Old `.xls`, scanned PDFs and other banks' PDFs are refused with a clear message (export CSV instead).
@@ -245,7 +245,7 @@ Options: `--end YYYY-MM-DD` (default today), `--seed N` (default 2026), `--out D
 
 ## Ownership
 
-AI Spending Tracker is a product of **[NeotixHQ](https://neotixhq.com/)**, a brand legally owned by **[NuCielo ICT B.V.](https://nucielo.io/)** © 2026 NuCielo ICT B.V. The wording is set once in `src/content/site.ts` and shown in the landing page footer, the app footer and the About card (not in the privacy statement). NuCielo ICT B.V. is the only legal entity; NeotixHQ is a brand of it, not a separate legal entity, so the privacy statement names "NuCielo ICT B.V., trading as NeotixHQ" as the operator, with `info@neotixhq.com` as the contact. Ownership and licence are separate: the copyright holder is NuCielo ICT B.V., and the code is released under the Apache License 2.0 (see Version and licenses).
+AI Spending Tracker is a product of **[NeotixHQ](https://neotixhq.com/)**, a brand legally owned by **[NuCielo ICT B.V.](https://nucielo.io/)** © 2026 NuCielo ICT B.V. The wording is set once in `src/content/site.ts` and shown in the no-script text, the app footer and the About card on the Welcome page (not in the privacy statement). NuCielo ICT B.V. is the only legal entity; NeotixHQ is a brand of it, not a separate legal entity, so the privacy statement names "NuCielo ICT B.V., trading as NeotixHQ" as the operator, with `info@neotixhq.com` as the contact. Ownership and licence are separate: the copyright holder is NuCielo ICT B.V., and the code is released under the Apache License 2.0 (see Version and licenses).
 
 ## Version and licenses
 
@@ -257,7 +257,7 @@ Versions follow Semantic Versioning. Changes are listed in [CHANGELOG.md](CHANGE
 
 | | |
 |---|---|
-| ![Welcome](docs/screenshots/00-welcome.jpg) Welcome screen | ![Year](docs/screenshots/02-overview-year.jpg) Overview, year view |
+| ![Welcome](docs/screenshots/00-welcome.jpg) Welcome page | ![Year](docs/screenshots/02-overview-year.jpg) Overview, year view |
 | ![Providers](docs/screenshots/03-providers.jpg) Providers: trend and filters | ![Provider](docs/screenshots/04-provider-detail.jpg) Provider detail: chart, at a glance and charge types |
 | ![Transactions](docs/screenshots/05-transactions-filtered.jpg) Filtered transactions | ![Insights](docs/screenshots/06-insights.jpg) Insights: patterns |
 | ![Comparisons](docs/screenshots/07-insights-comparisons.jpg) Insights: comparisons | ![Import review](docs/screenshots/08-import-review-errors.jpg) Import review with errors |
@@ -274,17 +274,17 @@ All screenshots show the synthetic demo data.
 
 | Address | What | Source |
 |---|---|---|
-| `/` | Landing page: what it is, privacy up front, screenshots, FAQ. Static HTML, no scripts except a tiny redirect for old `/#/…` links. | `index.html`, `src/content/landing.ts` |
-| `/app` (`app.html`) | The tracker. `/app?demo=1` starts the demo. | `app.html`, `src/` |
+| `/` | The app. With no data it opens on the Welcome page (what it does, demo or import, how it works, privacy, questions); **About** opens it any time. `/?demo=1` starts the demo. The search and social tags are in `index.html`, and a browser without scripts sees the same headline and privacy sentence. | `index.html`, `src/pages/Welcome.tsx`, `src/content/welcome.ts` |
+| `/app` (`app.html`) | The old address of the tracker. Forwards to `/`, keeping the query and the `#/…` part. | `app.html`, `src/legacyApp.ts` |
 | `/privacy` (`privacy.html`) | The privacy statement (published 2026-11-10; set `PRIVACY_IS_DRAFT` back to true to show a draft notice and `noindex` again). Static HTML. | `privacy.html`, `src/content/privacy.ts` |
 
-The landing page and the privacy page are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The production address is `https://ai-spend-tracker.neotixhq.com`, set once in `src/content/site.ts`: the landing page's canonical link and social card, `robots.txt` and `sitemap.xml` use it (a test keeps them in step). The sitemap lists only the landing page: the app is `noindex`, and so is the privacy page whenever it is marked as a draft. Set `SITE_URL` to build with another address.
+The privacy page, the tags and the no-script text of `index.html` are generated at build time from `src/content/`, so the wording lives in one file. The privacy statement is checked against the code by `src/content/privacy.test.ts`. The production address is `https://ai-spend-tracker.neotixhq.com`, set once in `src/content/site.ts`: the Welcome page's canonical link and social card, `robots.txt` and `sitemap.xml` use it (a test keeps them in step). The sitemap lists only `/`: the old `/app` address is `noindex`, and so is the privacy page whenever it is marked as a draft. Set `SITE_URL` to build with another address.
 
 ## Project layout
 
 ```
 src/
-  content/        landing page and privacy statement text, with tests
+  content/        Welcome page and privacy statement text, with tests
   lib/            pure logic, no React
     money.ts        cents parsing/formatting
     dates.ts        YYYY-MM-DD / YYYY-MM helpers
