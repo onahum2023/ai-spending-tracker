@@ -189,7 +189,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--fs-body);
 .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; display: inline-block; }
 
 /* ---------- lists & bars ---------- */
-.bar-list { display: flex; flex-direction: column; gap: 10px; }
+.bar-list { display: flex; flex-direction: column; gap: var(--sp-3); }
 .bar-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
 .bar-item a:hover .bar-name { text-decoration: underline; }
 .bar-name { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 500; }
@@ -397,13 +397,6 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .card-note { margin: 0 0 12px; }
 .card-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 12px; }
 
-/* compact contributors: name, bar, amount on one line */
-.bar-list.compact { gap: 8px; }
-.bar-list.compact .bar-item { grid-template-columns: minmax(0, 170px) minmax(40px, 1fr) auto; gap: 0 12px; }
-.bar-list.compact .bar-track { grid-column: auto; height: 5px; }
-.bar-list.compact .bar-amount { text-align: right; white-space: nowrap; min-width: 92px; font-size: var(--fs-row); font-weight: 500; }
-.bar-list.compact .bar-amount .small { font-weight: 400; color: var(--text-2); }
-@media (max-width: 560px) { .bar-list.compact .bar-item { grid-template-columns: minmax(0, 1fr) minmax(40px, 0.7fr) auto; } }
 
 /* ---------- shared components ---------- */
 /* provider avatar: dark initials on a light tint of the provider's colour (colours set inline, see avatarColors) */
@@ -436,3 +429,31 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .faq .disclosure-btn { font-size: var(--fs-body); font-weight: 600; color: var(--text-1); }
 .faq .disclosure-body { margin-left: var(--sp-3); }
 @media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; gap: var(--sp-3); } .welcome-title { font-size: var(--fs-key); } }
+
+/* ---------- overview: hero row, chart row, charges row ---------- */
+/* row 1: the hero sits on the page background, beside one card of four stat tiles */
+.overview-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--sp-4); align-items: start; margin-bottom: var(--sp-1); }
+.hero { min-width: 0; padding: var(--sp-1) 0; }
+.hero-label { font-size: var(--fs-body); font-weight: 500; color: var(--text-2); margin-bottom: 4px; }
+.hero-est { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-meta); color: var(--text-2); }
+.hero-est strong { color: var(--text-1); font-weight: 600; }
+.hero-due { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); max-width: 460px; }
+.hero-strong { color: var(--text-1); font-weight: 500; }
+.tile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
+/* a stat tile inside a card has no box of its own: space separates the tiles */
+.card .stat-tile { padding: 0; border: 0; border-radius: 0; background: none; }
+.hero-tiles .stat-tile { align-items: flex-start; }
+/* rows 2 and 3: two thirds and one third; cards in a row share a height, content at the top */
+.overview-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--card-gap); align-items: stretch; }
+.overview-row .chart-card { min-height: 0; }
+.overview-row .chart-fill-box { min-height: 340px; }
+.bar-amount { text-align: right; white-space: nowrap; font-size: var(--fs-row); font-weight: 500; }
+.bar-amount .meta { font-weight: 400; }
+@media (max-width: 1000px) {
+  .overview-hero, .overview-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  /* narrow tiles: the sparkline goes under the figure so the figure is never cut */
+  .hero-tiles .stat-tile { flex-direction: column; align-items: flex-start; gap: var(--sp-1); }
+  .hero-tiles .tile-grid { gap: var(--sp-4) var(--sp-3); }
+}
