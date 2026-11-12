@@ -88,9 +88,6 @@ p { margin: 0; }
 .card-title { font-size: var(--fs-title); font-weight: 600; line-height: 1.35; letter-spacing: 0; color: var(--text-1); }
 .card-sub { margin: 2px 0 0; font-size: var(--fs-sub); font-weight: 400; line-height: 1.4; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 4px 16px; flex: none; max-width: 100%; }
-.card-action { display: inline-flex; align-items: center; border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 500; line-height: 1.35; color: var(--text-accent); text-decoration: none; white-space: nowrap; cursor: pointer; }
-.card-action:hover { color: var(--text-1); }
-.card-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 .card-body { flex: 1 1 auto; min-width: 0; }
 .card-section { padding: 16px 0; border-top: 1px solid var(--card-border); }
 .card-section:first-child { border-top: 0; padding-top: 0; }
@@ -103,13 +100,6 @@ p { margin: 0; }
 .amt-key { font-size: var(--fs-key); font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
 .amt-row { font-size: var(--fs-row); font-weight: 500; }
 
-/* a stat tile is a card without a title */
-.kpi { gap: 4px; }
-.kpi .amt-key { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* spending changes: accent, with an arrow; never red or green */
-.delta-up, .delta-down, .delta-flat { white-space: nowrap; font-weight: 600; }
-.delta-up, .delta-down { color: var(--text-accent); }
-.delta-flat { color: var(--text-2); }
 
 /* Pills: three kinds only. Neutral = a fact about state; inferred = the app's read; attention = worth a look. */
 .pill {
@@ -121,27 +111,25 @@ p { margin: 0; }
 .pill-attention { background: var(--warn-bg); color: var(--warn-ink); }
 
 /* ---------- controls ---------- */
+/* One button: 32px high, 8px radius, 13px medium. Primary = accent fill (one per view). Secondary = outline. Text = accent, no box. */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: var(--control-h); padding: 0 12px; border-radius: var(--control-radius); border: 1px solid var(--border-strong);
-  background: var(--surface); color: var(--text-1); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap;
+  background: var(--surface); color: var(--text-1); cursor: pointer; font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap; text-decoration: none;
 }
 .btn:hover { background: var(--surface-hover); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-/* primary: accent fill, white text; at most one per view */
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--text-accent); }
-/* text action: accent text, no underline, no box */
-.btn-text, .btn-ghost { height: auto; padding: 0; border: 0; background: none; color: var(--text-accent); text-decoration: none; }
-.btn-text:hover, .btn-ghost:hover { background: none; color: var(--text-1); }
+.btn-primary:hover { background: var(--text-accent); border-color: var(--text-accent); }
+/* text action: accent text, no underline, no box. Reads inline in a sentence, too. */
+.btn-text { display: inline; height: auto; padding: 0; border: 0; background: none; color: var(--text-accent); line-height: inherit; }
+.btn-text:hover { background: none; color: var(--text-1); }
+.btn-text:focus-visible { border-radius: 3px; }
 .btn-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .btn-danger:hover { background: var(--danger-wash); }
-.btn-danger-solid { background: #c22f2f; border-color: #c22f2f; color: #fff; }
-.btn-danger-solid:hover { background: #a82424; }
 .btn-icon { width: var(--control-h); padding: 0; }
-.btn-sm { height: var(--control-h); padding: 0 12px; font-size: 13px; }
-.btn-text.btn-sm, .btn-ghost.btn-sm { height: auto; padding: 0; }
-
+.btn-arrow { margin-left: 0; }
+.btn-text 
 .input, .select {
   height: var(--control-h); padding: 0 10px; border-radius: var(--control-radius); border: 1px solid var(--border-strong);
   background: var(--surface); min-width: 0; font-size: var(--fs-body);
@@ -373,7 +361,6 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .app-foot-owner { margin-left: auto; }
 .label-input { width: 100%; max-width: 240px; }
 .notice-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; }
-.btn-icon.btn-ghost { padding: 4px 6px; color: var(--text-3); width: auto; height: auto; } .btn-icon.btn-ghost:hover { color: var(--danger); }
 .row-action { width: 1%; white-space: nowrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -403,7 +390,9 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .side-value { white-space: nowrap; font-size: var(--fs-key); font-weight: 600; letter-spacing: -0.01em; }
 .side-sub { font-size: var(--fs-meta); color: var(--text-2); margin-top: 1px; }
 .side-note { display: block; margin-top: 2px; }
+/* a change in spending: the accent colour with an arrow, whichever way it goes. Never red or green. */
 .change { color: var(--text-accent); font-weight: 600; white-space: nowrap; }
+.change-flat { color: var(--text-2); }
 .change-pct { font-weight: 500; }
 .due-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .due-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: var(--fs-body); }
@@ -413,10 +402,6 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .due-text .provider-cell { font-weight: 400; }
 .due-amount { white-space: nowrap; font-size: var(--fs-row); font-weight: 500; }
 .due-date { color: var(--text-2); font-size: var(--fs-meta); font-weight: 400; }
-/* a text control inside a card (show all, edit a budget): the same look as a card action, without the arrow */
-.link-btn { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 500; color: var(--text-accent); text-decoration: none; cursor: pointer; }
-.link-btn:hover { color: var(--text-1); }
-.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 .card-foot { display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding-top: 12px; }
 .charges-scroll { max-height: 340px; overflow-y: auto; }
 .error-card { max-width: 460px; }
@@ -430,4 +415,26 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .bar-list.compact .bar-amount { text-align: right; white-space: nowrap; min-width: 92px; font-size: var(--fs-row); font-weight: 500; }
 .bar-list.compact .bar-amount .small { font-weight: 400; color: var(--text-2); }
 @media (max-width: 560px) { .bar-list.compact .bar-item { grid-template-columns: minmax(0, 1fr) minmax(40px, 0.7fr) auto; } }
-.card-action-arrow { margin-left: 4px; }
+
+/* ---------- shared components ---------- */
+/* provider avatar: white initials on the provider's colour */
+.avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; color: #fff; font-weight: 600; letter-spacing: 0; line-height: 1; user-select: none; }
+
+/* stat tile: label, value, meta, and an optional sparkline on the right */
+.stat-grid { display: grid; gap: var(--card-gap); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.stat-tile { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-width: 0; padding: var(--sp-3); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); }
+.stat-tile-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.stat-tile .amt-key { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sparkline { flex: none; stroke: var(--text-3); }
+.sparkline-accent { stroke: var(--accent); }
+
+/* raw statement descriptors: monospace; labels you chose stay in the body font */
+.descriptor { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; white-space: pre-wrap; }
+
+/* ---------- legacy (removed in the next commit) ---------- */
+.btn-sm { height: var(--control-h); padding: 0 12px; }
+.btn-ghost, .link-btn { display: inline; height: auto; padding: 0; border: 0; background: none; color: var(--text-accent); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-danger-solid { background: #c22f2f; border-color: #c22f2f; color: #fff; }
+.delta-up, .delta-down, .delta-flat { white-space: nowrap; font-weight: 600; color: var(--text-accent); }
+.delta-flat { color: var(--text-2); }
+.card-action { color: var(--text-accent); font-size: 13px; font-weight: 500; }
