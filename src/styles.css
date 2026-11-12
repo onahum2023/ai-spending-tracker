@@ -377,7 +377,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .change { color: var(--text-accent); font-weight: 600; white-space: nowrap; }
 .change-flat { color: var(--text-2); }
 .change-pct { font-weight: 500; }
-.due-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.due-list { display: flex; flex-direction: column; gap: 8px; }
 .due-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: var(--fs-body); }
 .due-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .due-name .dot { align-self: center; width: 12px; height: 12px; }
@@ -396,13 +396,10 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 /* provider avatar: dark initials on a light tint of the provider's colour (colours set inline, see avatarColors) */
 .avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 600; letter-spacing: 0; line-height: 1; user-select: none; }
 
-/* stat tile: label, then value with an optional sparkline on its line, then meta */
+/* stat tile: label, value, meta */
 .stat-grid { display: grid; gap: var(--card-gap); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .stat-tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: var(--sp-3); background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--card-radius); }
-.stat-tile-main { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-width: 0; }
 .stat-tile .amt-key { font-size: var(--fs-tile); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sparkline { flex: none; width: 72px; height: 28px; stroke: var(--text-3); }
-.sparkline-accent { stroke: var(--accent); }
 
 /* raw statement descriptors: monospace; labels you chose stay in the body font */
 .descriptor { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -426,12 +423,13 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 
 /* ---------- overview: hero row, chart row, charges row ---------- */
 /* row 1: the hero sits on the page background, beside one card of four stat tiles */
-.overview-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--sp-4); align-items: end; margin-bottom: var(--sp-1); }
-.hero { min-width: 0; }
+.overview-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-areas: "hero tiles" "due ."; gap: var(--card-gap); align-items: stretch; }
+.hero-card { grid-area: hero; }
+.hero-tiles { grid-area: tiles; }
+.still-due { grid-area: due; display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; padding: 0 var(--sp-1); }
 .hero-label { font-size: var(--fs-body); font-weight: 500; color: var(--text-2); margin-bottom: 4px; }
 .hero-est { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-meta); color: var(--text-2); }
 .hero-est strong { color: var(--text-1); font-weight: 600; }
-.hero-due { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); max-width: 460px; }
 .hero-strong { color: var(--text-1); font-weight: 500; }
 .tile-grid { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: var(--sp-4) var(--sp-5); }
 /* one vertical and one horizontal divider between the four tiles: they cross in the middle and stop at the card's padding */
@@ -447,12 +445,13 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .bar-amount { text-align: right; white-space: nowrap; font-size: var(--fs-row); font-weight: 500; }
 .bar-amount .meta { font-weight: 400; }
 @media (max-width: 1000px) {
-  .overview-hero, .overview-row { grid-template-columns: 1fr; }
+  .overview-row { grid-template-columns: 1fr; }
+  /* hero, still due, then the tiles */
+  .overview-hero { grid-template-columns: 1fr; grid-template-areas: "hero" "due" "tiles"; }
 }
 @media (max-width: 560px) {
-  /* narrow tiles: the sparkline goes under the figure so the figure is never cut */
-  .hero-tiles .stat-tile-main { flex-direction: column; align-items: flex-start; gap: var(--sp-1); }
-  .hero-tiles .tile-grid { gap: var(--sp-4) var(--sp-3); }
+  /* narrow tiles: a tighter column gap, so the figures are never cut */
+  .hero-tiles   .hero-tiles .tile-grid { gap: var(--sp-4) var(--sp-3); }
 }
 
 /* ---------- demo pill and its menu ---------- */

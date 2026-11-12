@@ -7,7 +7,6 @@ import { describeOneTime, formatSignedNoBreak, oneTimeNote } from '../lib/oneTim
 import type { Period, Transaction } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
-import { cumulative, lastMonths, rollingAverage, sparkOrUndefined } from './overviewStats';
 import { Button, Card, Change, Disclosure, ProviderAvatar, ReadChip, StatTile, StreamName } from './ui';
 
 /** The estimate for the month in progress. */
@@ -24,8 +23,9 @@ export function heroLabel(period: Period, inProgress: boolean, yearInProgress: b
 }
 
 /**
- * Row 1, left, on the page background: what the period came to. For the month in progress it adds "at least €X by month end"
- * (hatched swatch and Estimate pill), and "Still due (N)" opens what that estimate is made of.
+ * Row 1, left: a card as tall as the stat tile card, content at its top left: the label, the period's total and, for the month in
+ * progress, "at least €X by month end" with a hatched swatch and an Estimate pill. What the estimate is made of is under the card
+ * (`StillDue`).
  */
 export function OverviewHero({
   label,
@@ -39,54 +39,70 @@ export function OverviewHero({
   forecast: HeroForecast;
 }) {
   return (
-    <div className="hero">
+    <Card className="hero-card">
       <div className="hero-label">{label}</div>
       <div className="amt-hero num">{formatEUR(totalCents)}</div>
-      {inProgress && forecast.status === 'ok' && <HeroEstimate forecast={forecast} />}
+      {inProgress && forecast.status === 'ok' && (
+        <div className="hero-est">
+          {forecast.stillToComeCents > 0 && <span className="swatch-hatch" aria-hidden="true" />}
+          <span>
+            at least <strong className="num">{formatEUR(forecast.atLeastCents)}</strong> by month end
+          </span>
+          <ReadChip>Estimate</ReadChip>
+        </div>
+      )}
       {inProgress && forecast.status === 'insufficient' && <div className="hero-est">No month-end estimate: {forecast.reason}</div>}
-    </div>
+    </Card>
   );
 }
 
-function HeroEstimate({ forecast: f }: { forecast: Extract<Forecast, { status: 'ok' }> }) {
+const STILL_DUE_SHOWN = 3;
+
+/**
+ * Under the hero card, for the month in progress only: the first three recurring charges that the estimate adds (avatar, provider,
+ * amount, expected date). "Show all (N)" opens the rest, with how the estimate is worked out.
+ */
+export function StillDue({ forecast: f }: { forecast: Extract<Forecast, { status: 'ok' }> }) {
   const { span } = useLedger();
-  const [open, setOpen] = useState(false);
+  const [all, setAll] = useState(false);
   const lastRecorded = span?.lastDate;
+  const n = f.expected.length;
+  const shown = all ? f.expected : f.expected.slice(0, STILL_DUE_SHOWN);
+  // With nothing hidden there is nothing to open, so the notes and the explanation are simply there.
+  const notes = all || n <= STILL_DUE_SHOWN;
   return (
-    <>
-      <div className="hero-est">
-        {f.stillToComeCents > 0 && <span className="swatch-hatch" aria-hidden="true" />}
-        <span>
-          at least <strong className="num">{formatEUR(f.atLeastCents)}</strong> by month end
-        </span>
-        <ReadChip>Estimate</ReadChip>
-        <Button variant="text" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          Still due ({f.expected.length})
-        </Button>
-      </div>
-      {open && (
-        <div className="hero-due">
-          {f.expected.length === 0 ? (
-            <p className="meta">No recurring charges are still due this month.</p>
-          ) : (
-            <div className="due-list">
-              {f.expected.map((e) => (
-                <div key={`${e.provider}|${e.merchant}|${e.date}`} className="due-row">
-                  <span className="due-name">
-                    <ProviderAvatar provider={e.provider} size={20} />
-                    <span className="due-text">
-                      <a className="provider-cell" href={providerHref(e.provider)}>{e.provider}</a>
-                      <StreamName provider={e.provider} merchant={e.merchant} labelOnly />
-                    </span>
-                  </span>
-                  <span className="due-amount num" title={e.confirmed ? 'You confirmed this subscription' : 'Found by the pattern rule: monthly for 3+ months, last charged last month'}>
-                    {formatEUR(e.cents)}
-                    <span className="due-date"> · {dateLabelShort(e.date)}</span>
-                  </span>
-                </div>
-              ))}
+    <div className="still-due">
+      <div className="section-label">Still due this month</div>
+      {n === 0 ? (
+        <p className="meta">No recurring charges are still due this month.</p>
+      ) : (
+        <div className="due-list">
+          {shown.map((e) => (
+            <div key={`${e.provider}|${e.merchant}|${e.date}`} className="due-row">
+              <span className="due-name">
+                <ProviderAvatar provider={e.provider} size={20} />
+                <span className="due-text">
+                  <a className="provider-cell" href={providerHref(e.provider)}>{e.provider}</a>
+                  <StreamName provider={e.provider} merchant={e.merchant} labelOnly />
+                </span>
+              </span>
+              <span className="due-amount num" title={e.confirmed ? 'You confirmed this subscription' : 'Found by the pattern rule: monthly for 3+ months, last charged last month'}>
+                {formatEUR(e.cents)}
+                <span className="due-date"> · {dateLabelShort(e.date)}</span>
+              </span>
             </div>
-          )}
+          ))}
+        </div>
+      )}
+      {n > STILL_DUE_SHOWN && (
+        <div>
+          <Button variant="text" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+            {all ? 'Show fewer' : `Show all (${n})`}
+          </Button>
+        </div>
+      )}
+      {notes && (
+        <>
           {f.usageSoFarCents !== null && (
             <p className="meta">
               Usage so far <strong className="num hero-strong">{formatEUR(f.usageSoFarCents)}</strong> · not projected, not in the estimate
@@ -123,15 +139,15 @@ function HeroEstimate({ forecast: f }: { forecast: Extract<Forecast, { status: '
               </p>
             </Disclosure>
           </div>
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 }
 
 const chargesText = (n: number) => `${n} charge${n === 1 ? '' : 's'}`;
 
-type Tile = { key: string; label: ReactNode; value: ReactNode; meta?: ReactNode; spark?: number[] };
+type Tile = { key: string; label: ReactNode; value: ReactNode; meta: ReactNode };
 
 /**
  * Row 1, right: four stat tiles in one card, 2×2. They follow the period picker.
@@ -141,14 +157,13 @@ type Tile = { key: string; label: ReactNode; value: ReactNode; meta?: ReactNode;
  * - Year: Previous year · vs the same months of the previous year · Average per month · Highest month.
  * - All time: Average per month · Highest month · Charges · Providers.
  *
- * A sparkline shows the last 12 monthly totals where that means something: the comparison tile never has one.
+ * Each tile is a label, a value and a meta line; only the comparison tile carries an arrow.
  */
 export function OverviewTiles({ period, inProgress, asOf }: { period: Period; inProgress: boolean; asOf: string }) {
   const { transactions, span, analysis, today, providers } = useLedger();
   if (!span) return null;
   const byMonth = totalsByMonth(transactions);
   const first = span.firstMonth;
-  const monthly = (end: string, count = 12) => sparkOrUndefined(lastMonths(byMonth, end, count, first));
   const total = (month: string) => byMonth.get(month) ?? 0;
 
   /** A second line under a change when either period holds one-time charges you confirmed. Nothing when there are none. */
@@ -174,8 +189,6 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
     const yearMonths = span.months.filter((x) => yearOf(x) === y);
     const yearTotal = sumCents(filterPeriod(transactions, { kind: 'year', year: y }));
     const yearSoFar = y === yearOf(monthOf(today > span.lastDate ? today : span.lastDate));
-    // Complete months only for the average's trend: the month in progress would end the line on a false drop.
-    const trendEnd = inProgress ? prev : m;
 
     let comparison: Tile;
     if (!hasPrev) comparison = { key: 'cmp', label: 'vs previous month', value: '—', meta: 'Before recorded history' };
@@ -206,21 +219,19 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
     else comparison = { key: 'cmp', label: 'vs previous month', value: '—', meta: 'No spending the month before' };
 
     tiles = [
-      { key: 'prev', label: `Previous month · ${monthLabel(prev)}`, value: hasPrev ? formatEUR(before) : '—', meta: hasPrev ? chargesText(rowsInMonths(transactions, prev, prev).length) : 'Before recorded history', spark: hasPrev ? monthly(prev) : undefined },
+      { key: 'prev', label: `Previous month · ${monthLabel(prev)}`, value: hasPrev ? formatEUR(before) : '—', meta: hasPrev ? chargesText(rowsInMonths(transactions, prev, prev).length) : 'Before recorded history' },
       comparison,
       {
         key: 'year',
         label: `${y} ${yearSoFar ? 'so far' : 'total'}`,
         value: formatEUR(yearTotal),
         meta: `${monthShort(yearMonths[0])}–${monthShort(yearMonths[yearMonths.length - 1])}`,
-        spark: sparkOrUndefined(cumulative(yearMonths.map(total))),
       },
       {
         key: 'avg',
         label: 'Average per month',
         value: formatEUR(Math.round(yearTotal / yearMonths.length)),
         meta: `over ${yearMonths.length} month${yearMonths.length === 1 ? '' : 's'} of ${y}`,
-        spark: sparkOrUndefined(rollingAverage(lastMonths(byMonth, trendEnd, 12, first))),
       },
     ];
   } else if (period.kind === 'year') {
@@ -238,7 +249,7 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
     const partial = months.length < 12;
     const best = [...months].sort((a, b) => total(b) - total(a))[0];
     tiles = [
-      { key: 'prev', label: `Previous year · ${y - 1}`, value: hasPrev ? formatEUR(sumCents(prevYearRows)) : '—', meta: hasPrev ? chargesText(prevYearRows.length) : 'No recorded data', spark: hasPrev ? monthly(`${y - 1}-12`) : undefined },
+      { key: 'prev', label: `Previous year · ${y - 1}`, value: hasPrev ? formatEUR(sumCents(prevYearRows)) : '—', meta: hasPrev ? chargesText(prevYearRows.length) : 'No recorded data' },
       hasPrev
         ? {
             key: 'cmp',
@@ -252,14 +263,14 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
             ),
           }
         : { key: 'cmp', label: `vs ${y - 1}`, value: '—', meta: 'No recorded data' },
-      { key: 'avg', label: 'Average per month', value: formatEUR(Math.round(yearTotal / months.length)), meta: `over ${months.length} month${months.length === 1 ? '' : 's'}`, spark: sparkOrUndefined(months.map(total)) },
+      { key: 'avg', label: 'Average per month', value: formatEUR(Math.round(yearTotal / months.length)), meta: `over ${months.length} month${months.length === 1 ? '' : 's'}` },
       { key: 'high', label: 'Highest month', value: formatEUR(total(best)), meta: monthLabel(best) },
     ];
   } else {
     const grand = sumCents(transactions);
     const best = [...span.months].sort((a, b) => total(b) - total(a))[0];
     tiles = [
-      { key: 'avg', label: 'Average per month', value: formatEUR(Math.round(grand / span.months.length)), meta: `over ${span.months.length} months`, spark: monthly(span.lastMonth) },
+      { key: 'avg', label: 'Average per month', value: formatEUR(Math.round(grand / span.months.length)), meta: `over ${span.months.length} months` },
       { key: 'high', label: 'Highest month', value: formatEUR(total(best)), meta: monthLabel(best) },
       { key: 'charges', label: 'Charges', value: transactions.length, meta: `since ${monthLabel(first)}` },
       { key: 'providers', label: 'Providers', value: providers.length, meta: 'with at least one charge' },
@@ -270,7 +281,7 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
     <Card className="hero-tiles">
       <div className="tile-grid">
         {tiles.map((t) => (
-          <StatTile key={t.key} label={t.label} value={t.value} meta={t.meta} spark={t.spark} />
+          <StatTile key={t.key} label={t.label} value={t.value} meta={t.meta} />
         ))}
       </div>
     </Card>
