@@ -14,8 +14,35 @@ export const APP_PATH = '/';
 export const DEMO_PATH = `${APP_PATH}?demo=1`;
 
 export const SITE_NAME = 'AI Spending Tracker';
-export const HEADLINE = 'What do you spend on AI tools?';
-export const SUBHEAD = 'See which providers you pay, which charges are subscriptions, and what is about to renew. Everything stays in your browser.';
+/** Small, secondary, above the headline: who the page is for. */
+export const EYEBROW = "For people who've tried a lot of AI tools";
+export const HEADLINE = "Do you know what you're still paying for?";
+export const SUBHEAD = 'See every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.';
+/** The short name of what the app is, for the title of a shared link. */
+export const SHARE_TITLE = 'What do you spend on AI tools?';
+export const TRUST_LINE = 'No account. No upload.';
+
+/** "Sound familiar?": three short lines, no icons. */
+export const FAMILIAR: string[] = [
+  "You signed up to try one thing. You're still paying for it.",
+  'Two assistants that do the same job, both on monthly plans.',
+  'A plan quietly doubled, and you found out three months later.',
+];
+
+/** One plain line under each of the three example insights, in the order they appear. */
+export const EXAMPLE_LINES: string[] = [
+  'Your monthly AI total, and where it is heading by the end of the month.',
+  'A plan that changed price is flagged the month it happens, not three months later.',
+  'Two services doing the same job, and what ending one would save you.',
+];
+
+export const PRIVACY_TITLE = 'Your statements never leave your browser.';
+export const PRIVACY_LINES: string[] = [
+  'Files are read, stored and analysed on your device. There is no account, no backend and no tracking.',
+  'The one optional exception is Ask Claude: with your own Anthropic API key it sends only the statement lines you choose, straight from your browser to Anthropic.',
+];
+
+export const CLOSING_TITLE = "See what you're really paying for.";
 export const META_DESCRIPTION =
   'See what you spend on AI tools, which charges are subscriptions, price changes and what renews next. Runs in your browser: your data is never uploaded.';
 
@@ -27,19 +54,10 @@ export const FEATURES: { title: string; text: string }[] = [
 ];
 
 export const STEPS: string[] = [
-  'Drop in the statements you already download from your bank or card, or a CSV.',
-  'Review what the app found. Anything it is unsure about is yours to include or leave out.',
-  'Explore your spending. Nothing leaves your browser.',
+  'Bring your bank or card statements.',
+  'The app finds your AI services.',
+  'See where the money goes.',
 ];
-
-/** The Overview with the demo data, below the buttons on the Welcome page: light, and dark for a browser in dark mode. Files in public/screenshots. */
-export const OVERVIEW_SHOT = {
-  light: '/screenshots/overview.jpg',
-  dark: '/screenshots/overview-dark.jpg',
-  alt: 'The Overview page with demo data: this month’s total and month-end estimate, monthly spending by provider as a stacked bar chart, and what is still due this month.',
-  width: 1280,
-  height: 888,
-};
 
 export const FAQ: { q: string; a: string }[] = [
   {
@@ -72,10 +90,10 @@ export function renderWelcomeMeta(siteUrl: string): string {
     `<meta name="description" content="${esc(META_DESCRIPTION)}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:site_name" content="${esc(SITE_NAME)}" />`,
-    `<meta property="og:title" content="${esc(`${SITE_NAME}: ${HEADLINE}`)}" />`,
+    `<meta property="og:title" content="${esc(`${SITE_NAME}: ${SHARE_TITLE}`)}" />`,
     `<meta property="og:description" content="${esc(META_DESCRIPTION)}" />`,
     `<meta name="twitter:card" content="${siteUrl ? 'summary_large_image' : 'summary'}" />`,
-    `<meta name="twitter:title" content="${esc(`${SITE_NAME}: ${HEADLINE}`)}" />`,
+    `<meta name="twitter:title" content="${esc(`${SITE_NAME}: ${SHARE_TITLE}`)}" />`,
     `<meta name="twitter:description" content="${esc(META_DESCRIPTION)}" />`,
   ];
   if (siteUrl) {
@@ -85,7 +103,7 @@ export function renderWelcomeMeta(siteUrl: string): string {
       `<meta property="og:image" content="${esc(siteUrl)}/og-image.png" />`,
       `<meta property="og:image:width" content="1200" />`,
       `<meta property="og:image:height" content="630" />`,
-      `<meta property="og:image:alt" content="${esc(`${SITE_NAME}: ${HEADLINE}`)}" />`,
+      `<meta property="og:image:alt" content="${esc(`${SITE_NAME}: ${SHARE_TITLE}`)}" />`,
       `<meta name="twitter:image" content="${esc(siteUrl)}/og-image.png" />`,
     );
   }
@@ -99,6 +117,7 @@ export function renderWelcomeMeta(siteUrl: string): string {
 export function renderNoscript(): string {
   return `<noscript>
   <main style="max-width:640px;margin:0 auto;padding:32px 16px;font-family:system-ui,sans-serif;line-height:1.5">
+    <p>${esc(EYEBROW)}</p>
     <h1>${esc(HEADLINE)}</h1>
     <p>${esc(SUBHEAD)}</p>
     <p><strong>This app needs JavaScript.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>

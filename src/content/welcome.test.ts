@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APP_PATH, DEMO_PATH, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, OVERVIEW_SHOT, renderNoscript, renderWelcomeMeta, STEPS } from './welcome';
+import { APP_PATH, CLOSING_TITLE, DEMO_PATH, EXAMPLE_LINES, EYEBROW, FAMILIAR, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, PRIVACY_LINES, PRIVACY_TITLE, renderNoscript, renderWelcomeMeta, STEPS, SUBHEAD, TRUST_LINE } from './welcome';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
 import { PRODUCTION_URL } from './site';
 
@@ -9,20 +9,46 @@ const root = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 describe('welcome page', () => {
-  it('explains the product, says the privacy sentence, and has a demo and an import way in', () => {
-    expect(HEADLINE).toBe('What do you spend on AI tools?');
-    expect(FEATURES).toHaveLength(4);
-    expect(STEPS.length).toBeGreaterThanOrEqual(3);
+  it('sells: the hero, the way in, the trust line and the sections come in the order of the brief', () => {
+    expect(EYEBROW).toBe("For people who've tried a lot of AI tools");
+    expect(HEADLINE).toBe("Do you know what you're still paying for?");
+    expect(SUBHEAD).toBe('See every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.');
+    expect(TRUST_LINE).toBe('No account. No upload.');
+    expect(FAMILIAR).toEqual([
+      "You signed up to try one thing. You're still paying for it.",
+      'Two assistants that do the same job, both on monthly plans.',
+      'A plan quietly doubled, and you found out three months later.',
+    ]);
+    expect(EXAMPLE_LINES).toHaveLength(3);
+    expect(STEPS).toHaveLength(3);
+    expect(CLOSING_TITLE).toBe("See what you're really paying for.");
+    expect(FEATURES).toHaveLength(4); // for the no-script text
     expect(FAQ.length).toBeGreaterThanOrEqual(5);
     const page = read('src/pages/Welcome.tsx');
-    expect(page).toContain('Explore demo data');
-    expect(page).toContain('Import your own data');
-    expect(page).toContain('PRIVACY_SENTENCE');
+    expect(page).toContain('Try it with demo data');
+    expect(page).toContain('Import your statements');
+    expect(page).toContain('Import more data');
+    expect(page).toContain('Open Overview');
+    expect(page.indexOf('className="w-eyebrow"')).toBeLessThan(page.indexOf('<h1 className="w-display">'));
+    const order = ['<h1 className="w-display">', 'title="Sound familiar?"', "title=\"What you'll find out\"", 'title="How it works"', 'className="w-band"', 'title="Questions"', 'className="w-section w-closing"', '<AboutCard />'].map((t) => page.indexOf(t));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+    // one primary action, shown twice (hero and closing), and a way to import in the hero
+    expect(page.match(/variant="primary"/g)).toHaveLength(2);
+  });
+
+  it('says plainly what stays in the browser and what the optional Claude assist sends', () => {
+    expect(PRIVACY_TITLE).toBe('Your statements never leave your browser.');
+    expect(PRIVACY_LINES).toHaveLength(2);
+    expect(PRIVACY_LINES[0]).toMatch(/on your device/);
+    expect(PRIVACY_LINES[1]).toMatch(/Ask Claude/);
+    expect(PRIVACY_LINES[1]).toMatch(/your own Anthropic API key/);
+    expect(PRIVACY_LINES[1]).toMatch(/only the statement lines you choose/);
+    const page = read('src/pages/Welcome.tsx');
     expect(page).toContain('PRIVACY_PATH');
-    for (const part of ['FEATURES', 'STEPS', 'FAQ']) expect(page).toContain(part);
-    // the primary action is the demo, the import is secondary: one primary button on the page
-    expect(page.match(/variant="primary"/g)).toHaveLength(2); // demo (no data) or back into the app (data): never both
-    expect(read('src/content/privacy.ts')).toContain('PRIVACY_SENTENCE');
+    expect(page).toContain('Privacy statement');
+    // the one-line version is still the one in the README, the privacy page and the no-script text
+    expect(read('src/content/welcome.ts')).toContain('PRIVACY_SENTENCE');
   });
 
   it('is one page: the app opens on it without data, About opens it, and the logo goes there only without data', () => {
@@ -50,13 +76,21 @@ describe('welcome page', () => {
     expect(noscript.match(/<h1[ >]/g)).toHaveLength(1);
   });
 
-  it('shows the Overview below the buttons, with a dark version, alt text and a size', () => {
+  it('renders its preview and example insights live from the demo data, read-only and apart from what is stored', () => {
     const page = read('src/pages/Welcome.tsx');
-    expect(page.indexOf('welcome-actions')).toBeLessThan(page.indexOf('<picture'));
-    expect(page).toContain('prefers-color-scheme: dark');
-    for (const f of [OVERVIEW_SHOT.light, OVERVIEW_SHOT.dark]) expect(existsSync(join(root, 'public', f))).toBe(true);
-    expect(OVERVIEW_SHOT.alt.length).toBeGreaterThan(20);
-    expect(OVERVIEW_SHOT.width).toBeGreaterThan(0);
+    // a demo-only ledger around the whole page, and the real Overview parts in a preview nothing can reach
+    expect(page).toContain('<LedgerProvider demoOnly>');
+    expect(page).toContain('OverviewHero');
+    expect(page).toContain('OverviewChartCard');
+    expect(page).toMatch(/className="w-preview-frame" inert aria-hidden="true"/);
+    expect(page).not.toMatch(/<img|<picture|screenshots\//);
+    const examples = read('src/components/WelcomeExamples.tsx');
+    for (const part of ['ProviderAvatar', 'Pill kind="attention"', 'ReadChip', 'Change ']) expect(examples).toContain(part);
+    const store = read('src/store.tsx');
+    expect(store).toContain('demoOnly');
+    // the demo-only ledger never loads from or saves to storage, and never touches the demo flag
+    expect(store).toMatch(/if \(!demoOnly\) void reload\(\)/);
+    expect(existsSync(join(root, 'public/screenshots'))).toBe(false);
   });
 
   it('points at files that exist', () => {

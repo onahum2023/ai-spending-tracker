@@ -128,7 +128,7 @@ function Shell() {
           </div>
         </div>
       </header>
-      <main className="main">
+      <main className={welcome ? 'main main-welcome' : 'main'}>
         {welcome ? (
           <Welcome />
         ) : (
@@ -156,10 +156,12 @@ function Shell() {
             {page}
           </>
         )}
-        <footer className="app-foot">
-          <a href={PRIVACY_PATH}>Privacy</a>
-          <span className="app-foot-owner">{COPYRIGHT}</span>
-        </footer>
+        <div className={welcome ? 'w-inner' : undefined}>
+          <footer className="app-foot">
+            <a href={PRIVACY_PATH}>Privacy</a>
+            <span className="app-foot-owner">{COPYRIGHT}</span>
+          </footer>
+        </div>
       </main>
       <nav className="tabbar" aria-label="Main">
         {NAV.map((n) => (

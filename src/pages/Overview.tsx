@@ -1,59 +1,26 @@
 import { useMemo, useState } from 'react';
 import { BudgetCard } from '../components/BudgetSection';
 import { heroLabel, OverviewHero, OverviewTiles } from '../components/OverviewHero';
-import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
+import { OverviewChartCard, useOverviewData } from '../components/OverviewParts';
 import { TransactionTable } from '../components/TransactionTable';
-import { Button, Card, CardAction, Disclosure, EmptyState, ProviderAvatar, ReadChip, Segmented } from '../components/ui';
+import { Button, Card, CardAction, EmptyState, ProviderAvatar } from '../components/ui';
 import { filterPeriod, periodKey, periodLabel, summarizeProviders } from '../lib/analytics';
 import { OTHER_KEY } from '../lib/colors';
-import { dateLabel, daysInMonth, monthLabel, monthOf, yearOf } from '../lib/dates';
-import { forecastCurrentMonth } from '../lib/forecast';
+import { dateLabel, daysInMonth, monthLabel } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
 import type { Period } from '../lib/types';
 import { href, providerHref } from '../router';
 import { useLedger } from '../store';
 
-type ChartView = 'provider' | 'category' | 'type';
-const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
-
 /**
  * The Overview. Row 1: the hero card (what the period came to, and for the month in progress what is still due) beside the card of
- * four stat tiles.
- * Row 2: the monthly chart and who the money went to. Row 3: the period's charges and the budget.
+ * four stat tiles. Row 2: the monthly chart and who the money went to. Row 3: the period's charges and the budget.
  */
 export function Overview() {
-  const { transactions, span, period, setPeriod, today, analysis } = useLedger();
-  const [view, setView] = useState<ChartView>('provider');
-  // The month that is still in progress: where the estimate and the budget apply.
-  const currentMonth = span ? monthOf(span.lastDate > today ? span.lastDate : today) : '';
-  const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
-  const forecast = useMemo(
-    () => forecastCurrentMonth(transactions, today, undefined, analysis.expected, analysis.typeOf),
-    [transactions, today, analysis],
-  );
-
-  if (!span) return null;
-
-  // One "as of" date for the whole page: where the data runs through (the hero label says "through" it).
-  const asOf = span.lastDate;
-  const inProgress = period.kind === 'month' && period.month === currentMonth;
-  const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
-
-  const chartMonths =
-    period.kind === 'all'
-      ? span.months
-      : span.months.filter((m) => yearOf(m) === (period.kind === 'year' ? period.year : yearOf(period.month)));
-  // Charges still due stack on the current month's bar, in whichever grouping the chart shows.
-  const projection =
-    forecast.status === 'ok' && forecast.expected.length > 0 && chartMonths.includes(forecast.month)
-      ? { month: forecast.month, charges: forecast.expected }
-      : undefined;
-
-  const selectedMonth = period.kind === 'month' ? period.month : null;
-  // A bar is a period: clicking one does what picking that month in the date selector does.
-  const openMonth = (month: string) => setPeriod({ kind: 'month', month });
-  const chartProps = { rows: transactions, months: chartMonths, projection, selectedMonth, onSelectMonth: openMonth, fill: true };
-  const chartYear = period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`;
+  const { span, period, today } = useLedger();
+  const data = useOverviewData();
+  if (!span || !data) return null;
+  const { asOf, inProgress, yearInProgress, periodRows, forecast } = data;
 
   return (
     <div className="stack overview">
@@ -63,45 +30,7 @@ export function Overview() {
       </div>
 
       <div className="overview-row">
-        <Card
-          className="chart-card"
-          title="Monthly spending"
-          subtitle={`By ${VIEW_NAMES[view]}${chartYear}`}
-          badge={view === 'type' ? <ReadChip>Suggested</ReadChip> : undefined}
-          action={
-            <Segmented<ChartView>
-              label="Group by"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'provider', label: 'Provider' },
-                { value: 'category', label: 'Category' },
-                { value: 'type', label: 'Commitment' },
-              ]}
-            />
-          }
-        >
-          <div className="chart-body">
-            {view === 'provider' ? (
-              <MonthlyProviderChart {...chartProps} />
-            ) : view === 'type' ? (
-              <TypeChart {...chartProps} typeOf={analysis.typeOf} />
-            ) : (
-              <MonthlyCategoryChart {...chartProps} categoryFor={analysis.categoryOf} />
-            )}
-          </div>
-          {view === 'type' && (
-            <div style={{ marginTop: 12 }}>
-              <Disclosure label="How are these found?">
-                <p className="meta" style={{ margin: 0 }}>
-                  Amounts and dates are the ledger. Whether a charge is a subscription, usage or one-time is the app's read, and stays a
-                  suggestion until you confirm it on the provider's page: a charge is a subscription once it has appeared monthly for three
-                  months in a row, and usage when the same descriptor is charged three or more times without that rhythm.
-                </p>
-              </Disclosure>
-            </div>
-          )}
-        </Card>
+        <OverviewChartCard data={data} />
         <WhoItWentTo rows={periodRows} label={periodLabel(period)} />
       </div>
 

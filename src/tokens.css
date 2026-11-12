@@ -65,6 +65,11 @@
   --fs-hero: 48px; /* the one big figure of a page */
   --fs-tile: 22px; /* a stat tile's value */
   --fs-key: 20px;
+  /* landing page (the Welcome page) */
+  --fs-display: clamp(36px, 5vw, 56px);
+  --fs-h2: clamp(26px, 3vw, 32px);
+  --fs-landing-body: 17px;
+  --w-max: 1100px;
   --fs-row: 14px;
 
   /* controls: one height, one radius */
