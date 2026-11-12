@@ -106,18 +106,19 @@ export function StatRow({ label, value, sub }: { label: ReactNode; value: ReactN
 }
 
 /**
- * A stat tile, for compact grids of figures: a 12px label, a 20px value, an optional meta line and an optional sparkline on the
- * right (muted by default, accent with `accent`). The tile is the only bordered box; do not put it inside a card.
+ * A stat tile, for compact grids of figures: a 12px label, then the 22px value with an optional sparkline on the same line (at the
+ * right, one fixed width everywhere; muted by default, accent with `accent`), then a meta line. On its own it is a bordered box;
+ * inside a card it has no box, and the card draws the dividers between tiles.
  */
 export function StatTile({ label, value, meta, spark, accent = false }: { label: ReactNode; value: ReactNode; meta?: ReactNode; spark?: number[]; accent?: boolean }) {
   return (
     <div className="stat-tile">
-      <div className="stat-tile-text">
-        <div className="section-label">{label}</div>
+      <div className="section-label">{label}</div>
+      <div className="stat-tile-main">
         <div className="amt-key num">{value}</div>
-        {meta && <div className="meta">{meta}</div>}
+        {spark && spark.length > 1 && <Sparkline values={spark} accent={accent} />}
       </div>
-      {spark && spark.length > 1 && <Sparkline values={spark} accent={accent} />}
+      {meta && <div className="meta">{meta}</div>}
     </div>
   );
 }
@@ -167,11 +168,11 @@ export function SeriesDot({ provider }: { provider: string }) {
  * on a light tint of it, like the pills. "Other providers" and any provider without a colour of its own are grey. The contrast is
  * checked for every palette colour in avatar.test.ts.
  */
-export function ProviderAvatar({ provider, size = 24 }: { provider: string; size?: number }) {
+export function ProviderAvatar({ provider, size = 24, text }: { provider: string; size?: number; /** Replaces the initials, for a group such as "+5". */ text?: string }) {
   const { colors, scheme } = useLedger();
   return (
     <span className="avatar" style={{ ...avatarColors(colors.color(provider), scheme), width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden="true">
-      {providerInitials(provider)}
+      {text ?? providerInitials(provider)}
     </span>
   );
 }

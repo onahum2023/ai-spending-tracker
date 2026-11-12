@@ -126,6 +126,8 @@ function HeroEstimate({ forecast: f }: { forecast: Extract<Forecast, { status: '
   );
 }
 
+const chargesText = (n: number) => `${n} charge${n === 1 ? '' : 's'}`;
+
 type Tile = { key: string; label: ReactNode; value: ReactNode; meta?: ReactNode; spark?: number[] };
 
 /**
@@ -201,7 +203,7 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
     else comparison = { key: 'cmp', label: 'vs previous month', value: '—', meta: 'No spending the month before' };
 
     tiles = [
-      { key: 'prev', label: `Previous month · ${monthLabel(prev)}`, value: hasPrev ? formatEUR(before) : '—', meta: hasPrev ? undefined : 'Before recorded history', spark: hasPrev ? monthly(prev) : undefined },
+      { key: 'prev', label: `Previous month · ${monthLabel(prev)}`, value: hasPrev ? formatEUR(before) : '—', meta: hasPrev ? chargesText(rowsInMonths(transactions, prev, prev).length) : 'Before recorded history', spark: hasPrev ? monthly(prev) : undefined },
       comparison,
       {
         key: 'year',
@@ -233,7 +235,7 @@ export function OverviewTiles({ period, inProgress, asOf }: { period: Period; in
     const partial = months.length < 12;
     const best = [...months].sort((a, b) => total(b) - total(a))[0];
     tiles = [
-      { key: 'prev', label: `Previous year · ${y - 1}`, value: hasPrev ? formatEUR(sumCents(prevYearRows)) : '—', meta: hasPrev ? undefined : 'No recorded data', spark: hasPrev ? monthly(`${y - 1}-12`) : undefined },
+      { key: 'prev', label: `Previous year · ${y - 1}`, value: hasPrev ? formatEUR(sumCents(prevYearRows)) : '—', meta: hasPrev ? chargesText(prevYearRows.length) : 'No recorded data', spark: hasPrev ? monthly(`${y - 1}-12`) : undefined },
       hasPrev
         ? {
             key: 'cmp',

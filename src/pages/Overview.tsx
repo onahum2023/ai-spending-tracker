@@ -154,7 +154,7 @@ function WhoItWentTo({ rows, label }: { rows: { provider: string; amountCents: n
           {rest.length > 0 && (
             <div className="bar-item">
               <span className="bar-name">
-                <ProviderAvatar provider={OTHER_KEY} size={20} />
+                <ProviderAvatar provider={OTHER_KEY} size={20} text={`+${rest.length}`} />
                 <span>Other ({rest.length})</span>
               </span>
               <span className="num bar-amount">
