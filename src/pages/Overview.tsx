@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { OverviewSide } from '../components/OverviewSide';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, CardAction, Disclosure, EmptyState, ProviderDot, ReadChip, Segmented } from '../components/ui';
+import { Button, Card, CardAction, Disclosure, EmptyState, ProviderAvatar, ReadChip, Segmented } from '../components/ui';
 import { filterPeriod, periodKey, periodLabel, summarizeProviders } from '../lib/analytics';
 import { dateLabel, daysInMonth, monthLabel, monthLabelLong, monthOf, yearOf } from '../lib/dates';
 import { forecastCurrentMonth, type ExpectedCharge } from '../lib/forecast';
@@ -27,7 +27,7 @@ export function Overview() {
 
   if (!span) return null;
 
-  // One "as of" date for the whole page: the last import.
+  // One "as of" date for the whole page: where the data runs through (shown as "Data through").
   const asOf = span.lastDate;
   const inProgress = period.kind === 'month' && period.month === currentMonth;
   const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
@@ -61,7 +61,6 @@ export function Overview() {
         <Card
           className="chart-card"
           title={headline}
-          subtitle={inProgress || yearInProgress ? `As of last import, ${dateLabel(asOf)}` : undefined}
           action={
             <Segmented<ChartView>
               label="Group by"
@@ -108,9 +107,9 @@ export function Overview() {
             )}
           </div>
           {view === 'type' && (
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 12 }}>
               <Disclosure label="How are these found?">
-                <p className="small secondary" style={{ margin: 0 }}>
+                <p className="meta" style={{ margin: 0 }}>
                   Amounts and dates are the ledger. Whether a charge is a subscription, usage or one-time is the app's read, and stays a
                   suggestion until you confirm it on the provider's page: a charge is a subscription once it has appeared monthly for three
                   months in a row, and usage when the same descriptor is charged three or more times without that rhythm.
@@ -127,7 +126,7 @@ export function Overview() {
         <ChargesCard key={periodKey(period)} period={period} />
       </div>
       {today < span.lastDate && (
-        <p className="small secondary">Note: some transactions are dated after today ({dateLabel(today)}).</p>
+        <p className="meta">Note: some transactions are dated after today ({dateLabel(today)}).</p>
       )}
     </div>
   );
@@ -151,7 +150,7 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
           {top.map((s) => (
             <a key={s.provider} className="bar-item" href={providerHref(s.provider)}>
               <span className="bar-name">
-                <ProviderDot provider={s.provider} />
+                <ProviderAvatar provider={s.provider} size={20} />
                 <span>{s.provider}</span>
               </span>
               <div className="bar-track">
@@ -163,7 +162,7 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
             </a>
           ))}
           {summary.length > top.length && (
-            <a className="small secondary" href={href(['providers'])}>
+            <a className="meta" href={href(['providers'])}>
               + {summary.length - top.length} more providers ({formatEUR(sumCents(summary.slice(8).map((s) => ({ amountCents: s.totalCents }))))})
             </a>
           )}
@@ -210,9 +209,9 @@ function ChargesCard({ period }: { period: Period }) {
       </div>
       {rows.length > TOP_CHARGES && (
         <div className="card-foot">
-          <button type="button" className="link-btn" onClick={() => setAll((v) => !v)} aria-expanded={all}>
+          <Button variant="text" onClick={() => setAll((v) => !v)} aria-expanded={all}>
             {all ? `Show top ${TOP_CHARGES}` : `Show all ${rows.length}`}
-          </button>
+          </Button>
         </div>
       )}
     </Card>

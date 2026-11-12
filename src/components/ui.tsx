@@ -1,9 +1,13 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ComponentProps, type ReactNode } from 'react';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
 import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
+import { avatarColors, providerInitials } from './avatar';
+import { sparklinePath } from './sparkline';
+
+const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' ');
 
 /**
  * The one card. Every card in the app is this component, so spacing, header and type sizes live in one place (see the
@@ -52,22 +56,16 @@ export function Card({
   );
 }
 
-/** A card's action: accent text, no underline, trailing arrow. A link when it has an `href`, otherwise a button. */
+/** A card's action: a text action with a trailing arrow. A link when it has an `href`, otherwise a button. Header only. */
 export function CardAction({ href, onClick, children, ariaLabel }: { href?: string; onClick?: () => void; children: ReactNode; ariaLabel?: string }) {
-  const content = (
-    <>
-      {children}
-      <span aria-hidden="true" className="card-action-arrow">→</span>
-    </>
-  );
   return href !== undefined ? (
-    <a className="card-action" href={href} aria-label={ariaLabel}>
-      {content}
-    </a>
+    <Button variant="text" arrow href={href} aria-label={ariaLabel}>
+      {children}
+    </Button>
   ) : (
-    <button type="button" className="card-action" onClick={onClick} aria-label={ariaLabel}>
-      {content}
-    </button>
+    <Button variant="text" arrow onClick={onClick} aria-label={ariaLabel}>
+      {children}
+    </Button>
   );
 }
 
@@ -107,55 +105,81 @@ export function StatRow({ label, value, sub }: { label: ReactNode; value: ReactN
   );
 }
 
-/** A stat tile: a card without a title, so its label is a section label, its value a key figure, its note meta text. */
-export function Kpi({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
+/**
+ * A stat tile, for compact grids of figures: a 12px label, a 20px value, an optional meta line and an optional sparkline on the
+ * right (muted by default, accent with `accent`). The tile is the only bordered box; do not put it inside a card.
+ */
+export function StatTile({ label, value, meta, spark, accent = false }: { label: ReactNode; value: ReactNode; meta?: ReactNode; spark?: number[]; accent?: boolean }) {
   return (
-    <div className="card kpi">
-      <div className="section-label">{label}</div>
-      <div className="amt-key num">{value}</div>
-      {sub && <div className="meta">{sub}</div>}
+    <div className="stat-tile">
+      <div className="stat-tile-text">
+        <div className="section-label">{label}</div>
+        <div className="amt-key num">{value}</div>
+        {meta && <div className="meta">{meta}</div>}
+      </div>
+      {spark && spark.length > 1 && <Sparkline values={spark} accent={accent} />}
     </div>
   );
 }
 
-/** Spending change: an arrow and a sign in the accent colour, whichever way it goes (never red or green). */
-export function Delta({ before, after, showPct = true }: { before: number; after: number; showPct?: boolean }) {
-  const d = after - before;
-  const cls = d > 0 ? 'delta-up' : d < 0 ? 'delta-down' : 'delta-flat';
-  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '';
-  const pct = pctChange(before, after);
+/** A small line of recent values, with no axes. Decoration for a figure that already says its number in words. */
+export function Sparkline({ values, accent = false, width = 72, height = 28 }: { values: number[]; accent?: boolean; width?: number; height?: number }) {
   return (
-    <span className={`${cls} num`}>
-      {arrow && <span aria-hidden="true">{arrow} </span>}
-      {formatSignedEUR(d)}
-      {showPct && pct !== null && <span> ({formatPct(pct)})</span>}
+    <svg className={cx('sparkline', accent && 'sparkline-accent')} width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+      <path d={sparklinePath(values, width, height)} fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/**
+ * A change in spending: an arrow and a sign in the accent colour, whichever way it goes (never red or green). A flat change has no
+ * arrow and is secondary text. `direction` is for a caller that has its own rule for "flat" (the Providers trend).
+ */
+export function ChangeArrow({ direction, children, title }: { direction: 'up' | 'down' | 'flat'; children: ReactNode; title?: string }) {
+  return (
+    <span className={cx('change num', direction === 'flat' && 'change-flat')} title={title}>
+      {direction !== 'flat' && <span aria-hidden="true">{direction === 'up' ? '▲' : '▼'} </span>}
+      {children}
     </span>
   );
 }
 
-/** A change in spending for the side column: the same arrow-and-sign style as `Delta`, always accent. */
+/** The change between two amounts, as a signed euro figure and (optionally) a percentage. */
 export function Change({ before, after, showPct = true }: { before: number; after: number; showPct?: boolean }) {
   const d = after - before;
-  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '';
   const pct = pctChange(before, after);
   return (
-    <span className="change num">
-      {arrow && <span aria-hidden="true">{arrow} </span>}
+    <ChangeArrow direction={d > 0 ? 'up' : d < 0 ? 'down' : 'flat'}>
       {formatSignedEUR(d)}
       {showPct && pct !== null && <span className="change-pct"> ({formatPct(pct)})</span>}
-    </span>
+    </ChangeArrow>
   );
 }
 
-export function ProviderDot({ provider }: { provider: string }) {
+/** A square swatch in a series' colour: the key of a chart or a bar. It marks a series, not a provider; rows name providers with `ProviderAvatar`. */
+export function SeriesDot({ provider }: { provider: string }) {
   const { colors } = useLedger();
   return <span className="dot" style={{ background: colors.color(provider) }} aria-hidden="true" />;
+}
+
+/**
+ * A provider's avatar: a circle with its one or two initials in a dark shade of the provider's colour (the colour the charts use)
+ * on a light tint of it, like the pills. "Other providers" and any provider without a colour of its own are grey. The contrast is
+ * checked for every palette colour in avatar.test.ts.
+ */
+export function ProviderAvatar({ provider, size = 24 }: { provider: string; size?: number }) {
+  const { colors, scheme } = useLedger();
+  return (
+    <span className="avatar" style={{ ...avatarColors(colors.color(provider), scheme), width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden="true">
+      {providerInitials(provider)}
+    </span>
+  );
 }
 
 export function ProviderLink({ provider }: { provider: string }) {
   return (
     <a className="provider-cell" href={providerHref(provider)} onClick={(e) => e.stopPropagation()}>
-      <ProviderDot provider={provider} />
+      <ProviderAvatar provider={provider} size={20} />
       <span>{provider}</span>
     </a>
   );
@@ -168,26 +192,23 @@ export function Money({ cents }: { cents: number }) {
 export function SearchInput({
   value,
   onChange,
+  label,
   placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** What it searches, for screen readers. */
+  label: string;
+  /** A real example of what to type, in muted text. */
   placeholder: string;
 }) {
   return (
     <div className="search">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" />
       </svg>
-      <input
-        className="input"
-        type="search"
-        value={value}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <Input type="search" value={value} placeholder={placeholder} aria-label={label} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -245,6 +266,99 @@ export function Segmented<T extends string>({
   );
 }
 
+export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'danger';
+
+type ButtonOwn = {
+  /** primary: accent fill, at most one per view. secondary (default): outline. text: accent text, no box, no underline. danger: for destructive actions. */
+  variant?: ButtonVariant;
+  /** A trailing arrow, for a text action that goes somewhere. */
+  arrow?: boolean;
+  /** A square, icon-only button (give it an aria-label). */
+  icon?: boolean;
+  className?: string;
+  children?: ReactNode;
+};
+type ButtonProps =
+  | (ButtonOwn & { href: string } & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof ButtonOwn>)
+  | (ButtonOwn & { href?: undefined } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonOwn>);
+
+/** The one button. 32px high, 8px radius, 13px medium. Renders a link when it has an `href`. */
+export function Button(props: ButtonProps) {
+  const { variant = 'secondary', arrow = false, icon = false, className, children, ...rest } = props;
+  const cls = cx('btn', variant !== 'secondary' && `btn-${variant}`, icon && 'btn-icon', className);
+  const content = (
+    <>
+      {children}
+      {arrow && <span aria-hidden="true" className="btn-arrow">→</span>}
+    </>
+  );
+  if (props.href !== undefined) {
+    const { href, ...anchor } = rest as AnchorHTMLAttributes<HTMLAnchorElement>;
+    return (
+      <a className={cls} href={href} {...anchor}>
+        {content}
+      </a>
+    );
+  }
+  const button = rest as ButtonHTMLAttributes<HTMLButtonElement>;
+  return (
+    <button type="button" className={cls} {...button}>
+      {content}
+    </button>
+  );
+}
+
+/** The one text input: 32px high, 8px radius, 1px border, 14px text. The placeholder is a real example, never "e.g.". */
+export function Input({ className, ...rest }: ComponentProps<'input'>) {
+  return <input className={cx('input', className)} {...rest} />;
+}
+
+/** The one select, the same size as `Input`. */
+export function Select({ className, children, ...rest }: ComponentProps<'select'>) {
+  return (
+    <select className={cx('select', className)} {...rest}>
+      {children}
+    </select>
+  );
+}
+
+/** A label (13px, secondary) over a control. */
+export function Field({ label, title, className, inline = false, children }: { label: ReactNode; title?: string; className?: string; inline?: boolean; children: ReactNode }) {
+  return (
+    <label className={cx('field', inline && 'field-inline', className)} title={title}>
+      {label}
+      {children}
+    </label>
+  );
+}
+
+/**
+ * The one table. Header: 12px semibold secondary, no background, 1px dividers. Rows: 44px at least, 14px text. Numbers sit in cells
+ * with `className="amount"` (right-aligned) and text in plain cells (left). `className` goes on the scrolling wrapper;
+ * `scrollHeight` turns the wrapper into a bordered box that scrolls past that height (a long list inside a card).
+ */
+export function Table({ className, tableClassName, scrollHeight, children }: { className?: string; tableClassName?: string; scrollHeight?: number; children: ReactNode }) {
+  return (
+    <div className={cx('table-wrap', scrollHeight !== undefined && 'table-scroll', className)} style={scrollHeight !== undefined ? { maxHeight: scrollHeight } : undefined}>
+      <table className={cx('table', tableClassName)}>{children}</table>
+    </div>
+  );
+}
+
+/** A raw statement descriptor: monospace, so it reads as the bank wrote it. Labels the user chose use the body font. */
+export function Descriptor({ children, className }: { children: ReactNode; className?: string }) {
+  return <span className={cx('descriptor', className)}>{children}</span>;
+}
+
+/** The chevron at the left of an expandable row. */
+export function RowToggle({ open, onClick, panelId, label }: { open: boolean; onClick: () => void; panelId: string; label: string }) {
+  return (
+    <button type="button" className="row-toggle" aria-expanded={open} aria-controls={panelId} aria-label={label} onClick={onClick}>
+      <Chevron open={open} />
+    </button>
+  );
+}
+
 export function ConfirmDialog({
   title,
   children,
@@ -277,20 +391,15 @@ export function ConfirmDialog({
         <h2>{title}</h2>
         {children}
         {requireText && (
-          <label className="stack" style={{ gap: 6 }}>
-            <span className="small secondary">
-              Type <strong>{requireText}</strong> to confirm
-            </span>
-            <input ref={inputRef} className="input" value={typed} onChange={(e) => setTyped(e.target.value)} />
-          </label>
+          <Field label={<>Type <strong>{requireText}</strong> to confirm</>}>
+            <Input ref={inputRef} value={typed} onChange={(e) => setTyped(e.target.value)} />
+          </Field>
         )}
         <div className="dialog-actions">
-          <button className="btn" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="btn btn-danger-solid" disabled={!ok || busy} onClick={onConfirm}>
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button variant="danger" disabled={!ok || busy} onClick={onConfirm}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -306,16 +415,18 @@ export function EmptyState({ children }: { children: ReactNode }) {
  * otherwise the descriptor. The descriptor stays available on hover.
  * `labelOnly` shows nothing when there is no label (for places that never showed the descriptor).
  */
-export function StreamName({ provider, merchant, className = 'small secondary merchant-line', labelOnly = false }: { provider: string; merchant: string; className?: string; labelOnly?: boolean }) {
+export function StreamName({ provider, merchant, className = 'meta', labelOnly = false }: { provider: string; merchant: string; className?: string; labelOnly?: boolean }) {
   const { labels } = useLedger();
   const label = labelOf(labelMap(labels), provider, merchant);
   if (!label && labelOnly) return null;
   return label ? (
-    <div className={className.replace('merchant-line', '').trim() + ' stream-label'} title={`Descriptor: ${tidyDescriptor(merchant)}`}>
+    <div className={className + ' stream-label'} title={`Descriptor: ${tidyDescriptor(merchant)}`}>
       {label}
     </div>
   ) : (
-    <div className={className}>{tidyDescriptor(merchant)}</div>
+    <div className={className}>
+      <Descriptor>{tidyDescriptor(merchant)}</Descriptor>
+    </div>
   );
 }
 
@@ -329,11 +440,11 @@ export function TypeNote({ provider, merchant }: { provider: string; merchant: s
   if (!info) return null;
   const confirmed = overrideOf(overrideMap(overrides), { provider, merchant }) !== undefined;
   return (
-    <div className="small secondary" title={WHY[info.source]}>
+    <div className="meta" title={WHY[info.source]}>
       {typeLabel(info)} · {confirmed ? 'confirmed by you' : 'suggested'} ·{' '}
-      <a href={providerHref(provider)} style={{ textDecoration: 'underline' }}>
+      <Button variant="text" href={providerHref(provider)}>
         change on the provider page
-      </a>
+      </Button>
     </div>
   );
 }

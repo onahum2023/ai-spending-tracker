@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
 import { OverlapCard, PriceChangesCard, SavingsCard, StoppedCard } from '../components/SubscriptionCards';
-import { Card, CardNote, Delta, Pill, Disclosure, EmptyState, ProviderDot, ProviderLink, ReadChip, Segmented, StreamName } from '../components/ui';
+import { Card, CardNote, Change, Pill, Disclosure, EmptyState, ProviderLink, ReadChip, Segmented, SeriesDot, StreamName, Table } from '../components/ui';
 import {
   concentration,
   filterPeriod,
@@ -34,7 +34,7 @@ export function Insights() {
   const prev3 = sumCents(rowsInMonths(transactions, addMonths(L, -5), addMonths(L, -3)));
 
   return (
-    <div className="stack" style={{ gap: 28 }}>
+    <div className="stack" style={{ gap: 24 }}>
       <InsightGroup
         title="Patterns"
         lead="What repeats, and how your spending is made up."
@@ -54,8 +54,8 @@ export function Insights() {
             <MonthlyTrendChart rows={transactions} months={span.months} />
           </Card>
           <Card title="At a glance" subtitle="Complete months only, unless noted">
-            <div className="stack" style={{ gap: 14 }}>
-              <Stat label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`} value={formatEUR(last3)} sub={<>vs previous 3: <Delta before={prev3} after={last3} /></>} />
+            <div className="stack" style={{ gap: 16 }}>
+              <Stat label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`} value={formatEUR(last3)} sub={<>vs previous 3: <Change before={prev3} after={last3} /></>} />
               <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
               <Stat label="Highest month" value={formatEUR(byMonth.get(sortedMonths[0]) ?? 0)} sub={monthLabel(sortedMonths[0])} />
               <Stat label="Lowest complete month" value={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? formatEUR(byMonth.get(low) ?? 0) : '—'; })()} sub={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? monthLabel(low) : ''; })()} />
@@ -125,7 +125,7 @@ function InsightGroup({ title, lead, why, children }: { title: string; lead: str
         {children}
         {why && (
           <Disclosure label="How are these found?">
-            <p className="small secondary" style={{ margin: 0 }}>{why}</p>
+            <p className="meta" style={{ margin: 0 }}>{why}</p>
           </Disclosure>
         )}
       </div>
@@ -152,7 +152,7 @@ function SpendingTypes() {
   const total = c.after.subscriptionCents + c.after.usageCents + c.after.otherCents;
   const share = (x: number) => (total > 0 ? Math.round((x / total) * 100) : 0);
   const Row = ({ label, now, before }: { label: string; now: number; before: number }) => (
-    <Stat label={label} value={formatEUR(now)} sub={<>{share(now)}% of the last 3 months · <Delta before={before} after={now} /></>} />
+    <Stat label={label} value={formatEUR(now)} sub={<>{share(now)}% of the last 3 months · <Change before={before} after={now} /></>} />
   );
   return (
     <div className="grid cols-2">
@@ -161,12 +161,12 @@ function SpendingTypes() {
         <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
       <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`} badge={<ReadChip />}>
-        <div className="stack" style={{ gap: 14 }}>
+        <div className="stack" style={{ gap: 16 }}>
           <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
           <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
           <Row label="One-time / Other" now={c.after.otherCents} before={c.before.otherCents} />
-          {sentence && <p className="small secondary">{sentence}</p>}
-          <p className="small secondary">
+          {sentence && <p className="meta">{sentence}</p>}
+          <p className="meta">
             The app guesses each charge's type. A charge is a subscription once it has appeared monthly for three months in a row, and usage
             when the same descriptor is charged three or more times without that rhythm. Correct any of them on the provider's page.
           </p>
@@ -188,8 +188,7 @@ function YearComparison() {
         <YearCompareChart rows={transactions} years={years} />
       </Card>
       <Card title="Yearly totals" subtitle={`Like-for-like compares Jan–${monthShort(span.lastMonth)} of each year`}>
-        <div className="table-wrap">
-          <table className="table">
+        <Table>
             <thead>
               <tr>
                 <th>Year</th>
@@ -208,18 +207,17 @@ function YearComparison() {
                   <tr key={y}>
                     <td>
                       <strong>{y}</strong>
-                      {y === latestYear && span.lastMonth.slice(5) !== '12' && <span className="small secondary"> · to date</span>}
-                      {y === years[0] && span.firstMonth.slice(5) !== '01' && <span className="small secondary"> · from {monthShort(span.firstMonth)}</span>}
+                      {y === latestYear && span.lastMonth.slice(5) !== '12' && <span className="meta"> · to date</span>}
+                      {y === years[0] && span.firstMonth.slice(5) !== '01' && <span className="meta"> · from {monthShort(span.firstMonth)}</span>}
                     </td>
                     <td className="amount">{formatEUR(total)}</td>
                     <td className="amount">{formatEUR(ytd)}</td>
-                    <td className="amount">{hasPrev ? <Delta before={prevYtd} after={ytd} /> : <span className="muted">—</span>}</td>
+                    <td className="amount">{hasPrev ? <Change before={prevYtd} after={ytd} /> : <span className="muted">—</span>}</td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
-        </div>
+          </Table>
       </Card>
     </div>
   );
@@ -296,8 +294,8 @@ function ChangesCard() {
             <div className="section-label" style={{ marginBottom: 4 }}>Decreases (less spending)</div>
             {downs.length ? downs.map((c) => <Row key={c.provider} c={c} />) : <div className="meta">None</div>}
           </div>
-          <div className="small secondary">
-            Net change: <Delta before={sumCents(result.changes.map((c) => ({ amountCents: c.beforeCents })))} after={sumCents(result.changes.map((c) => ({ amountCents: c.afterCents })))} />
+          <div className="meta">
+            Net change: <Change before={sumCents(result.changes.map((c) => ({ amountCents: c.beforeCents })))} after={sumCents(result.changes.map((c) => ({ amountCents: c.afterCents })))} />
           </div>
         </div>
       )}
@@ -337,7 +335,7 @@ function ConcentrationCard() {
         />
       }
     >
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 14 }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 16 }}>
         <Stat label="Top provider" value={pct(c.top1Share)} sub={c.shares[0]?.provider} />
         <Stat label="Top 3 providers" value={pct(c.top3Share)} sub="of spending" />
         <Stat label="80% of spending" value={`${c.providersFor80} of ${c.shares.length}`} sub="providers" />
@@ -348,15 +346,15 @@ function ConcentrationCard() {
         ))}
         {rest.length > 0 && <div style={{ flex: restShare, background: colors.otherColor }} title={`${rest.length} others: ${pct(restShare)}`} />}
       </div>
-      <div className="bar-list" style={{ marginTop: 14, gap: 6 }}>
+      <div className="bar-list" style={{ marginTop: 16, gap: 8 }}>
         {top.map((s) => (
           <a key={s.provider} className="row-between small" href={providerHref(s.provider)}>
-            <span className="bar-name"><ProviderDot provider={s.provider} /><span>{s.provider}</span></span>
+            <span className="bar-name"><SeriesDot provider={s.provider} /><span>{s.provider}</span></span>
             <span className="num">{formatEUR(s.cents)} <span className="muted">· {pct(s.share)}</span></span>
           </a>
         ))}
         {rest.length > 0 && (
-          <div className="row-between small secondary">
+          <div className="row-between meta">
             <span className="bar-name"><span className="dot" style={{ background: colors.otherColor }} /><span>{rest.length} other providers</span></span>
             <span className="num">{formatEUR(rest.reduce((a, s) => a + s.cents, 0))} · {pct(restShare)}</span>
           </div>
@@ -379,8 +377,7 @@ function RecurringCard() {
       {patterns.length === 0 ? (
         <EmptyState>No recurring-looking patterns found.</EmptyState>
       ) : (
-        <div className="table-wrap">
-          <table className="table">
+        <Table>
             <thead>
               <tr>
                 <th>Provider</th>
@@ -396,11 +393,11 @@ function RecurringCard() {
               {patterns.map((p) => (
                 <tr key={p.provider + p.firstDate}>
                   <td><ProviderLink provider={p.provider} /></td>
-                  <td className="merchant hide-sm"><StreamName provider={p.provider} merchant={p.merchant} className="merchant" /></td>
+                  <td className="hide-sm"><StreamName provider={p.provider} merchant={p.merchant} className="meta" /></td>
                   <td className="nowrap">{p.cadence === 'yearly' ? 'Yearly (set by you)' : `Monthly, ~${ordinal(p.typicalDay)}`}</td>
                   <td className="amount">
                     {formatEUR(p.typicalCents)}
-                    {p.minCents !== p.maxCents && <div className="small secondary">{formatEUR(p.minCents)}–{formatEUR(p.maxCents)}</div>}
+                    {p.minCents !== p.maxCents && <div className="meta">{formatEUR(p.minCents)}–{formatEUR(p.maxCents)}</div>}
                   </td>
                   <td className="amount">{p.months}</td>
                   <td className="date">{rangeLabel(monthOf(p.firstDate), monthOf(p.lastDate))}</td>
@@ -412,8 +409,7 @@ function RecurringCard() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </Table>
       )}
     </Card>
   );

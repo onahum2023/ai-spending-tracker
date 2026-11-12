@@ -6,7 +6,7 @@ import type { Transaction } from '../lib/types';
 import { navigate, providerHref } from '../router';
 import { useLedger } from '../store';
 import { TagInput } from './TagEditor';
-import { EmptyState, Pill, ProviderLink, SortHeader, type SortDir } from './ui';
+import { EmptyState, Pill, ProviderLink, SortHeader, type SortDir, Button, Table, Descriptor } from './ui';
 
 export type TxSortKey = 'date' | 'merchant' | 'provider' | 'type' | 'tag' | 'amount';
 
@@ -70,8 +70,7 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="table-wrap desktop-table">
-        <table className="table">
+      <Table className="desktop-table">
           <thead>
             <tr>
               <SortHeader label="Date" k="date" sort={sort} onSort={setSort} />
@@ -92,7 +91,7 @@ export function TransactionTable({
                 title={showProvider ? `Open ${t.provider}` : undefined}
               >
                 <td className="date">{dateLabel(t.date)}</td>
-                <td className="merchant">{t.merchant}</td>
+                <td><Descriptor>{t.merchant}</Descriptor></td>
                 {showProvider && (
                   <td>
                     <ProviderLink provider={t.provider} />
@@ -113,8 +112,7 @@ export function TransactionTable({
                 <td className="amount">{formatEUR(t.amountCents)}</td>
                 {onDelete && (
                   <td className="row-action" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className="btn btn-sm btn-ghost btn-icon"
+                    <Button variant="text" icon
                       onClick={() => onDelete(t)}
                       aria-label={`Delete the ${t.provider} charge of ${formatEUR(t.amountCents)} on ${dateLabel(t.date)}`}
                       title="Delete this charge"
@@ -122,7 +120,7 @@ export function TransactionTable({
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" />
                       </svg>
-                    </button>
+                    </Button>
                   </td>
                 )}
               </tr>
@@ -138,23 +136,22 @@ export function TransactionTable({
               </tr>
             </tfoot>
           )}
-        </table>
-      </div>
+        </Table>
 
       <div className="mobile-cards">
         {visible.map((t) => (
           <div key={t.id} className="m-card">
             {showProvider ? <ProviderLink provider={t.provider} /> : <span className="secondary">{dateLabel(t.date)}</span>}
             <span className="num" style={{ fontWeight: 600 }}>{formatEUR(t.amountCents)}</span>
-            <span className="merchant">
+            <span className="m-card-meta">
               {showProvider ? `${dateLabel(t.date)} · ` : ''}
-              {t.merchant}
+              <Descriptor>{t.merchant}</Descriptor>
               {t.tag ? ` · #${t.tag}` : ''}
             </span>
             {onDelete && (
-              <button className="btn-text" style={{ gridColumn: '1 / -1', justifySelf: 'start' }} onClick={() => onDelete(t)}>
+              <Button variant="text" className="m-card-action" onClick={() => onDelete(t)}>
                 Delete this charge
-              </button>
+              </Button>
             )}
           </div>
         ))}
@@ -167,10 +164,10 @@ export function TransactionTable({
       </div>
 
       {sorted.length > limit && (
-        <div className="row" style={{ justifyContent: 'center', paddingTop: 10 }}>
-          <button className="btn btn-sm" onClick={() => setLimit((l) => l + PAGE)}>
+        <div className="row" style={{ justifyContent: 'center', paddingTop: 12 }}>
+          <Button onClick={() => setLimit((l) => l + PAGE)}>
             Show more ({sorted.length - limit} remaining)
-          </button>
+          </Button>
         </div>
       )}
     </>

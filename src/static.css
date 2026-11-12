@@ -1,69 +1,5 @@
-/* Styles for the static pages (privacy statement, and the landing page later). Colour tokens are the app's own, so every page matches in light and dark. */
-:root {
-  color-scheme: light;
-  --page: #f4f4f1;
-  --surface: #ffffff;
-  --surface-2: #f8f8f6;
-  --surface-hover: #f2f2ee;
-  --border: rgba(11, 11, 11, 0.09);
-  --border-strong: rgba(11, 11, 11, 0.16);
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --ink-3: #898781;
-  --grid: #e8e7e1;
-  --axis: #c3c2b7;
-  --accent: #2a78d6;
-  --accent-ink: #1c5cab;
-  --accent-wash: rgba(42, 120, 214, 0.1);
-  --up: #b42f2f;      /* spending went up */
-  --down: #1c5cab;    /* spending went down */
-  --up-bar: #e34948;
-  --down-bar: #2a78d6;
-  --good: #006300;
-  --warn-bg: #fff7e0;
-  --warn-ink: #7a5300;
-  --danger: #c22f2f;
-  --danger-wash: rgba(208, 59, 59, 0.08);
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 1px 1px rgba(11, 11, 11, 0.03);
-  --radius: 10px;
-  --sidebar: 216px;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--ink);
-  background: var(--page);
-  -webkit-font-smoothing: antialiased;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-2: #212120;
-    --surface-hover: #262625;
-    --border: rgba(255, 255, 255, 0.09);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --ink: #f0efec;
-    --ink-2: #c3c2b7;
-    --ink-3: #898781;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --accent: #3987e5;
-    --accent-ink: #86b6ef;
-    --accent-wash: rgba(57, 135, 229, 0.16);
-    --up: #f08a8a;
-    --down: #86b6ef;
-    --up-bar: #e66767;
-    --down-bar: #3987e5;
-    --good: #0ca30c;
-    --warn-bg: #2e2510;
-    --warn-ink: #f1c76a;
-    --danger: #e66767;
-    --danger-wash: rgba(230, 103, 103, 0.12);
-    --shadow: none;
-  }
-}
+/* Styles for the static privacy page. The tokens are the app's own (tokens.css), so every page matches in light and dark. */
+@import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; }
 body {
@@ -71,17 +7,17 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.6;
-  color: var(--ink);
+  color: var(--text-1);
   background: var(--page);
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--accent-ink); text-underline-offset: 2px; }
+a { color: var(--text-accent); text-underline-offset: 2px; }
 a:hover { text-decoration-thickness: 2px; }
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 
 .site-head, .site-foot { max-width: 720px; margin: 0 auto; padding: 20px 16px; }
-.site-head .brand { font-weight: 650; color: var(--ink); text-decoration: none; font-size: 15px; }
-.site-foot { font-size: 14px; color: var(--ink-2); border-top: 1px solid var(--border); margin-top: 32px; }
+.site-head .brand { font-weight: 650; color: var(--text-1); text-decoration: none; font-size: 15px; }
+.site-foot { font-size: 14px; color: var(--text-2); border-top: 1px solid var(--border); margin-top: 32px; }
 
 .doc { max-width: 720px; margin: 0 auto; padding: 8px 16px 24px; }
 .doc h1 { font-size: 30px; line-height: 1.2; margin: 12px 0 4px; letter-spacing: -0.01em; }
@@ -89,54 +25,6 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
 .doc p, .doc ul { margin: 0 0 12px; }
 .doc ul { padding-left: 22px; }
 .doc li { margin-bottom: 6px; }
-.doc .muted { color: var(--ink-2); }
-.doc .lead { font-size: 18px; color: var(--ink-2); margin: 16px 0 8px; }
+.doc .muted { color: var(--text-2); }
+.doc .lead { font-size: 18px; color: var(--text-2); margin: 16px 0 8px; }
 .doc .notice { background: var(--warn-bg); color: var(--warn-ink); padding: 10px 14px; border-radius: var(--radius); margin: 16px 0; }
-
-/* ---- landing page ---- */
-.site-head.wide, .site-foot.wide { max-width: 1040px; }
-.site-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.site-head .brand { display: inline-flex; align-items: center; gap: 10px; }
-.site-head nav { display: flex; gap: 18px; font-size: 14px; }
-.site-head nav a { color: var(--ink-2); text-decoration: none; }
-.site-head nav a:hover { color: var(--ink); text-decoration: underline; }
-.site-foot p { margin: 0 0 6px; }
-.site-foot .muted { color: var(--ink-2); }
-
-.landing main { max-width: 1040px; margin: 0 auto; padding: 0 16px 24px; }
-.landing section { margin: 0 0 56px; }
-.landing h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; letter-spacing: -0.02em; margin: 24px 0 14px; }
-.landing h2 { font-size: 26px; line-height: 1.25; margin: 0 0 18px; letter-spacing: -0.01em; }
-.landing h3 { font-size: 17px; margin: 0 0 6px; }
-.landing p { margin: 0 0 12px; }
-.hero { padding: 24px 0 0; max-width: 760px; }
-.hero .lead { font-size: 20px; line-height: 1.5; color: var(--ink-2); margin-bottom: 22px; }
-.cta { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 18px; }
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px;
-  border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink);
-  font: inherit; font-weight: 600; text-decoration: none;
-}
-.btn:hover { background: var(--surface-hover); }
-.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn-primary { background: #1c5cab; border-color: #1c5cab; color: #fff; } /* white on this blue is 6.9:1 in light and dark */
-.btn-primary:hover { background: #164a8c; border-color: #164a8c; }
-.privacy-line { background: var(--accent-wash); border-radius: var(--radius); padding: 12px 14px; font-size: 15px; color: var(--ink); }
-
-.shots { display: grid; gap: 18px; grid-template-columns: 1fr; }
-.shots figure { margin: 0; }
-.shots img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--surface); }
-.shots figcaption { font-size: 14px; color: var(--ink-2); padding: 8px 2px 0; }
-@media (min-width: 900px) { .shots { grid-template-columns: 1fr 1fr; } .shots figure:first-child { grid-column: 1 / -1; } }
-
-.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; grid-template-columns: 1fr; }
-.features li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
-.features p { margin: 0; color: var(--ink-2); font-size: 15px; }
-@media (min-width: 700px) { .features { grid-template-columns: 1fr 1fr; } }
-
-.steps { padding-left: 22px; margin: 0 0 18px; max-width: 700px; }
-.steps li { margin-bottom: 8px; }
-.landing details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 10px; max-width: 760px; }
-.landing summary { cursor: pointer; font-weight: 600; }
-.landing summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-.landing details p { margin: 10px 0 0; color: var(--ink-2); font-size: 15px; }

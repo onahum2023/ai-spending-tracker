@@ -2,7 +2,7 @@ import { BUILD_INFO, THIRD_PARTY_NOTICES_URL } from '../buildInfo';
 import { PRIVACY_PATH } from '../content/privacy';
 import { BRAND, BRAND_URL, COPYRIGHT, OWNER, OWNER_URL } from '../content/site';
 import { dateLabel } from '../lib/dates';
-import { Card } from './ui';
+import { Button, Card } from './ui';
 
 /** Version, build and licensing of the app itself. */
 export function AboutCard() {
@@ -20,13 +20,13 @@ export function AboutCard() {
         <dt className="muted">Owner</dt>
         <dd>
           {COPYRIGHT} ·{' '}
-          <a href={BRAND_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
+          <Button variant="text" href={BRAND_URL} target="_blank" rel="noopener noreferrer">
             {BRAND}
-          </a>{' '}
+          </Button>{' '}
           is a brand of{' '}
-          <a href={OWNER_URL} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>
+          <Button variant="text" href={OWNER_URL} target="_blank" rel="noopener noreferrer">
             {OWNER}
-          </a>
+          </Button>
         </dd>
         {license && (
           <>
@@ -36,15 +36,15 @@ export function AboutCard() {
         )}
         <dt className="muted">Privacy</dt>
         <dd>
-          <a href={PRIVACY_PATH} style={{ textDecoration: 'underline' }}>
+          <Button variant="text" href={PRIVACY_PATH}>
             Privacy statement
-          </a>
+          </Button>
         </dd>
         <dt className="muted">Third-party software</dt>
         <dd>
-          <a href={THIRD_PARTY_NOTICES_URL} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>
+          <Button variant="text" href={THIRD_PARTY_NOTICES_URL} target="_blank" rel="noreferrer">
             Licenses of the libraries this app includes
-          </a>
+          </Button>
         </dd>
       </dl>
     </Card>

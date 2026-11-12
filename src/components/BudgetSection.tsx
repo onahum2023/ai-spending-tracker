@@ -4,7 +4,7 @@ import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { monthLabelLong } from '../lib/dates';
 import { centsToPlain, formatEUR, parseAmountToCents } from '../lib/money';
 import { useLedger } from '../store';
-import { CardAction, CardSection } from './ui';
+import { CardAction, CardSection, Button, Input } from './ui';
 
 /** "120", "120.5", "1 200,00", "€120" -> cents. Empty -> null (no budget). Throws a readable message when invalid. */
 export function parseBudgetInput(raw: string): number | null {
@@ -71,14 +71,14 @@ export function BudgetSection() {
   if (!hasBudgets(budgets)) {
     return (
       <CardSection label="Budget">
-        <button type="button" className="link-btn" style={{ marginTop: 8 }} onClick={() => setEditing(true)}>Set a monthly budget</button>
+        <Button variant="text" onClick={() => setEditing(true)}>Set a monthly budget</Button>
       </CardSection>
     );
   }
 
   return (
     <CardSection label={`Budget · ${monthLabelLong(report.month)}`} action={<CardAction onClick={() => setEditing(true)}>Edit</CardAction>}>
-      <div className="stack" style={{ gap: 14, marginTop: 10 }}>
+      <div className="stack" style={{ gap: 16, marginTop: 12 }}>
         {report.lines.map((l) => (
           <div key={l.key}>
             <div className="row-between">
@@ -136,23 +136,22 @@ function BudgetForm({
       <span>{label}</span>
       <span className="budget-input">
         <span className="muted" aria-hidden="true">€</span>
-        <input className="input input-sm" inputMode="decimal" placeholder="500" value={value} onChange={(e) => onChange(e.target.value)} aria-label={`${label} budget per month, in euros`} />
+        <Input inputMode="decimal" placeholder="500" value={value} onChange={(e) => onChange(e.target.value)} aria-label={`${label} budget per month, in euros`} />
       </span>
     </label>
   );
 
   return (
-    <div className="stack" style={{ gap: 10 }}>
+    <div className="stack" style={{ gap: 12 }}>
       {field('total', 'All spending', total, setTotal)}
-      <div className="small secondary" style={{ marginTop: 4 }}>Per category</div>
+      <div className="meta" style={{ marginTop: 4 }}>Per category</div>
       {categories.map((c) => field(c, CATEGORY_LABELS[c], cats[c] ?? '', (v) => setCats((prev) => ({ ...prev, [c]: v }))))}
       {error && <div className="notice notice-error">{error}</div>}
       <div className="row wrap">
-        <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>Save budget</button>
-        <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+        <Button variant="primary" onClick={() => void save()} disabled={busy}>Save budget</Button>
+        <Button onClick={onCancel} disabled={busy}>Cancel</Button>
         {hasBudgets(initial) && (
-          <button
-            className="btn btn-ghost"
+          <Button variant="text"
             disabled={busy}
             onClick={async () => {
               setBusy(true);
@@ -160,7 +159,7 @@ function BudgetForm({
             }}
           >
             Remove budget
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, CardNote, EmptyState, Pill, ProviderDot, SearchInput, SortHeader, type SortDir } from '../components/ui';
+import { Button, Card, CardNote, ChangeArrow, EmptyState, Field, Pill, ProviderAvatar, SearchInput, Select, SortHeader, Table, type SortDir } from '../components/ui';
 import { filterPeriod, lastCompleteMonth, periodLabel, providerTotals, rowsInMonths } from '../lib/analytics';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthShort } from '../lib/dates';
@@ -17,7 +17,6 @@ const KINDS: ChargeKind[] = ['subscription', 'usage', 'other'];
 export function Providers() {
   const { transactions, providers, period, overrides, span, today, analysis } = useLedger();
   const toReview = useMemo(() => reviewCounts(transactions, overrides), [transactions, overrides]);
-  const toReviewTotal = [...toReview.values()].reduce((a, b) => a + b, 0);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState<Category | ''>('');
   const [kind, setKind] = useState<ChargeKind | ''>('');
@@ -91,42 +90,38 @@ export function Providers() {
     >
       <CardNote>
         {activeInPeriod} with spending in {label}
-        {toReviewTotal ? ` · ${toReviewTotal} charge type${toReviewTotal === 1 ? '' : 's'} to review` : ''}
       </CardNote>
       <div className="filters" style={{ marginBottom: 12 }}>
         <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Search providers, like Anthropic" />
+          <SearchInput value={q} onChange={setQ} label="Search providers" placeholder="Anthropic" />
         </div>
-        <label>
-          Category
-          <select className="select input-sm" value={category} aria-label="Filter by category" onChange={(e) => setCategory(e.target.value as Category | '')}>
+        <Field inline label="Category">
+          <Select value={category} aria-label="Filter by category" onChange={(e) => setCategory(e.target.value as Category | '')}>
             <option value="">All</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
             ))}
-          </select>
-        </label>
-        <label title="What kind of charges a provider has, as the app reads them. A type you confirmed on the provider's page counts as confirmed.">
-          Commitment type
-          <select className="select input-sm" value={kind} aria-label="Filter by commitment type" onChange={(e) => setKind(e.target.value as ChargeKind | '')}>
+          </Select>
+        </Field>
+        <Field inline label="Commitment type" title="What kind of charges a provider has, as the app reads them. A type you confirmed on the provider's page counts as confirmed.">
+          <Select value={kind} aria-label="Filter by commitment type" onChange={(e) => setKind(e.target.value as ChargeKind | '')}>
             <option value="">All</option>
             {KINDS.map((k) => (
               <option key={k} value={k}>{KIND_LABELS[k]}</option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
         {filtered && (
-          <button className="btn btn-sm btn-ghost" onClick={() => { setQ(''); setCategory(''); setKind(''); }}>
+          <Button variant="text" onClick={() => { setQ(''); setCategory(''); setKind(''); }}>
             Clear filters
-          </button>
+          </Button>
         )}
       </div>
       {rows.length === 0 ? (
         <EmptyState>No providers match these filters.</EmptyState>
       ) : (
         <>
-          <div className="table-wrap desktop-table">
-            <table className="table">
+          <Table className="desktop-table">
               <thead>
                 <tr>
                   <SortHeader label="Provider" k="provider" sort={sort} onSort={setSort} defaultDir="asc" />
@@ -137,7 +132,7 @@ export function Providers() {
                   <SortHeader label="Transactions" k="count" sort={sort} onSort={setSort} className="amount" />
                   <SortHeader label="First charge" k="first" sort={sort} onSort={setSort} defaultDir="asc" />
                   <SortHeader label="Most recent" k="last" sort={sort} onSort={setSort} />
-                  <th title="Charge types you have not confirmed yet. Open the provider to review them.">To review</th>
+                  <th title="Charge types you have not confirmed yet. Open the provider to check them.">To check</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,7 +142,7 @@ export function Providers() {
                     <tr key={p.provider} className="clickable" onClick={() => navigate(['providers', p.provider])}>
                       <td>
                         <a className="provider-cell" href={providerHref(p.provider)} onClick={(e) => e.stopPropagation()}>
-                          <ProviderDot provider={p.provider} />
+                          <ProviderAvatar provider={p.provider} size={20} />
                           {p.provider}
                         </a>
                       </td>
@@ -161,7 +156,7 @@ export function Providers() {
                           <div className="bar-track" style={{ flex: 1 }}>
                             <ShareFill provider={p.provider} share={share} />
                           </div>
-                          <span className="small secondary num" style={{ width: 34, textAlign: 'right' }}>
+                          <span className="meta num" style={{ width: 34, textAlign: 'right' }}>
                             {(share * 100).toFixed(share < 0.1 ? 1 : 0)}%
                           </span>
                         </div>
@@ -171,7 +166,7 @@ export function Providers() {
                       <td className="date">{dateLabel(p.lastDate)}</td>
                       <td>
                         {toReview.get(p.provider) ? (
-                          <Pill kind="attention">{toReview.get(p.provider)} to review</Pill>
+                          <Pill kind="attention">{toReview.get(p.provider)} to check</Pill>
                         ) : (
                           <span className="muted" title="Every charge type is confirmed">✓</span>
                         )}
@@ -180,13 +175,12 @@ export function Providers() {
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+            </Table>
           <div className="mobile-cards">
             {rows.map((p) => (
               <a key={p.provider} className="m-card" href={providerHref(p.provider)}>
                 <span className="provider-cell">
-                  <ProviderDot provider={p.provider} />
+                  <ProviderAvatar provider={p.provider} size={20} />
                   {p.provider}
                 </span>
                 <span className="num" style={{ fontWeight: 600 }}>{formatEUR(p.totalCents)}</span>
@@ -195,9 +189,9 @@ export function Providers() {
                     <TrendCell last={trend.last.get(p.provider) ?? 0} prev={trend.prev.get(p.provider) ?? 0} labels={trend} />
                   </span>
                 )}
-                <span className="small secondary" style={{ gridColumn: '1 / -1' }}>
+                <span className="meta" style={{ gridColumn: '1 / -1' }}>
                   {label}: {p.periodCents ? formatEUR(p.periodCents) : '—'} · {p.count} charges · {dateLabel(p.firstDate)} – {dateLabel(p.lastDate)}
-                  {toReview.get(p.provider) ? ` · ${toReview.get(p.provider)} to review` : ''}
+                  {toReview.get(p.provider) ? ` · ${toReview.get(p.provider)} to check` : ''}
                 </span>
               </a>
             ))}
@@ -218,8 +212,6 @@ function TrendCell({ last, prev, labels }: { last: number; prev: number; labels:
   const t: Trend = providerTrend(last, prev);
   if (t.direction === 'none') return <span className="muted">—</span>;
   const title = `${labels.lastLabel}: ${formatEUR(last)}. Before that, ${labels.prevLabel}: ${formatEUR(prev)}. One-time charges are left out. An arrow needs a change of more than ${Math.round(TREND_MIN_PCT * 100)}% and more than ${formatEUR(TREND_MIN_CENTS)}.`;
-  const cls = t.direction === 'up' ? 'delta-up' : t.direction === 'down' ? 'delta-down' : 'delta-flat';
-  const arrow = t.direction === 'up' ? '▲' : t.direction === 'down' ? '▼' : '→';
   const text =
     t.direction === 'flat'
       ? 'flat'
@@ -229,10 +221,9 @@ function TrendCell({ last, prev, labels }: { last: number; prev: number; labels:
       ? 'none'
       : `${t.deltaCents > 0 ? '+' : ''}${Math.round((t.pct ?? 0) * 100)}%`;
   return (
-    <span className={`${cls} num`} title={title}>
-      <span aria-hidden="true">{arrow} </span>
+    <ChangeArrow direction={t.direction} title={title}>
       {text}
       <span className="sr-only">{` (${title})`}</span>
-    </span>
+    </ChangeArrow>
   );
 }

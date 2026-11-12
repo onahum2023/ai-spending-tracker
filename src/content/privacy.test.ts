@@ -113,7 +113,7 @@ describe('privacy statement matches the app', () => {
     const body = renderPrivacyBody();
     expect(body).not.toMatch(/export everything/i);
     expect(body).toMatch(/does not include budgets, corrections, labels, categories, tag rules/);
-    expect(read('src/content/landing.ts')).not.toMatch(/export a backup now/);
+    expect(read('src/content/welcome.ts')).not.toMatch(/export a backup now/);
     expect(read('src/pages/DataPage.tsx')).toMatch(/transactions only/);
   });
 
@@ -153,7 +153,7 @@ describe('privacy statement matches the app', () => {
   it('describes deletion and storage the way the app behaves', () => {
     const data = read('src/pages/DataPage.tsx');
     // "Clear local data" is only available once there are stored transactions (the text says so)
-    expect(data).toMatch(/className="btn btn-danger"[\s\S]{0,120}disabled=\{!transactions\.length\}/);
+    expect(data).toMatch(/<Button variant="danger"[\s\S]{0,120}disabled=\{!transactions\.length\}/);
     // and it wipes the three stores plus the two localStorage keys
     expect(read('src/lib/db.ts')).toMatch(/\['transactions', 'imports', 'settings'\]/);
     expect(data).toMatch(/clearLocalPrefs\(\)/);
@@ -183,7 +183,7 @@ describe('privacy statement matches the app', () => {
 
   it('says the same sentence everywhere it is repeated', () => {
     expect(read('README.md')).toContain(PRIVACY_SENTENCE);
-    expect(read('src/App.tsx')).toContain('PRIVACY_SENTENCE');
+    expect(read('src/pages/Welcome.tsx')).toContain('PRIVACY_SENTENCE');
     expect(renderPrivacyBody()).toContain(PRIVACY_SENTENCE.replace(/&/g, '&amp;'));
   });
 

@@ -27,7 +27,7 @@ import { providerHref } from '../router';
 import { useLedger } from '../store';
 
 // Shared chart chrome
-const axisTick = { fill: 'var(--ink-3)', fontSize: 11 };
+const axisTick = { fill: 'var(--text-3)', fontSize: 11 };
 const yTick = (v: number) => (v === 0 ? '€0' : `€${v.toLocaleString('en-IE')}`);
 
 function monthTick(months: string[]) {
@@ -241,7 +241,7 @@ function StackedMonthlyChart({
             y={(Number(dueRow.total) + Number(dueRow.dueTotal)) / 100}
             r={0}
             ifOverflow="visible"
-            label={{ value: `≥ ${formatEUR(Number(dueRow.total) + Number(dueRow.dueTotal))}`, position: 'top', fill: 'var(--ink-2)', fontSize: 11, fontWeight: 600 }}
+            label={{ value: `≥ ${formatEUR(Number(dueRow.total) + Number(dueRow.dueTotal))}`, position: 'top', fill: 'var(--text-2)', fontSize: 11, fontWeight: 600 }}
           />
         )}
       </BarChart>
@@ -251,7 +251,7 @@ function StackedMonthlyChart({
   return (
     <div className={fill ? 'chart-fill' : undefined}>
       {legend && (
-        <div className="legend" style={{ marginBottom: 10 }}>
+        <div className="legend" style={{ marginBottom: 12 }}>
           {series.map((k) =>
             k.href ? (
               <a key={k.key} className="legend-item" href={k.href}>
@@ -457,16 +457,16 @@ export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: Ledger
     return (
       <TipShell title={monthLabel(String(label))}>
         <TipRow color="var(--accent)" label="Spent" cents={p.cents} />
-        {p.avgCents !== null && <TipRow color="var(--ink-2)" label="3-month average" cents={p.avgCents} line />}
+        {p.avgCents !== null && <TipRow color="var(--text-2)" label="3-month average" cents={p.avgCents} line />}
       </TipShell>
     );
   };
 
   return (
     <div>
-      <div className="legend" style={{ marginBottom: 10 }}>
+      <div className="legend" style={{ marginBottom: 12 }}>
         <span className="legend-item"><span className="dot" style={{ background: 'var(--accent)' }} />Monthly spending</span>
-        <span className="legend-item"><span className="legend-line" style={{ background: 'var(--ink-2)' }} />3-month average</span>
+        <span className="legend-item"><span className="legend-line" style={{ background: 'var(--text-2)' }} />3-month average</span>
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -475,7 +475,7 @@ export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: Ledger
           <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
           <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
           <Bar dataKey="value" fill="var(--accent)" maxBarSize={24} radius={[3, 3, 0, 0]} isAnimationActive={false} />
-          <Line dataKey="avg" stroke="var(--ink-2)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+          <Line dataKey="avg" stroke="var(--text-2)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -484,7 +484,7 @@ export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: Ledger
 
 // ---------- year-over-year by calendar month ----------
 
-const YEAR_GRAYS = ['var(--ink-3)', 'var(--axis)'];
+const YEAR_GRAYS = ['var(--text-3)', 'var(--axis)'];
 
 export function YearCompareChart({ rows, years, height = 260 }: { rows: LedgerRow[]; years: number[]; height?: number }) {
   const latest = years[years.length - 1];
@@ -524,7 +524,7 @@ export function YearCompareChart({ rows, years, height = 260 }: { rows: LedgerRo
 
   return (
     <div>
-      <div className="legend" style={{ marginBottom: 10 }}>
+      <div className="legend" style={{ marginBottom: 12 }}>
         {[...years].reverse().map((y) => (
           <span key={y} className="legend-item">
             <span className="legend-line" style={{ background: yearColor(y) }} />

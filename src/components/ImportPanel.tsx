@@ -5,6 +5,7 @@ import { commitImport } from '../lib/db';
 import { planImport, type ImportPlan } from '../lib/dedupe';
 import { formatEUR, sumCents } from '../lib/money';
 import { useLedger } from '../store';
+import { Button, Descriptor, StatTile, Table } from './ui';
 
 interface Preview {
   fileName: string;
@@ -80,43 +81,28 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
         <div className="row-between wrap">
           <div>
             <h3>Review import</h3>
-            <p className="small secondary">{fileName}</p>
+            <p className="meta">{fileName}</p>
           </div>
           <div className="row">
-            <button className="btn" onClick={() => setPreview(null)} disabled={busy}>
+            <Button onClick={() => setPreview(null)} disabled={busy}>
               Cancel
-            </button>
-            <button className="btn btn-primary" onClick={commit} disabled={busy || !plan || plan.toAdd.length === 0}>
+            </Button>
+            <Button variant="primary" onClick={commit} disabled={busy || !plan || plan.toAdd.length === 0}>
               {plan && plan.toAdd.length > 0
                 ? `Import ${plan.toAdd.length} transaction${plan.toAdd.length === 1 ? '' : 's'}`
                 : 'Nothing to import'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {parse.fatal && <div className="notice notice-error">{parse.fatal}</div>}
 
         {plan && (
-          <div className="stat-row">
-            <div>
-              <div className="small secondary">Rows in file</div>
-              <div className="value num">{parse.rowsInFile}</div>
-            </div>
-            <div>
-              <div className="small secondary">New, will be added</div>
-              <div className="value num">{plan.toAdd.length}</div>
-              <div className="small secondary num">{formatEUR(sumCents(plan.toAdd))}</div>
-            </div>
-            <div>
-              <div className="small secondary">Already stored</div>
-              <div className="value num">{plan.duplicates.length}</div>
-            </div>
-            <div>
-              <div className="small secondary">Invalid rows</div>
-              <div className="value num" style={{ color: parse.errors.length ? 'var(--danger)' : undefined }}>
-                {parse.errors.length}
-              </div>
-            </div>
+          <div className="stat-grid">
+            <StatTile label="Rows in file" value={parse.rowsInFile} />
+            <StatTile label="New, will be added" value={plan.toAdd.length} meta={formatEUR(sumCents(plan.toAdd))} />
+            <StatTile label="Already stored" value={plan.duplicates.length} />
+            <StatTile label="Invalid rows" value={parse.errors.length} />
           </div>
         )}
 
@@ -125,13 +111,12 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
         ))}
 
         {parse.errors.length > 0 && (
-          <div className="stack" style={{ gap: 6 }}>
+          <div className="stack" style={{ gap: 8 }}>
             <div className="notice notice-error">
               {parse.errors.length} row{parse.errors.length === 1 ? '' : 's'} could not be read and will not be imported.
               Fix them in the file and import again; valid rows can be imported now.
             </div>
-            <div className="table-wrap card" style={{ maxHeight: 220, overflowY: 'auto' }}>
-              <table className="table">
+            <Table scrollHeight={220}>
                 <thead>
                   <tr><th>Row</th><th>Problem</th><th>Content</th></tr>
                 </thead>
@@ -140,35 +125,32 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
                     <tr key={e.sourceRow}>
                       <td className="num">{e.sourceRow}</td>
                       <td>{e.message}</td>
-                      <td className="merchant">{e.raw}</td>
+                      <td><Descriptor>{e.raw}</Descriptor></td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </Table>
           </div>
         )}
 
         {plan && plan.duplicates.length > 0 && (
           <details>
-            <summary className="small secondary" style={{ cursor: 'pointer' }}>
+            <summary className="meta" style={{ cursor: 'pointer' }}>
               {plan.duplicates.length} row{plan.duplicates.length === 1 ? ' is' : 's are'} already stored and will be skipped — show
             </summary>
-            <div className="table-wrap card" style={{ maxHeight: 220, overflowY: 'auto', marginTop: 8 }}>
-              <table className="table">
+            <Table scrollHeight={220}>
                 <tbody>
                   {plan.duplicates.slice(0, 300).map((r) => (
                     <tr key={r.sourceRow}>
                       <td className="num muted">Row {r.sourceRow}</td>
                       <td className="date">{dateLabel(r.date)}</td>
                       <td>{r.provider}</td>
-                      <td className="merchant">{r.merchant}</td>
+                      <td><Descriptor>{r.merchant}</Descriptor></td>
                       <td className="amount">{formatEUR(r.amountCents)}</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </Table>
           </details>
         )}
 
@@ -204,9 +186,9 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
           The file is read in your browser and saved only on this device. Nothing is uploaded.
         </p>
         <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={() => inputRef.current?.click()} disabled={busy}>
+          <Button onClick={() => inputRef.current?.click()} disabled={busy}>
             Choose CSV file…
-          </button>
+          </Button>
           {extraActions}
         </div>
         <input

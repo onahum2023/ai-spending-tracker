@@ -1,0 +1,114 @@
+/*
+ * Design tokens: the one place for colour, type and spacing. The app (styles.css) and the static pages (static.css) both import
+ * this file, so every page matches in light and dark.
+ *
+ * Rules these tokens encode:
+ * - One font, sans-serif, everywhere. Amounts use tabular numerals.
+ * - Text has four colours: primary, secondary, muted and accent. Nothing else.
+ * - Spacing is 8, 12, 16, 24 or 32 (--sp-1 … --sp-5). The card's own padding (20px, 16px on mobile) is the one exception.
+ * - A change in spending is shown in the accent colour with an arrow. No red or green for spending, ever.
+ */
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --page: #f4f4f1;
+  --surface: #ffffff;
+  --surface-2: #f8f8f6;
+  --surface-hover: #f2f2ee;
+  --border: rgba(11, 11, 11, 0.09);
+  --border-strong: rgba(11, 11, 11, 0.16);
+  --grid: #e8e7e1;
+  --axis: #c3c2b7;
+
+  /* text: primary, secondary, muted, accent */
+  --text-1: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #898781;
+  --text-accent: #1c5cab;
+
+  /* accent */
+  --accent: #2a78d6;
+  --accent-wash: rgba(42, 120, 214, 0.1);
+
+  /* attention (the amber pill and notices), and states that are not about spending */
+  --warn-bg: #fff7e0;
+  --warn-ink: #7a5300;
+  --attention: #c98500; /* amber fill: a budget that is exceeded */
+  --good: #006300;
+  --danger: #c22f2f;
+  --danger-wash: rgba(208, 59, 59, 0.08);
+
+  /* standard card */
+  --card-bg: var(--surface);
+  --card-border: var(--border);
+  --card-radius: 12px;
+  --card-pad: 20px;
+
+  /* spacing: 8, 12, 16, 24, 32 */
+  --sp-1: 8px;
+  --sp-2: 12px;
+  --sp-3: 16px;
+  --sp-4: 24px;
+  --sp-5: 32px;
+  --card-gap: var(--sp-3);
+  --page-pad: var(--sp-5);
+
+  /* type scale */
+  --fs-title: 15px;
+  --fs-sub: 13px;
+  --fs-label: 12px;
+  --fs-body: 14px;
+  --fs-meta: 13px;
+  --fs-badge: 11px;
+  --fs-axis: 11px;
+  --fs-hero: 32px;
+  --fs-key: 20px;
+  --fs-row: 14px;
+
+  /* controls: one height, one radius */
+  --control-h: 32px;
+  --control-radius: 8px;
+  --radius: 10px;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-1);
+  background: var(--page);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums; /* every amount lines up */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #212120;
+    --surface-hover: #262625;
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --text-1: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #898781;
+    --text-accent: #86b6ef;
+    --accent: #3987e5;
+    --accent-wash: rgba(57, 135, 229, 0.16);
+    --warn-bg: #2e2510;
+    --warn-ink: #f1c76a;
+    --attention: #e0a63a;
+    --good: #0ca30c;
+    --danger: #e66767;
+    --danger-wash: rgba(230, 103, 103, 0.12);
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --card-pad: 16px;
+    --page-pad: var(--sp-3);
+  }
+}

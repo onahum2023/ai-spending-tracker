@@ -2,7 +2,7 @@ import { periodKey, periodLabel, todayPeriod } from '../lib/analytics';
 import { addMonths, monthLabel, yearOf } from '../lib/dates';
 import type { Period } from '../lib/types';
 import { useLedger } from '../store';
-import { Segmented } from './ui';
+import { Segmented, Button, Select } from './ui';
 
 type Scope = Period['kind'];
 
@@ -56,12 +56,11 @@ export function PeriodPicker() {
       />
       {period.kind !== 'all' && (
         <div className="row" style={{ gap: 4 }}>
-          <button className="btn btn-icon" aria-label="Previous period" disabled={!prev} onClick={() => prev && setPeriod(prev)}>
+          <Button icon aria-label="Previous period" disabled={!prev} onClick={() => prev && setPeriod(prev)}>
             ‹
-          </button>
+          </Button>
           {period.kind === 'month' ? (
-            <select
-              className="select"
+            <Select
               aria-label="Month"
               value={period.month}
               onChange={(e) => setPeriod({ kind: 'month', month: e.target.value })}
@@ -71,10 +70,9 @@ export function PeriodPicker() {
                   {monthLabel(m)}
                 </option>
               ))}
-            </select>
+            </Select>
           ) : (
-            <select
-              className="select"
+            <Select
               aria-label="Year"
               value={period.year}
               onChange={(e) => setPeriod({ kind: 'year', year: Number(e.target.value) })}
@@ -84,20 +82,19 @@ export function PeriodPicker() {
                   {y}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
-          <button className="btn btn-icon" aria-label="Next period" disabled={!next} onClick={() => next && setPeriod(next)}>
+          <Button icon aria-label="Next period" disabled={!next} onClick={() => next && setPeriod(next)}>
             ›
-          </button>
+          </Button>
           {now && (
-            <button
-              className="btn btn-sm"
+            <Button
               disabled={atNow}
               onClick={() => setPeriod(now)}
               title={atNow ? `Already showing ${periodLabel(now)}` : `Jump to ${periodLabel(now)}`}
             >
               Today
-            </button>
+            </Button>
           )}
         </div>
       )}

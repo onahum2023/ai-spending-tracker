@@ -12,7 +12,7 @@ import { formatEUR, sumCents } from '../lib/money';
 import { exportCsv } from '../lib/download';
 import { useLedger } from '../store';
 import { AskClaude } from './AskClaude';
-import { Pill, SearchInput, Segmented } from './ui';
+import { Button, Descriptor, EmptyState, Input, Pill, Segmented, SearchInput, Select, Table } from './ui';
 
 const PAGE = 100;
 const KNOWN_PROVIDERS = [...new Set(VENDORS.map((v) => v.provider))].sort();
@@ -172,9 +172,9 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
           <br />
           Files are read in your browser. Nothing is uploaded.
         </p>
-        <button className="btn btn-primary" onClick={() => inputRef.current?.click()} disabled={!!busy}>
+        <Button variant="primary" onClick={() => inputRef.current?.click()} disabled={!!busy}>
           Choose files…
-        </button>
+        </Button>
         <input
           ref={inputRef}
           type="file"
@@ -189,7 +189,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
       </div>
 
       {busy && (
-        <div className="row small secondary">
+        <div className="row meta">
           <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
           {busy}
         </div>
@@ -202,14 +202,14 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
             <div key={r.fileName} className={`file-item${r.error ? ' file-error' : ''}`}>
               <div className="row-between">
                 <strong className="small">{r.fileName}</strong>
-                <button className="btn btn-sm btn-ghost" onClick={() => removeFile(r.fileName)} aria-label={`Remove ${r.fileName}`}>
+                <Button variant="text" onClick={() => removeFile(r.fileName)} aria-label={`Remove ${r.fileName}`}>
                   Remove
-                </button>
+                </Button>
               </div>
               {r.error ? (
                 <div className="small" style={{ color: 'var(--danger)' }}>{r.error}</div>
               ) : (
-                <div className="small secondary">
+                <div className="meta">
                   {r.format === 'amex' ? 'American Express export' : r.format === 'revolut-pdf' ? 'Revolut PDF statement' : 'Table export'} · {r.rows.length} lines · {period(r.rows)}
                   {r.notes.length > 0 && <div>{r.notes.join(' ')}</div>}
                 </div>
@@ -217,7 +217,7 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
             </div>
           ))}
           {merged.dropped > 0 && (
-            <div className="small secondary">{merged.dropped} line{merged.dropped === 1 ? '' : 's'} appeared in more than one file and {merged.dropped === 1 ? 'was' : 'were'} counted once.</div>
+            <div className="meta">{merged.dropped} line{merged.dropped === 1 ? '' : 's'} appeared in more than one file and {merged.dropped === 1 ? 'was' : 'were'} counted once.</div>
           )}
         </div>
       )}
@@ -239,12 +239,12 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
               ]}
             />
             <div className="row wrap" style={{ gap: 12 }}>
-              <label className="row small secondary" style={{ gap: 6 }}>
+              <label className="row meta" style={{ gap: 8 }}>
                 <input type="checkbox" checked={includeInfra} onChange={(e) => toggleInfra(e.target.checked)} />
                 Include hosting, domains & dev tools
               </label>
               <div style={{ width: 220 }}>
-                <SearchInput value={q} onChange={(v) => { setQ(v); setLimit(PAGE); }} placeholder="Search these lines" />
+                <SearchInput value={q} onChange={(v) => { setQ(v); setLimit(PAGE); }} label="Search these lines" placeholder="Anthropic" />
               </div>
             </div>
           </div>
@@ -267,11 +267,10 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
             {KNOWN_PROVIDERS.map((p) => <option key={p} value={p} />)}
           </datalist>
 
-          <div className="table-wrap card" style={{ maxHeight: 520, overflowY: 'auto' }}>
-            {visible.length === 0 ? (
-              <div className="empty">Nothing here.</div>
-            ) : (
-              <table className="table stmt-table">
+          {visible.length === 0 ? (
+            <EmptyState>Nothing here.</EmptyState>
+          ) : (
+            <Table scrollHeight={520} tableClassName="stmt-table">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -288,75 +287,72 @@ export function StatementImport({ onImported, intro }: { onImported?: () => void
                     <tr key={c.row.id}>
                       <td className="date">{dateLabel(c.row.date)}</td>
                       <td>
-                        <div className="merchant">{c.row.merchant}</div>
-                        <div className="small secondary stmt-sub" title={[c.row.label, c.row.details, c.row.country].filter(Boolean).join(' · ')}>
+                        <Descriptor>{c.row.merchant}</Descriptor>
+                        <div className="meta stmt-sub" title={[c.row.label, c.row.details, c.row.country].filter(Boolean).join(' · ')}>
                           {[c.row.label, summarizeDetails(c.row.details), c.row.country].filter(Boolean).join(' · ')}
                         </div>
                       </td>
                       <td className="amount">{formatEUR(c.row.amountCents)}</td>
                       {tab !== 'exclude' && (
                         <td>
-                          <input
-                            className="input input-sm"
+                          <Input
                             list="known-providers"
                             value={c.provider ?? ''}
-                            placeholder="Provider"
+                            placeholder="Anthropic"
                             aria-label="Provider"
                             onChange={(e) => update(c.row.id, { provider: e.target.value })}
-                          />
+                           />
                         </td>
                       )}
                       {tab !== 'exclude' && (
                         <td>
-                          <select
-                            className="select input-sm"
+                          <Select
                             aria-label="Type"
                             value={c.type ?? ''}
                             onChange={(e) => update(c.row.id, { type: (e.target.value || null) as ServiceType | null })}
                           >
                             <option value="">—</option>
                             {SERVICE_TYPES.map((t) => <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>)}
-                          </select>
+                          </Select>
                         </td>
                       )}
-                      <td className="small secondary why">
+                      <td className="meta why">
                         {c.by !== 'rules' && <><Pill kind={c.by === 'you' ? 'neutral' : 'inferred'}>{c.by === 'you' ? 'You' : 'Claude'}</Pill>{' '}</>}
                         {c.reasons.join('. ')}
                       </td>
                       <td className="nowrap">
                         {c.decision !== 'include' && (
-                          <button className="btn btn-sm" onClick={() => update(c.row.id, { decision: 'include' })}>Include</button>
+                          <Button onClick={() => update(c.row.id, { decision: 'include' })}>Include</Button>
                         )}
                         {c.decision !== 'exclude' && (
-                          <button className="btn btn-sm btn-ghost" onClick={() => update(c.row.id, { decision: 'exclude' })}>Exclude</button>
+                          <Button variant="text" onClick={() => update(c.row.id, { decision: 'exclude' })}>Exclude</Button>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            )}
-          </div>
+            </Table>
+          )}
           {visible.length > limit && (
             <div className="row" style={{ justifyContent: 'center' }}>
-              <button className="btn btn-sm" onClick={() => setLimit((l) => l + PAGE)}>Show more ({visible.length - limit} remaining)</button>
+              <Button onClick={() => setLimit((l) => l + PAGE)}>Show more ({visible.length - limit} remaining)</Button>
             </div>
           )}
 
           <div className="row-between wrap stmt-footer">
-            <div className="small secondary">
+            <div className="meta">
               <strong className="num">{included.length}</strong> AI charges · <strong className="num">{formatEUR(sumCents(included.map((c) => c.row)))}</strong>
               {alreadyStored > 0 && <> · {alreadyStored} already in your ledger (skipped)</>}
               {counts.review > 0 && <> · {counts.review} still to review</>}
               {missingProvider > 0 && <span style={{ color: 'var(--danger)' }}> · {missingProvider} included without a provider</span>}
             </div>
             <div className="row wrap">
-              <button className="btn" disabled={!ledgerRows.length} onClick={() => exportCsv(ledgerRows, 'ai-spending-ledger.csv')}>
+              <Button disabled={!ledgerRows.length} onClick={() => exportCsv(ledgerRows, 'ai-spending-ledger.csv')}>
                 Download as CSV
-              </button>
-              <button className="btn btn-primary" disabled={ledgerRows.length - alreadyStored <= 0 || missingProvider > 0 || !!busy} onClick={commit}>
+              </Button>
+              <Button variant="primary" disabled={ledgerRows.length - alreadyStored <= 0 || missingProvider > 0 || !!busy} onClick={commit}>
                 {ledgerRows.length - alreadyStored > 0 ? `Add ${ledgerRows.length - alreadyStored} charges to the ledger` : 'Nothing new to add'}
-              </button>
+              </Button>
             </div>
           </div>
         </>
