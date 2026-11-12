@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { renderLandingBody } from './landing';
+import { renderNoscript } from './welcome';
 import { renderPrivacyBody } from './privacy';
 import { BRAND, BRAND_NOTE, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, COPYRIGHT_YEAR, OWNER, OWNER_URL, OWNERSHIP_LINE, TRADING_AS } from './site';
 
@@ -16,9 +16,9 @@ describe('ownership', () => {
     expect(OWNERSHIP_LINE).toBe('AI Spending Tracker is a product of NeotixHQ, a brand of NuCielo ICT B.V.');
   });
 
-  it('shows up on the landing page, the About card, the app footer and the README (not in the privacy statement: ownership is not a privacy matter)', () => {
+  it('shows up in the page text for browsers without scripts, the About card, the app footer and the README (not in the privacy statement: ownership is not a privacy matter)', () => {
     // the footer text, with its two company links read as plain text
-    expect(renderLandingBody({ version: '1', commit: '', license: '' }).replace(/<[^>]+>/g, '')).toContain(`${COPYRIGHT} · ${OWNERSHIP_LINE}`);
+    expect(renderNoscript().replace(/<[^>]+>/g, '')).toContain(`${COPYRIGHT} · ${OWNERSHIP_LINE}`);
     expect(renderPrivacyBody()).not.toContain(OWNERSHIP_LINE);
     expect(renderPrivacyBody()).not.toContain(COPYRIGHT);
     expect(read('src/components/AboutCard.tsx')).toMatch(/COPYRIGHT[\s\S]*BRAND[\s\S]*OWNER/);
@@ -27,7 +27,7 @@ describe('ownership', () => {
   });
 
   it('has no doubled full stops in any of it', () => {
-    const pages = [renderLandingBody({ version: '1', commit: '', license: '' }), renderPrivacyBody(), read('src/components/AboutCard.tsx')].map((t) => t.replace(/<[^>]+>/g, ' '));
+    const pages = [renderNoscript(), renderPrivacyBody(), read('src/components/AboutCard.tsx')].map((t) => t.replace(/<[^>]+>/g, ' '));
     for (const t of pages) expect(t).not.toMatch(/B\.V\.\./);
   });
 
@@ -39,13 +39,13 @@ describe('ownership', () => {
     expect(body).toContain('Operator: NuCielo ICT B.V., trading as NeotixHQ. Contact for privacy questions: info@neotixhq.com.');
     expect(body).toContain(BRAND_NOTE);
     expect(body).not.toMatch(/Controller name: to be decided|Contact email: to be decided/);
-    expect(renderLandingBody({ version: '1', commit: '', license: '' })).toContain('href="mailto:info@neotixhq.com"');
+    expect(renderNoscript()).toContain('href="mailto:info@neotixhq.com"');
   });
 
-  it('links to the NeotixHQ and NuCielo websites from the landing footer, the privacy page (operator links), the About card and the README', () => {
+  it('links to the NeotixHQ and NuCielo websites from the no-script text, the privacy page (operator links), the About card and the README', () => {
     expect(BRAND_URL).toBe('https://neotixhq.com/');
     expect(OWNER_URL).toBe('https://nucielo.io/');
-    const landing = renderLandingBody({ version: '1', commit: '', license: '' });
+    const landing = renderNoscript();
     expect(landing).toContain(`<a href="${BRAND_URL}" rel="noopener noreferrer">${BRAND}</a>`);
     expect(landing).toContain(`<a href="${OWNER_URL}" rel="noopener noreferrer">${OWNER}</a>`);
     const privacy = renderPrivacyBody();

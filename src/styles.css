@@ -242,9 +242,6 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 }
 .dropzone.drag { border-color: var(--accent); background: var(--accent-wash); }
 .dropzone p { color: var(--text-2); margin: 6px 0 14px; }
-.welcome { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
-.welcome-card { width: min(640px, 100%); }
-.welcome h1 { font-size: 24px; }
 .notice { padding: 10px 12px; border-radius: 8px; font-size: 13px; }
 .notice-warn { background: var(--warn-bg); color: var(--warn-ink); }
 .notice-error { background: var(--danger-wash); color: var(--danger); }
@@ -279,14 +276,8 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
   padding: 8px 12px; margin-bottom: 16px; border-radius: 8px; font-size: 13px;
   background: var(--warn-bg); color: var(--warn-ink);
 }
-.welcome-demo {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-  padding: 14px 16px; border-radius: var(--radius); background: var(--accent-wash);
-}
-.welcome-demo p { margin-top: 2px; }
 
 /* ---------- statement import ---------- */
-.welcome-card.welcome-wide { width: min(1180px, 100%); }
 .file-list { display: flex; flex-direction: column; gap: 6px; }
 .file-item { padding: 8px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); }
 .file-item.file-error { background: var(--danger-wash); }
@@ -429,3 +420,18 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 
 /* raw statement descriptors: monospace; labels you chose stay in the body font */
 .descriptor { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; white-space: pre-wrap; }
+
+/* ---------- welcome ---------- */
+/* One page, same standards as the app: sans font, neutral background, the shared card. */
+.welcome { max-width: 880px; margin: 0 auto; }
+.welcome-hero .card-body { display: flex; flex-direction: column; gap: var(--sp-2); }
+.welcome-title { font-size: var(--fs-hero); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.welcome-lead { font-size: var(--fs-title); color: var(--text-2); max-width: 640px; }
+.welcome-actions { margin: var(--sp-1) 0; }
+.feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
+.feature-grid p { margin-top: 4px; color: var(--text-1); }
+.steps { margin: 0; padding-left: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }
+.faq { display: flex; flex-direction: column; gap: var(--sp-2); }
+.faq .disclosure-btn { font-size: var(--fs-body); font-weight: 600; color: var(--text-1); }
+.faq .disclosure-body { margin-left: var(--sp-3); }
+@media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; gap: var(--sp-3); } .welcome-title { font-size: var(--fs-key); } }

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { renderLandingMeta } from './landing';
+import { renderWelcomeMeta } from './welcome';
 import { PRIVACY_IS_DRAFT } from './privacy';
 import { PRODUCTION_URL } from './site';
 
@@ -13,8 +13,8 @@ describe('production address', () => {
     expect(PRODUCTION_URL).toMatch(/^https:\/\/[a-z0-9.-]+$/);
   });
 
-  it('is what the landing page names as canonical and as its social card', () => {
-    const meta = renderLandingMeta(PRODUCTION_URL);
+  it('is what the Welcome page (index.html) names as canonical and as its social card', () => {
+    const meta = renderWelcomeMeta(PRODUCTION_URL);
     expect(meta).toContain(`<link rel="canonical" href="${PRODUCTION_URL}/" />`);
     expect(meta).toContain(`content="${PRODUCTION_URL}/og-image.png"`);
     expect(read('vite.config.ts')).toContain('PRODUCTION_URL');
@@ -27,6 +27,6 @@ describe('production address', () => {
     // the app and the draft privacy page are noindex: they must not be advertised in a sitemap
     expect(locs.some((l) => /\/app/.test(l))).toBe(false);
     if (PRIVACY_IS_DRAFT) expect(locs.some((l) => /privacy/.test(l))).toBe(false);
-    expect(read('app.html')).toContain('noindex');
+    expect(read('app.html')).toContain('noindex'); // the old /app address only forwards
   });
 });

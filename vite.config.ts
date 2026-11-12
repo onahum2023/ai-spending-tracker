@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { renderLandingBody, renderLandingMeta } from './src/content/landing.ts';
+import { renderNoscript, renderWelcomeMeta } from './src/content/welcome.ts';
 import { PRIVACY_IS_DRAFT, renderPrivacyBody } from './src/content/privacy.ts';
 import { PRODUCTION_URL } from './src/content/site.ts';
 import pkg from './package.json' with { type: 'json' };
@@ -30,7 +30,7 @@ function siteUrl(): string {
   return (process.env.SITE_URL || PRODUCTION_URL).replace(/\/+$/, '');
 }
 
-// Fills the static pages from src/content, so the wording lives in one place and the pages need no script.
+// Fills the privacy page, and the tags and no-script text of index.html, from src/content, so the wording lives in one place.
 function staticPages(): Plugin {
   return {
     name: 'static-pages',
@@ -44,8 +44,8 @@ function staticPages(): Plugin {
         }
         if (ctx.filename.endsWith('index.html')) {
           return html
-            .replace('<!--LANDING_META-->', renderLandingMeta(siteUrl()))
-            .replace('<!--LANDING_BODY-->', renderLandingBody({ version: pkg.version, commit: buildCommit(), license: (pkg as { license?: string }).license ?? '' }));
+            .replace('<!--WELCOME_META-->', renderWelcomeMeta(siteUrl()))
+            .replace('<!--WELCOME_NOSCRIPT-->', renderNoscript());
         }
         return html;
       },
@@ -66,11 +66,11 @@ export default defineConfig({
   // Recharts makes up most of the bundle; fine for a local app.
   build: {
     chunkSizeWarningLimit: 900,
-    // The landing page, the app and the static privacy page.
+    // The app (which opens on the Welcome page), the old /app address that forwards to it, and the static privacy page.
     rollupOptions: {
       input: {
-        landing: resolve(import.meta.dirname, 'index.html'),
-        app: resolve(import.meta.dirname, 'app.html'),
+        app: resolve(import.meta.dirname, 'index.html'),
+        legacyApp: resolve(import.meta.dirname, 'app.html'),
         privacy: resolve(import.meta.dirname, 'privacy.html'),
       },
     },

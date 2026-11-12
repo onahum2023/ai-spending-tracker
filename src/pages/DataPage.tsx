@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
 import { Button, Card, CardNote, ConfirmDialog, StatTile, Table } from '../components/ui';
@@ -132,8 +131,6 @@ export function DataPage() {
           </div>
         </Card>
       </div>
-
-      <AboutCard />
 
       {confirming && (
         <ConfirmDialog

@@ -1,16 +1,15 @@
 /*
- * The landing page at "/": what the product is, why it is safe, what you get.
- * Generated into index.html by the staticPages plugin in vite.config.ts, so it is static HTML with
- * no scripts (the strict CSP allows only our own files). The privacy wording comes from
- * ./privacy.ts, so it is identical on the welcome screen, the privacy page and the README.
+ * The words of the Welcome page: what the app does, how it works, privacy and the questions people ask. One source for the
+ * Welcome page in the app (src/pages/Welcome.tsx), the search and social tags in index.html, and the text a browser without
+ * scripts sees. The privacy wording comes from ./privacy.ts, so it is identical here, on the privacy page and in the README.
  *
- * The app itself is at /app (app.html), and keeps working with the same #/ links.
+ * There is one page: the app opens on it when the browser has no data, and "About" in the top bar opens it at any time.
  */
 import { PRIVACY_SENTENCE } from './privacy.ts';
 import { BRAND, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE } from './site.ts';
 
-/** Where the tracker lives. A plain file path works in the dev server, the build and on Vercel (cleanUrls turns it into /app). */
-export const APP_PATH = '/app.html';
+/** Where the app lives. */
+export const APP_PATH = '/';
 /** The same app, started in demo mode with invented data. */
 export const DEMO_PATH = `${APP_PATH}?demo=1`;
 
@@ -31,12 +30,6 @@ export const STEPS: string[] = [
   'Drop in the statements you already download from your bank or card, or a CSV.',
   'Review what the app found. Anything it is unsure about is yours to include or leave out.',
   'Explore your spending. Nothing leaves your browser.',
-];
-
-/** Screenshots served from /screenshots. Every image has alt text. */
-export const SHOTS: { file: string; alt: string; caption: string; width: number; height: number }[] = [
-  { file: 'overview.jpg', alt: 'The overview page: monthly spending by provider as a stacked bar chart, with this month’s estimate.', caption: 'Overview: spending by provider and a month-end estimate', width: 1280, height: 888 },
-  { file: 'insights.jpg', alt: 'The insights page: price changes, stopped subscriptions and overlapping tools, each marked as the app’s read.', caption: 'Insights: price changes, stopped subscriptions and overlap', width: 1280, height: 888 },
 ];
 
 export const FAQ: { q: string; a: string }[] = [
@@ -61,19 +54,11 @@ export { PRIVACY_SENTENCE };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export interface FooterInfo {
-  version: string;
-  /** Short commit hash, or empty. */
-  commit: string;
-  /** Empty until a license has been chosen. */
-  license: string;
-}
-
 /**
  * Social and search tags. `siteUrl` is the public address (no trailing slash), or empty before a domain
  * exists: then there is no canonical link and no og:image, because both must be absolute URLs.
  */
-export function renderLandingMeta(siteUrl: string): string {
+export function renderWelcomeMeta(siteUrl: string): string {
   const tags = [
     `<meta name="description" content="${esc(META_DESCRIPTION)}" />`,
     `<meta property="og:type" content="website" />`,
@@ -98,51 +83,21 @@ export function renderLandingMeta(siteUrl: string): string {
   return tags.join('\n    ');
 }
 
-/** The body of the landing page: static HTML, no scripts. */
-export function renderLandingBody(footer: FooterInfo): string {
-  const shots = SHOTS.map(
-    (s, i) =>
-      `<figure><img src="/screenshots/${esc(s.file)}" alt="${esc(s.alt)}" width="${s.width}" height="${s.height}" ${i === 0 ? '' : 'loading="lazy" '}/><figcaption>${esc(s.caption)}</figcaption></figure>`,
-  ).join('\n');
-  const build = [`Version ${footer.version}`, footer.commit ? `build ${footer.commit}` : '', footer.license ? footer.license : ''].filter(Boolean).join(' · ');
-  return `<header class="site-head wide">
-  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="24" height="24" />${esc(SITE_NAME)}</a>
-  <nav aria-label="Main"><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="/privacy.html">Privacy</a></nav>
-</header>
-<main>
-  <section class="hero">
+/**
+ * What a browser without scripts sees inside index.html (the app needs scripts): the headline, what it is, the privacy sentence and
+ * who is behind it. Plain HTML, no scripts.
+ */
+export function renderNoscript(): string {
+  return `<noscript>
+  <main style="max-width:640px;margin:0 auto;padding:32px 16px;font-family:system-ui,sans-serif;line-height:1.5">
     <h1>${esc(HEADLINE)}</h1>
-    <p class="lead">${esc(SUBHEAD)}</p>
-    <p class="cta">
-      <a class="btn btn-primary" href="${esc(DEMO_PATH)}">Explore demo data</a>
-      <a class="btn" href="${esc(APP_PATH)}">Import your own data</a>
-    </p>
-    <p class="privacy-line"><strong>Private by design.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
-  </section>
-  <section class="shots" aria-label="Screenshots">
-${shots}
-  </section>
-  <section aria-labelledby="what">
-    <h2 id="what">What you get</h2>
-    <ul class="features">
-${FEATURES.map((f) => `      <li><h3>${esc(f.title)}</h3><p>${esc(f.text)}</p></li>`).join('\n')}
+    <p>${esc(SUBHEAD)}</p>
+    <p><strong>This app needs JavaScript.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
+    <ul>
+${FEATURES.map((f) => `      <li><strong>${esc(f.title)}.</strong> ${esc(f.text)}</li>`).join('\n')}
     </ul>
-  </section>
-  <section aria-labelledby="how">
-    <h2 id="how">How it works</h2>
-    <ol class="steps">
-${STEPS.map((t) => `      <li>${esc(t)}</li>`).join('\n')}
-    </ol>
-    <p class="cta"><a class="btn btn-primary" href="${esc(DEMO_PATH)}">Explore demo data</a></p>
-  </section>
-  <section aria-labelledby="faq">
-    <h2 id="faq">Questions</h2>
-${FAQ.map((f) => `    <details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('\n')}
-  </section>
-</main>
-<footer class="site-foot wide">
-  <p><a href="/privacy.html">Privacy statement</a> · <a href="/third-party-notices.txt">Third-party licenses</a> · <a href="mailto:${esc(CONTACT_EMAIL)}">${esc(CONTACT_EMAIL)}</a></p>
-  <p class="muted">${esc(COPYRIGHT)} · ${esc(OWNERSHIP_LINE).replace(BRAND, `<a href="${esc(BRAND_URL)}" rel="noopener noreferrer">${BRAND}</a>`).replace(OWNER, `<a href="${esc(OWNER_URL)}" rel="noopener noreferrer">${OWNER}</a>`)}</p>
-  <p class="muted">${esc(build)}</p>
-</footer>`;
+    <p><a href="/privacy.html">Privacy statement</a> · <a href="/third-party-notices.txt">Third-party licenses</a> · <a href="mailto:${esc(CONTACT_EMAIL)}">${esc(CONTACT_EMAIL)}</a></p>
+    <p>${esc(COPYRIGHT)} · ${esc(OWNERSHIP_LINE).replace(BRAND, `<a href="${esc(BRAND_URL)}" rel="noopener noreferrer">${BRAND}</a>`).replace(OWNER, `<a href="${esc(OWNER_URL)}" rel="noopener noreferrer">${OWNER}</a>`)}</p>
+  </main>
+</noscript>`;
 }

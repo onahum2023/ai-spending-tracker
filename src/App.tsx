@@ -1,18 +1,15 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { ImportPanel } from './components/ImportPanel';
+import { useEffect, type ReactNode } from 'react';
 import { PeriodPicker } from './components/PeriodPicker';
 import { dateLabel } from './lib/dates';
 import { DataPage } from './pages/DataPage';
-import { exportCsv } from './lib/download';
-import { StatementImport } from './components/StatementImport';
-import { Button, Card, ProviderAvatar, Segmented } from './components/ui';
-import { generateDemo } from './lib/demoData';
+import { Button, Card, ProviderAvatar } from './components/ui';
 import { Overview } from './pages/Overview';
 import { ProviderDetail } from './pages/ProviderDetail';
 import { Providers } from './pages/Providers';
 import { Transactions } from './pages/Transactions';
 import { Insights } from './pages/Insights';
-import { PRIVACY_PATH, PRIVACY_SENTENCE } from './content/privacy';
+import { Welcome } from './pages/Welcome';
+import { PRIVACY_PATH } from './content/privacy';
 import { COPYRIGHT } from './content/site';
 import { href, navigate, useRoute } from './router';
 import { LedgerProvider, useLedger } from './store';
@@ -183,66 +180,6 @@ function DemoBanner({ onData }: { onData: boolean }) {
           Exit demo
         </Button>
       </span>
-    </div>
-  );
-}
-
-function Welcome() {
-  const { startDemo, today } = useLedger();
-  const [source, setSource] = useState<'statements' | 'ledger'>('statements');
-  return (
-    <div className="welcome">
-      <div className="card welcome-card stack">
-        <div className="row" style={{ gap: 12 }}>
-          <BrandMark />
-          <h1>AI Spending Tracker</h1>
-        </div>
-        <p className="secondary">
-          See what you spend on AI tools and services, which providers it goes to, and how it changes month to month.{' '}
-          {PRIVACY_SENTENCE} <Button variant="text" href={PRIVACY_PATH}>Privacy statement</Button>
-        </p>
-        <div className="welcome-demo">
-          <div>
-            <strong>Just looking?</strong>
-            <p className="meta">Explore the app with invented data for 24 AI providers. Nothing is saved.</p>
-          </div>
-          <Button variant="primary" onClick={startDemo}>
-            Explore demo data
-          </Button>
-        </div>
-        <div className="stack" style={{ gap: 12 }}>
-          <div className="row-between wrap">
-            <strong>Use your own data</strong>
-            <Segmented<'statements' | 'ledger'>
-              label="Data source"
-              value={source}
-              onChange={setSource}
-              options={[
-                { value: 'statements', label: 'Bank or card statements' },
-                { value: 'ledger', label: 'Ledger CSV' },
-              ]}
-            />
-          </div>
-          {source === 'statements' ? (
-            <StatementImport
-              intro={
-                <p className="meta">
-                  Drop the statements you already download from your bank or card. The app finds the AI charges, explains each
-                  decision, and lets you review anything it is unsure about before saving.
-                </p>
-              }
-            />
-          ) : (
-            <ImportPanel
-              extraActions={
-                <Button onClick={() => exportCsv(generateDemo({ end: today }), 'ai-spending-example.csv')}>
-                  Download example CSV
-                </Button>
-              }
-            />
-          )}
-        </div>
-      </div>
     </div>
   );
 }
