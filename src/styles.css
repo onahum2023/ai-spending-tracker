@@ -42,6 +42,7 @@ p { margin: 0; }
 
 .main { min-width: 0; padding: var(--page-pad) var(--page-pad) var(--sp-5); max-width: 1360px; width: 100%; margin: 0 auto; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.page-head-end { justify-content: flex-end; }
 .page-head-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .crumb { font-size: 13px; color: var(--text-2); }
 .crumb a { color: var(--text-2); }

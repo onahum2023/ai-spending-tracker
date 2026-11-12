@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { filterPeriod, monthDrillDown, monthTotalThroughDay, rowsInMonths, totalsByMonth } from '../lib/analytics';
-import { addMonths, dateLabelShort, dayOf, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
+import { addMonths, dateLabelShort, dayOf, monthLabel, monthOf, monthShort, yearOf } from '../lib/dates';
 import { STALE_AFTER_DAYS, type Forecast } from '../lib/forecast';
 import { formatEUR, sumCents } from '../lib/money';
 import { describeOneTime, formatSignedNoBreak, oneTimeNote } from '../lib/oneTime';
@@ -13,11 +13,14 @@ import { Button, Card, Change, Disclosure, ProviderAvatar, ReadChip, StatTile, S
 /** The estimate for the month in progress. */
 export type HeroForecast = Extract<Forecast, { status: 'ok' | 'insufficient' }>;
 
-/** The label over the hero amount: "November 2026 so far", "October 2026 total", "2026 so far", "All time". */
-export function heroLabel(period: Period, inProgress: boolean, yearInProgress: boolean): string {
-  if (period.kind === 'month') return `${monthLabelLong(period.month)} ${inProgress ? 'so far' : 'total'}`;
-  if (period.kind === 'year') return `${period.year} ${yearInProgress ? 'so far' : 'total'}`;
-  return 'All time';
+/**
+ * The label over the hero amount. The period picker says which month or year, so the label does not: "So far · through 12 Nov" for
+ * the month in progress, "So far this year · through 12 Nov" for the year in progress, and "Total" for everything else.
+ */
+export function heroLabel(period: Period, inProgress: boolean, yearInProgress: boolean, asOf: string): string {
+  if (period.kind === 'month' && inProgress) return `So far · through ${dateLabelShort(asOf)}`;
+  if (period.kind === 'year' && yearInProgress) return `So far this year · through ${dateLabelShort(asOf)}`;
+  return 'Total';
 }
 
 /**

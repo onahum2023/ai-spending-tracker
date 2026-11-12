@@ -33,7 +33,7 @@ export function Overview() {
 
   if (!span) return null;
 
-  // One "as of" date for the whole page: where the data runs through (the header says "Data through").
+  // One "as of" date for the whole page: where the data runs through (the hero label says "through" it).
   const asOf = span.lastDate;
   const inProgress = period.kind === 'month' && period.month === currentMonth;
   const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
@@ -57,7 +57,7 @@ export function Overview() {
   return (
     <div className="stack overview">
       <div className="overview-hero">
-        <OverviewHero label={heroLabel(period, inProgress, yearInProgress)} totalCents={sumCents(periodRows)} inProgress={inProgress} forecast={forecast} />
+        <OverviewHero label={heroLabel(period, inProgress, yearInProgress, asOf)} totalCents={sumCents(periodRows)} inProgress={inProgress} forecast={forecast} />
         <OverviewTiles period={period} inProgress={inProgress} asOf={asOf} />
       </div>
 

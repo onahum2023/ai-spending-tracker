@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PeriodPicker } from './components/PeriodPicker';
-import { dateLabel } from './lib/dates';
 import { DataPage } from './pages/DataPage';
 import { Button, Card, ProviderAvatar } from './components/ui';
 import { Overview } from './pages/Overview';
@@ -57,7 +56,7 @@ const MOVED: Record<string, string[]> = { trends: ['insights'], subscriptions: [
 
 function Shell() {
   const route = useRoute();
-  const { span, mode } = useLedger();
+  const { mode } = useLedger();
   const hasData = mode !== 'empty';
   const rawSection = route.path[0] ?? 'overview';
   const section = rawSection in MOVED ? 'overview' : rawSection;
@@ -72,7 +71,6 @@ function Shell() {
   let title: ReactNode = 'Overview';
   let page: ReactNode = <Overview />;
   let crumb: ReactNode = null;
-  let meta: ReactNode = null;
   let showPeriod = true;
   switch (section) {
     case 'providers':
@@ -105,8 +103,6 @@ function Shell() {
       page = <DataPage />;
       showPeriod = false;
       break;
-    default:
-      if (span) meta = `Data through ${dateLabel(span.lastDate)}`;
   }
 
   return (
@@ -137,14 +133,26 @@ function Shell() {
           <Welcome />
         ) : (
           <>
-            <div className="page-head">
-              <div className="page-head-title">
-                {crumb && <div className="crumb">{crumb}</div>}
-                <h1>{title}</h1>
-                {meta && <div className="meta">{meta}</div>}
+            {providerName ? (
+              // a provider's page keeps its title, with the way back
+              <div className="page-head">
+                <div className="page-head-title">
+                  {crumb && <div className="crumb">{crumb}</div>}
+                  <h1>{title}</h1>
+                </div>
+                {showPeriod && <PeriodPicker />}
               </div>
-              {showPeriod && <PeriodPicker />}
-            </div>
+            ) : (
+              // the five top-level pages have no title (the top bar says where you are); the period controls stay at the top right
+              <>
+                <h1 className="sr-only">{title}</h1>
+                {showPeriod && (
+                  <div className="page-head page-head-end">
+                    <PeriodPicker />
+                  </div>
+                )}
+              </>
+            )}
             {page}
           </>
         )}
