@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { BudgetCard } from '../components/BudgetSection';
-import { heroLabel, OverviewHero, OverviewTiles, StillDue } from '../components/OverviewHero';
+import { heroLabel, OverviewHero, OverviewTiles } from '../components/OverviewHero';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
 import { TransactionTable } from '../components/TransactionTable';
 import { Button, Card, CardAction, Disclosure, EmptyState, ProviderAvatar, ReadChip, Segmented } from '../components/ui';
@@ -17,8 +17,8 @@ type ChartView = 'provider' | 'category' | 'type';
 const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
 
 /**
- * The Overview. Row 1: the hero card (what the period came to) beside the card of four stat tiles, and for the month in progress the
- * first still-due charges under the hero.
+ * The Overview. Row 1: the hero card (what the period came to, and for the month in progress what is still due) beside the card of
+ * four stat tiles.
  * Row 2: the monthly chart and who the money went to. Row 3: the period's charges and the budget.
  */
 export function Overview() {
@@ -60,7 +60,6 @@ export function Overview() {
       <div className="overview-hero">
         <OverviewHero label={heroLabel(period, inProgress, yearInProgress, asOf)} totalCents={sumCents(periodRows)} inProgress={inProgress} forecast={forecast} />
         <OverviewTiles period={period} inProgress={inProgress} asOf={asOf} />
-        {inProgress && forecast.status === 'ok' && <StillDue forecast={forecast} />}
       </div>
 
       <div className="overview-row">

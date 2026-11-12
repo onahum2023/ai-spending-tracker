@@ -423,10 +423,9 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 
 /* ---------- overview: hero row, chart row, charges row ---------- */
 /* row 1: the hero sits on the page background, beside one card of four stat tiles */
-.overview-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-areas: "hero tiles" "due ."; gap: var(--card-gap); align-items: stretch; }
+.overview-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-areas: "hero tiles"; gap: var(--card-gap); align-items: stretch; }
 .hero-card { grid-area: hero; }
 .hero-tiles { grid-area: tiles; }
-.still-due { grid-area: due; display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; padding: 0 var(--sp-1); }
 .hero-label { font-size: var(--fs-body); font-weight: 500; color: var(--text-2); margin-bottom: 4px; }
 .hero-est { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--sp-1); margin-top: var(--sp-2); font-size: var(--fs-meta); color: var(--text-2); }
 .hero-est strong { color: var(--text-1); font-weight: 600; }
@@ -446,8 +445,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .bar-amount .meta { font-weight: 400; }
 @media (max-width: 1000px) {
   .overview-row { grid-template-columns: 1fr; }
-  /* hero, still due, then the tiles */
-  .overview-hero { grid-template-columns: 1fr; grid-template-areas: "hero" "due" "tiles"; }
+  .overview-hero { grid-template-columns: 1fr; grid-template-areas: "hero" "tiles"; }
 }
 @media (max-width: 560px) {
   /* narrow tiles: a tighter column gap, so the figures are never cut */
@@ -462,3 +460,33 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 176px; padding: 4px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--card-radius); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; }
 .menu a, .menu button { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: var(--control-radius); background: none; color: var(--text-1); font: inherit; font-size: var(--fs-body); text-align: left; cursor: pointer; }
 .menu a:hover, .menu button:hover { background: var(--surface-hover); }
+
+/* ---------- still due: a row in the hero card, and the popover it opens (a bottom sheet on a phone) ---------- */
+.still-due { position: relative; margin-top: var(--sp-2); }
+.still-due-row {
+  display: flex; align-items: center; gap: var(--sp-2); width: calc(100% + var(--sp-2)); margin: 0 calc(var(--sp-1) * -1); padding: var(--sp-1);
+  border: 0; border-radius: var(--control-radius); background: none; color: var(--text-1); font: inherit; font-size: var(--fs-meta); text-align: left; cursor: pointer;
+}
+.still-due-row { --ring: var(--card-bg); }
+.still-due-row:hover, .still-due-row[aria-expanded='true'] { --ring: var(--surface-hover); background: var(--surface-hover); }
+.still-due-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.still-due-row .chevron { margin-left: auto; flex: none; }
+.avatar-stack { display: flex; flex: none; }
+.avatar-stack .avatar { box-shadow: 0 0 0 2px var(--ring, var(--card-bg)); }
+.avatar-stack .avatar + .avatar { margin-left: -8px; }
+.popover {
+  position: absolute; top: calc(100% + 4px); left: calc(var(--sp-1) * -1); z-index: 30; width: min(440px, calc(100vw - 2 * var(--page-pad)));
+  max-height: min(70vh, 560px); overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--card-radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); outline: none;
+}
+.popover-body { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--card-pad); }
+.popover-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.popover-title { font-size: var(--fs-title); font-weight: 600; letter-spacing: 0; }
+.sheet-backdrop { display: none; }
+@media (max-width: 700px) {
+  .sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.4); }
+  .popover {
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0; z-index: 41; width: auto; max-height: 80vh; border-width: 1px 0 0;
+    border-radius: var(--card-radius) var(--card-radius) 0 0; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.2);
+  }
+}
