@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
+import { BudgetCard } from '../components/BudgetSection';
+import { heroLabel, OverviewHero, OverviewTiles } from '../components/OverviewHero';
 import { MonthlyCategoryChart, MonthlyProviderChart, TypeChart } from '../components/charts';
-import { OverviewSide } from '../components/OverviewSide';
 import { TransactionTable } from '../components/TransactionTable';
 import { Button, Card, CardAction, Disclosure, EmptyState, ProviderAvatar, ReadChip, Segmented } from '../components/ui';
 import { filterPeriod, periodKey, periodLabel, summarizeProviders } from '../lib/analytics';
-import { dateLabel, daysInMonth, monthLabel, monthLabelLong, monthOf, yearOf } from '../lib/dates';
-import { forecastCurrentMonth, type ExpectedCharge } from '../lib/forecast';
+import { OTHER_KEY } from '../lib/colors';
+import { dateLabel, daysInMonth, monthLabel, monthOf, yearOf } from '../lib/dates';
+import { forecastCurrentMonth } from '../lib/forecast';
 import { formatEUR, sumCents } from '../lib/money';
 import type { Period } from '../lib/types';
 import { href, providerHref } from '../router';
@@ -14,8 +16,13 @@ import { useLedger } from '../store';
 type ChartView = 'provider' | 'category' | 'type';
 const VIEW_NAMES: Record<ChartView, string> = { provider: 'provider', category: 'category', type: 'commitment type' };
 
+/**
+ * The Overview. Row 1: the hero card (what the period came to, and for the month in progress what is still due) beside the card of
+ * four stat tiles.
+ * Row 2: the monthly chart and who the money went to. Row 3: the period's charges and the budget.
+ */
 export function Overview() {
-  const { transactions, span, period, setPeriod, today, analysis, colors, categoryColors, typeColors } = useLedger();
+  const { transactions, span, period, setPeriod, today, analysis } = useLedger();
   const [view, setView] = useState<ChartView>('provider');
   // The month that is still in progress: where the estimate and the budget apply.
   const currentMonth = span ? monthOf(span.lastDate > today ? span.lastDate : today) : '';
@@ -27,7 +34,7 @@ export function Overview() {
 
   if (!span) return null;
 
-  // One "as of" date for the whole page: where the data runs through (shown as "Data through").
+  // One "as of" date for the whole page: where the data runs through (the hero label says "through" it).
   const asOf = span.lastDate;
   const inProgress = period.kind === 'month' && period.month === currentMonth;
   const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
@@ -41,26 +48,26 @@ export function Overview() {
     forecast.status === 'ok' && forecast.expected.length > 0 && chartMonths.includes(forecast.month)
       ? { month: forecast.month, charges: forecast.expected }
       : undefined;
-  const dueColor = (e: ExpectedCharge) => (view === 'provider' ? colors.color(e.provider) : view === 'category' ? categoryColors(e.category) : typeColors('subscription'));
 
   const selectedMonth = period.kind === 'month' ? period.month : null;
   // A bar is a period: clicking one does what picking that month in the date selector does.
   const openMonth = (month: string) => setPeriod({ kind: 'month', month });
   const chartProps = { rows: transactions, months: chartMonths, projection, selectedMonth, onSelectMonth: openMonth, fill: true };
-
-  const headline =
-    period.kind === 'month'
-      ? `${monthLabelLong(period.month)} ${inProgress ? 'so far' : 'total'}`
-      : period.kind === 'year'
-        ? `${period.year} ${yearInProgress ? 'so far' : 'total'}`
-        : 'All time';
+  const chartYear = period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`;
 
   return (
-    <div className="stack">
-      <div className="overview-top">
+    <div className="stack overview">
+      <div className="overview-hero">
+        <OverviewHero label={heroLabel(period, inProgress, yearInProgress, asOf)} totalCents={sumCents(periodRows)} inProgress={inProgress} forecast={forecast} />
+        <OverviewTiles period={period} inProgress={inProgress} asOf={asOf} />
+      </div>
+
+      <div className="overview-row">
         <Card
           className="chart-card"
-          title={headline}
+          title="Monthly spending"
+          subtitle={`By ${VIEW_NAMES[view]}${chartYear}`}
+          badge={view === 'type' ? <ReadChip>Suggested</ReadChip> : undefined}
           action={
             <Segmented<ChartView>
               label="Group by"
@@ -74,29 +81,6 @@ export function Overview() {
             />
           }
         >
-          <div className="headline">
-            <div className="headline-amount amt-hero num">{formatEUR(sumCents(periodRows))}</div>
-            {inProgress && forecast.status === 'ok' && (
-              <div className="headline-est">
-                {forecast.stillToComeCents > 0 && <span className="swatch-hatch" aria-hidden="true" />}
-                <span>
-                  at least <strong className="num">{formatEUR(forecast.atLeastCents)}</strong> by month end
-                </span>
-                <ReadChip>Estimate</ReadChip>
-              </div>
-            )}
-            {inProgress && forecast.status === 'insufficient' && <div className="headline-est">No month-end estimate</div>}
-          </div>
-          <div className="chart-caption">
-            Monthly spending by {VIEW_NAMES[view]}
-            {period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}
-            {view === 'type' && (
-              <>
-                {' '}
-                <ReadChip>Suggested</ReadChip>
-              </>
-            )}
-          </div>
           <div className="chart-body">
             {view === 'provider' ? (
               <MonthlyProviderChart {...chartProps} />
@@ -118,12 +102,12 @@ export function Overview() {
             </div>
           )}
         </Card>
-        <OverviewSide period={period} inProgress={inProgress} forecast={forecast} asOf={asOf} dueColor={dueColor} />
+        <WhoItWentTo rows={periodRows} label={periodLabel(period)} />
       </div>
 
-      <div className="grid cols-2-even">
-        <ContributorsCard rows={periodRows} label={periodLabel(period)} />
+      <div className="overview-row">
         <ChargesCard key={periodKey(period)} period={period} />
+        <BudgetCard />
       </div>
       {today < span.lastDate && (
         <p className="meta">Note: some transactions are dated after today ({dateLabel(today)}).</p>
@@ -132,49 +116,60 @@ export function Overview() {
   );
 }
 
-function ContributorsCard({ rows, label }: { rows: { provider: string; amountCents: number; date: string; merchant: string }[]; label: string }) {
+const TOP_PROVIDERS = 6;
+
+/** Who the period's money went to: the top six providers and the rest as "Other", each with its amount, share and a bar. */
+function WhoItWentTo({ rows, label }: { rows: { provider: string; amountCents: number; date: string; merchant: string }[]; label: string }) {
+  const { colors } = useLedger();
   const summary = summarizeProviders(rows);
   const total = sumCents(rows);
-  const top = summary.slice(0, 8);
+  const top = summary.slice(0, TOP_PROVIDERS);
+  const rest = summary.slice(TOP_PROVIDERS);
+  const restCents = sumCents(rest.map((s) => ({ amountCents: s.totalCents })));
   const max = top[0]?.totalCents ?? 1;
+  const share = (cents: number) => `${Math.round((cents / total) * 100)}%`;
   return (
     <Card
-      title="Largest contributors"
-      subtitle={`${label} · ${formatEUR(total)} across ${summary.length} provider${summary.length === 1 ? '' : 's'}`}
+      title="Who it went to"
+      subtitle={`${label} · ${formatEUR(total)}`}
       action={<CardAction href={href(['providers'])}>All providers</CardAction>}
     >
       {summary.length === 0 ? (
         <EmptyState>No spending recorded in this period.</EmptyState>
       ) : (
-        <div className="bar-list compact">
+        <div className="bar-list">
           {top.map((s) => (
             <a key={s.provider} className="bar-item" href={providerHref(s.provider)}>
               <span className="bar-name">
                 <ProviderAvatar provider={s.provider} size={20} />
                 <span>{s.provider}</span>
               </span>
-              <div className="bar-track">
-                <ProviderBarFill provider={s.provider} width={(s.totalCents / max) * 100} />
-              </div>
               <span className="num bar-amount">
-                {formatEUR(s.totalCents)} <span className="small">{Math.round((s.totalCents / total) * 100)}%</span>
+                {formatEUR(s.totalCents)} <span className="meta">{share(s.totalCents)}</span>
               </span>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${(s.totalCents / max) * 100}%`, background: colors.color(s.provider) }} />
+              </div>
             </a>
           ))}
-          {summary.length > top.length && (
-            <a className="meta" href={href(['providers'])}>
-              + {summary.length - top.length} more providers ({formatEUR(sumCents(summary.slice(8).map((s) => ({ amountCents: s.totalCents }))))})
-            </a>
+          {rest.length > 0 && (
+            <div className="bar-item">
+              <span className="bar-name">
+                <ProviderAvatar provider={OTHER_KEY} size={20} text={`+${rest.length}`} />
+                <span>Other ({rest.length})</span>
+              </span>
+              <span className="num bar-amount">
+                {formatEUR(restCents)} <span className="meta">{share(restCents)}</span>
+              </span>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${(restCents / max) * 100}%`, background: colors.otherColor }} />
+              </div>
+            </div>
           )}
         </div>
       )}
     </Card>
   );
-}
-
-function ProviderBarFill({ provider, width }: { provider: string; width: number }) {
-  const { colors } = useLedger();
-  return <div className="bar-fill" style={{ width: `${width}%`, background: colors.color(provider) }} />;
 }
 
 const TOP_CHARGES = 5;

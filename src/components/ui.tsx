@@ -5,7 +5,6 @@ import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 import { avatarColors, providerInitials } from './avatar';
-import { sparklinePath } from './sparkline';
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' ');
 
@@ -106,28 +105,16 @@ export function StatRow({ label, value, sub }: { label: ReactNode; value: ReactN
 }
 
 /**
- * A stat tile, for compact grids of figures: a 12px label, a 20px value, an optional meta line and an optional sparkline on the
- * right (muted by default, accent with `accent`). The tile is the only bordered box; do not put it inside a card.
+ * A stat tile, for compact grids of figures: a 12px label, the 22px value and a meta line. On its own it is a bordered box; inside
+ * a card it has no box, and the card draws the dividers between tiles.
  */
-export function StatTile({ label, value, meta, spark, accent = false }: { label: ReactNode; value: ReactNode; meta?: ReactNode; spark?: number[]; accent?: boolean }) {
+export function StatTile({ label, value, meta }: { label: ReactNode; value: ReactNode; meta?: ReactNode }) {
   return (
     <div className="stat-tile">
-      <div className="stat-tile-text">
-        <div className="section-label">{label}</div>
-        <div className="amt-key num">{value}</div>
-        {meta && <div className="meta">{meta}</div>}
-      </div>
-      {spark && spark.length > 1 && <Sparkline values={spark} accent={accent} />}
+      <div className="section-label">{label}</div>
+      <div className="amt-key num">{value}</div>
+      {meta && <div className="meta">{meta}</div>}
     </div>
-  );
-}
-
-/** A small line of recent values, with no axes. Decoration for a figure that already says its number in words. */
-export function Sparkline({ values, accent = false, width = 72, height = 28 }: { values: number[]; accent?: boolean; width?: number; height?: number }) {
-  return (
-    <svg className={cx('sparkline', accent && 'sparkline-accent')} width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
-      <path d={sparklinePath(values, width, height)} fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 
@@ -167,11 +154,11 @@ export function SeriesDot({ provider }: { provider: string }) {
  * on a light tint of it, like the pills. "Other providers" and any provider without a colour of its own are grey. The contrast is
  * checked for every palette colour in avatar.test.ts.
  */
-export function ProviderAvatar({ provider, size = 24 }: { provider: string; size?: number }) {
+export function ProviderAvatar({ provider, size = 24, text }: { provider: string; size?: number; /** Replaces the initials, for a group such as "+5". */ text?: string }) {
   const { colors, scheme } = useLedger();
   return (
     <span className="avatar" style={{ ...avatarColors(colors.color(provider), scheme), width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden="true">
-      {providerInitials(provider)}
+      {text ?? providerInitials(provider)}
     </span>
   );
 }

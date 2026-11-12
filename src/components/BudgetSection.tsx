@@ -4,7 +4,7 @@ import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { monthLabelLong } from '../lib/dates';
 import { centsToPlain, formatEUR, parseAmountToCents } from '../lib/money';
 import { useLedger } from '../store';
-import { CardAction, CardSection, Button, Input } from './ui';
+import { Button, Card, CardAction, Input } from './ui';
 
 /** "120", "120.5", "1 200,00", "€120" -> cents. Empty -> null (no budget). Throws a readable message when invalid. */
 export function parseBudgetInput(raw: string): number | null {
@@ -35,10 +35,10 @@ function BudgetBar({ line }: { line: BudgetLine }) {
 }
 
 /**
- * The monthly budget, as plain rows in the side column: a link to set one, or, once set, a small bar of what is recorded plus
- * what is still due against it.
+ * The Budget card (row 3, right). No budget: one line of explanation and a button to set one. With a budget: for each line a bar of
+ * what is recorded plus what is still due (hatched) against it.
  */
-export function BudgetSection() {
+export function BudgetCard() {
   const { transactions, today, analysis, budgets, setBudgets } = useLedger();
   const [editing, setEditing] = useState(false);
   const report = useMemo(
@@ -53,8 +53,7 @@ export function BudgetSection() {
 
   if (editing) {
     return (
-      <CardSection label="Budget">
-        <p className="meta" style={{ margin: '4px 0 12px' }}>Leave a field empty for no budget. Saved in this browser only.</p>
+      <Card title="Budget" subtitle="Leave a field empty for no budget. Saved in this browser only.">
         <BudgetForm
           initial={budgets}
           categories={present}
@@ -64,21 +63,26 @@ export function BudgetSection() {
             setEditing(false);
           }}
         />
-      </CardSection>
+      </Card>
     );
   }
 
   if (!hasBudgets(budgets)) {
     return (
-      <CardSection label="Budget">
-        <Button variant="text" onClick={() => setEditing(true)}>Set a monthly budget</Button>
-      </CardSection>
+      <Card title="Budget">
+        <div className="stack">
+          <p className="meta">Set a monthly limit to see how the month is tracking, including what is still due.</p>
+          <div>
+            <Button onClick={() => setEditing(true)}>Set a monthly budget</Button>
+          </div>
+        </div>
+      </Card>
     );
   }
 
   return (
-    <CardSection label={`Budget · ${monthLabelLong(report.month)}`} action={<CardAction onClick={() => setEditing(true)}>Edit</CardAction>}>
-      <div className="stack" style={{ gap: 16, marginTop: 12 }}>
+    <Card title="Budget" subtitle={monthLabelLong(report.month)} action={<CardAction onClick={() => setEditing(true)}>Edit</CardAction>}>
+      <div className="stack" style={{ gap: 24 }}>
         {report.lines.map((l) => (
           <div key={l.key}>
             <div className="row-between">
@@ -93,7 +97,7 @@ export function BudgetSection() {
         ))}
         {report.note && <p className="meta">{report.note}</p>}
       </div>
-    </CardSection>
+    </Card>
   );
 }
 
