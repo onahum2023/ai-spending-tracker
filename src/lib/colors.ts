@@ -3,13 +3,16 @@ import type { Category } from './categories';
 import type { ChargeKind } from './overrides';
 
 // Validated categorical palette (fixed order). Slot 8 is held back for "Other".
+// Providers use slots 1-5 and 7: slot 6 (dark green) sits too close to slot 3 (aqua) once bars are stacked or faded, so a
+// provider never gets it. The six in use pass the validator in light and dark; the rest fold into "Other".
 const LIGHT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6'];
 const DARK = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9'];
 const OTHER_LIGHT = '#a3a19a';
 const OTHER_DARK = '#6c6b66';
 
 export const OTHER_KEY = 'Other providers';
-export const SERIES_SLOTS = LIGHT.length;
+const PROVIDER_SLOTS = [0, 1, 2, 3, 4, 6];
+export const SERIES_SLOTS = PROVIDER_SLOTS.length;
 
 export type Scheme = 'light' | 'dark';
 
@@ -60,7 +63,7 @@ export function buildProviderColors(providersBySpend: string[], scheme: Scheme):
   const palette = scheme === 'dark' ? DARK : LIGHT;
   const otherColor = scheme === 'dark' ? OTHER_DARK : OTHER_LIGHT;
   const series = providersBySpend.slice(0, SERIES_SLOTS);
-  const map = new Map(series.map((p, i) => [p, palette[i]]));
+  const map = new Map(series.map((p, i) => [p, palette[PROVIDER_SLOTS[i]]]));
   return {
     series,
     seriesSet: new Set(series),

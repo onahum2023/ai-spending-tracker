@@ -74,7 +74,7 @@ export function BulkTag({ rows }: { rows: Transaction[] }) {
           list={TAG_LIST_ID}
           value={draft}
           maxLength={MAX_TAG_LENGTH}
-          placeholder="e.g. Business or Client: Acme"
+          placeholder="Client: Acme"
           aria-label="Tag to apply to all shown charges"
           onChange={(e) => {
             setDraft(e.target.value);
@@ -127,16 +127,15 @@ export function TagRuleInput({ provider, saved }: { provider: string; saved: str
   };
   return (
     <label
-      className="row small"
-      style={{ gap: 6 }}
+      className="field"
       title="Charges imported from now on that arrive without a tag get this one. A tag in the file wins, and charges already stored are not changed."
     >
-      <span className="secondary">Tag new charges</span>
+      Tag new charges
       <input
-        className="input input-sm tag-input"
+        className="input tag-input"
         list={TAG_LIST_ID}
         value={draft}
-        placeholder="e.g. Business"
+        placeholder="Business"
         maxLength={MAX_TAG_LENGTH}
         aria-label={`Tag new charges from ${provider} as`}
         onChange={(e) => setDraft(e.target.value)}

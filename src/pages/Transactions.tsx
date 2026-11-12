@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BulkTag, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
-import { Card, ConfirmDialog, SearchInput, type SortDir } from '../components/ui';
+import { Card, CardAction, ConfirmDialog, SearchInput, type SortDir } from '../components/ui';
 import { dateLabel, daysInMonth } from '../lib/dates';
 import { KIND_LABELS, type ChargeKind } from '../lib/overrides';
 import { centsToPlain, formatEUR, sumCents } from '../lib/money';
@@ -57,10 +57,10 @@ export function Transactions({ route }: { route: Route }) {
 
   return (
     <div className="stack">
-      <div className="card card-pad">
+      <div className="card">
         <div className="filters">
           <div style={{ flex: '1 1 220px', minWidth: 180 }}>
-            <SearchInput value={q} onChange={(v) => update({ q: v })} placeholder="Search merchant, provider, amount" />
+            <SearchInput value={q} onChange={(v) => update({ q: v })} placeholder="Search a merchant, provider or amount" />
           </div>
           <select className="select" aria-label="Provider" value={provider} onChange={(e) => update({ provider: e.target.value })}>
             <option value="">All providers</option>
@@ -106,11 +106,11 @@ export function Transactions({ route }: { route: Route }) {
       <Card
         title={`${filtered.length} of ${transactions.length} transactions`}
         subtitle={`${formatEUR(sumCents(filtered))} shown${provider ? ` · ${provider}` : ''}`}
-        actions={
-          <span className="row wrap">
-            {provider && <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details →</a>}
-            <a className="btn btn-sm btn-ghost" href={href(['data'])}>Export a quarter →</a>
-          </span>
+        action={
+          <>
+            {provider && <CardAction href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details</CardAction>}
+            <CardAction href={href(['data'])}>Export a quarter</CardAction>
+          </>
         }
       >
         <TagSuggestions />
@@ -144,7 +144,7 @@ export function Transactions({ route }: { route: Route }) {
           <p>
             <strong>{pendingDelete.provider}</strong> · {formatEUR(pendingDelete.amountCents)} · {dateLabel(pendingDelete.date)}
             <br />
-            <span className="small muted">{pendingDelete.merchant.trim()}</span>
+            <span className="small secondary">{pendingDelete.merchant.trim()}</span>
           </p>
           <p className="small secondary">
             {mode === 'demo'

@@ -6,7 +6,7 @@ import { formatEUR, sumCents } from './lib/money';
 import { DataPage } from './pages/DataPage';
 import { exportCsv } from './lib/download';
 import { StatementImport } from './components/StatementImport';
-import { ProviderDot, Segmented } from './components/ui';
+import { Card, ProviderDot, Segmented } from './components/ui';
 import { generateDemo } from './lib/demoData';
 import { Overview } from './pages/Overview';
 import { ProviderDetail } from './pages/ProviderDetail';
@@ -152,7 +152,7 @@ function DemoBanner({ onData }: { onData: boolean }) {
       </span>
       <span className="row wrap" style={{ gap: 6 }}>
         {!onData && (
-          <a className="btn btn-sm btn-primary" href={href(['data'])}>
+          <a className="btn" href={href(['data'])}>
             Use my own data
           </a>
         )}
@@ -169,7 +169,7 @@ function Welcome() {
   const [source, setSource] = useState<'statements' | 'ledger'>('statements');
   return (
     <div className="welcome">
-      <div className={`card card-pad welcome-card stack${source === 'statements' ? ' welcome-wide' : ''}`} style={{ gap: 16, padding: 28 }}>
+      <div className={`card welcome-card stack${source === 'statements' ? ' welcome-wide' : ''}`}>
         <div className="row" style={{ gap: 12 }}>
           <BrandMark />
           <h1>AI Spending Tracker</h1>
@@ -241,18 +241,17 @@ function Root() {
   if (load.status === 'error') {
     return (
       <div className="center-screen">
-        <div className="card card-pad" style={{ maxWidth: 460 }}>
-          <h2 style={{ fontSize: 17, marginBottom: 8 }}>Can't open local storage</h2>
+        <Card title="Can't open local storage" className="error-card">
           <p className="secondary" style={{ marginBottom: 12 }}>
             This app keeps your data in the browser's IndexedDB, which isn't available right now. Private browsing
             windows and some privacy settings block it.
           </p>
-          <p className="small muted" style={{ marginBottom: 14 }}>Details: {load.message}</p>
+          <p className="small secondary" style={{ marginBottom: 14 }}>Details: {load.message}</p>
           <div className="row wrap">
             <button className="btn btn-primary" onClick={() => void reload()}>Try again</button>
             <button className="btn" onClick={startDemo}>Explore demo data instead</button>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }

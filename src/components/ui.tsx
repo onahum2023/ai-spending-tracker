@@ -5,55 +5,120 @@ import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 
+/**
+ * The one card. Every card in the app is this component, so spacing, header and type sizes live in one place (see the
+ * "Standard card" tokens in styles.css).
+ *
+ * - `title`: sentence case. `subtitle`: one line under it; keep it short and put longer explanations in the body.
+ * - `badge`: the "Estimate" / "App's read" pill, after the title (the app's one marker for inferred values).
+ * - `action`: top right. Use `CardAction` (accent text link with a trailing arrow). A control that is not a link, such as a
+ *   segmented toggle, may sit here too.
+ */
 export function Card({
   title,
   subtitle,
-  actions,
+  badge,
+  action,
   children,
   className = '',
 }: {
   title?: ReactNode;
   subtitle?: ReactNode;
-  actions?: ReactNode;
+  badge?: ReactNode;
+  action?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <section className={`card ${className}`}>
-      {(title || actions) && (
-        <div className="card-head">
-          <div>
-            {title && <h2>{title}</h2>}
-            {subtitle && <p>{subtitle}</p>}
+    <section className={`card ${className}`.trim()}>
+      {(title || action) && (
+        <header className="card-head">
+          <div className="card-head-text">
+            <div className="card-title-row">
+              {title && <h2 className="card-title">{title}</h2>}
+              {badge}
+            </div>
+            {subtitle && (
+              <p className="card-sub" title={typeof subtitle === 'string' ? subtitle : undefined}>
+                {subtitle}
+              </p>
+            )}
           </div>
-          {actions}
-        </div>
+          {action && <div className="card-actions">{action}</div>}
+        </header>
       )}
       <div className="card-body">{children}</div>
     </section>
   );
 }
 
-export function Kpi({ label, value, sub, onClick, hint }: { label: ReactNode; value: ReactNode; sub?: ReactNode; onClick?: () => void; hint?: string }) {
-  if (onClick) {
-    return (
-      <button type="button" className="card kpi kpi-btn" onClick={onClick} aria-haspopup="dialog" title={hint}>
-        <span className="kpi-label">{label}</span>
-        <span className="kpi-value num">{value}</span>
-        {sub && <span className="kpi-sub">{sub}</span>}
-      </button>
-    );
-  }
+/** A card's action: accent text, no underline, trailing arrow. A link when it has an `href`, otherwise a button. */
+export function CardAction({ href, onClick, children, ariaLabel }: { href?: string; onClick?: () => void; children: ReactNode; ariaLabel?: string }) {
+  const content = (
+    <>
+      {children}
+      <span aria-hidden="true" className="card-action-arrow">→</span>
+    </>
+  );
+  return href !== undefined ? (
+    <a className="card-action" href={href} aria-label={ariaLabel}>
+      {content}
+    </a>
+  ) : (
+    <button type="button" className="card-action" onClick={onClick} aria-label={ariaLabel}>
+      {content}
+    </button>
+  );
+}
+
+/** A short explanation at the top of a card's body: meta text, so the card's subtitle can stay on one line. */
+export function CardNote({ children }: { children: ReactNode }) {
+  return <p className="meta card-note">{children}</p>;
+}
+
+/** A section inside a card: a small label, with a divider above every section but the first. */
+export function CardSection({ label, badge, action, children, className = '' }: { label?: ReactNode; badge?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <div className="card kpi">
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value num">{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
+    <section className={`card-section ${className}`.trim()}>
+      {(label || badge || action) && (
+        <div className="section-head">
+          <div className="row" style={{ gap: 8 }}>
+            {label && <h3 className="section-label">{label}</h3>}
+            {badge}
+          </div>
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/** One figure in a card: a label, a key figure on the same line, and a meta line under them. */
+export function StatRow({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="side-row">
+      <div className="side-row-main">
+        <span className="side-label">{label}</span>
+        <span className="side-value num">{value}</span>
+      </div>
+      {sub && <div className="side-sub">{sub}</div>}
     </div>
   );
 }
 
-/** Spending change. Up = more spending, shown in red; down in blue. Arrow + sign, never colour alone. */
+/** A stat tile: a card without a title, so its label is a section label, its value a key figure, its note meta text. */
+export function Kpi({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="card kpi">
+      <div className="section-label">{label}</div>
+      <div className="amt-key num">{value}</div>
+      {sub && <div className="meta">{sub}</div>}
+    </div>
+  );
+}
+
+/** Spending change: an arrow and a sign in the accent colour, whichever way it goes (never red or green). */
 export function Delta({ before, after, showPct = true }: { before: number; after: number; showPct?: boolean }) {
   const d = after - before;
   const cls = d > 0 ? 'delta-up' : d < 0 ? 'delta-down' : 'delta-flat';
@@ -64,6 +129,20 @@ export function Delta({ before, after, showPct = true }: { before: number; after
       {arrow && <span aria-hidden="true">{arrow} </span>}
       {formatSignedEUR(d)}
       {showPct && pct !== null && <span> ({formatPct(pct)})</span>}
+    </span>
+  );
+}
+
+/** A change in spending for the side column: the same arrow-and-sign style as `Delta`, always accent. */
+export function Change({ before, after, showPct = true }: { before: number; after: number; showPct?: boolean }) {
+  const d = after - before;
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '';
+  const pct = pctChange(before, after);
+  return (
+    <span className="change num">
+      {arrow && <span aria-hidden="true">{arrow} </span>}
+      {formatSignedEUR(d)}
+      {showPct && pct !== null && <span className="change-pct"> ({formatPct(pct)})</span>}
     </span>
   );
 }
@@ -227,7 +306,7 @@ export function EmptyState({ children }: { children: ReactNode }) {
  * otherwise the descriptor. The descriptor stays available on hover.
  * `labelOnly` shows nothing when there is no label (for places that never showed the descriptor).
  */
-export function StreamName({ provider, merchant, className = 'small muted merchant-line', labelOnly = false }: { provider: string; merchant: string; className?: string; labelOnly?: boolean }) {
+export function StreamName({ provider, merchant, className = 'small secondary merchant-line', labelOnly = false }: { provider: string; merchant: string; className?: string; labelOnly?: boolean }) {
   const { labels } = useLedger();
   const label = labelOf(labelMap(labels), provider, merchant);
   if (!label && labelOnly) return null;
@@ -250,7 +329,7 @@ export function TypeNote({ provider, merchant }: { provider: string; merchant: s
   if (!info) return null;
   const confirmed = overrideOf(overrideMap(overrides), { provider, merchant }) !== undefined;
   return (
-    <div className="small muted" title={WHY[info.source]}>
+    <div className="small secondary" title={WHY[info.source]}>
       {typeLabel(info)} · {confirmed ? 'confirmed by you' : 'suggested'} ·{' '}
       <a href={providerHref(provider)} style={{ textDecoration: 'underline' }}>
         change on the provider page
@@ -284,11 +363,25 @@ export function Disclosure({ label, children }: { label: string; children: React
   );
 }
 
+export type PillKind = 'neutral' | 'inferred' | 'attention';
+
+/**
+ * The only pill. Three kinds: neutral (a fact about state: Stopped, One-time), inferred (the app's read: Estimate, App's guess)
+ * and attention (worth a look: Price change, Overlap, Still charging).
+ */
+export function Pill({ kind = 'neutral', title, children }: { kind?: PillKind; title?: string; children: ReactNode }) {
+  return (
+    <span className={`pill pill-${kind}`} title={title}>
+      {children}
+    </span>
+  );
+}
+
 /** Marks something the app worked out, as opposed to something recorded in the ledger. */
 export function ReadChip({ children = 'App’s read' }: { children?: ReactNode }) {
   return (
-    <span className="chip chip-accent" title="Worked out by the app from your charges. It is not recorded in the ledger.">
+    <Pill kind="inferred" title="Worked out by the app from your charges. It is not recorded in the ledger.">
       {children}
-    </span>
+    </Pill>
   );
 }

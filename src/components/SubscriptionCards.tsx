@@ -1,11 +1,11 @@
 import { dateLabel, monthShort } from '../lib/dates';
 import type { OverlapGroup, PriceChange, StoppedSubscription, Subscription } from '../lib/insights';
 import { formatEUR } from '../lib/money';
-import { Card, Delta, EmptyState, ProviderLink, ReadChip, StreamName, TypeNote } from './ui';
+import { Card, CardNote, Delta, Pill, EmptyState, ProviderLink, ReadChip, StreamName, TypeNote } from './ui';
 
 export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
   return (
-    <Card title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more" actions={<ReadChip />}>
+    <Card title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more" badge={<ReadChip />}>
       {changes.length === 0 ? (
         <EmptyState>No price changes seen.</EmptyState>
       ) : (
@@ -17,12 +17,12 @@ export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
                 <div className="small secondary num">
                   went from {formatEUR(c.fromCents)} to {formatEUR(c.toCents)} in {monthShort(c.month)} {c.month.slice(0, 4)}
                 </div>
-                {c.kind === 'plan' && Math.abs(c.pct) >= 25 && <div className="small muted">likely a plan change</div>}
+                {c.kind === 'plan' && Math.abs(c.pct) >= 25 && <div className="small secondary">likely a plan change</div>}
               </div>
               <Delta before={c.fromCents} after={c.toCents} />
             </div>
           ))}
-          {changes.length > 8 && <p className="small muted" style={{ marginTop: 8 }}>+ {changes.length - 8} older changes</p>}
+          {changes.length > 8 && <p className="small secondary" style={{ marginTop: 8 }}>+ {changes.length - 8} older changes</p>}
         </div>
       )}
     </Card>
@@ -31,7 +31,7 @@ export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
 
 export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
   return (
-    <Card title="Overlap" subtitle="Several recurring charges in the same kind of tool" actions={<ReadChip />}>
+    <Card title="Overlap" subtitle="Several recurring charges in the same kind of tool" badge={<ReadChip />}>
       {groups.length === 0 ? (
         <EmptyState>No overlap: at most one recurring charge per kind of tool.</EmptyState>
       ) : (
@@ -50,7 +50,7 @@ export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
               ))}
             </div>
           ))}
-          <p className="small muted">Overlap is not waste: you may use each one for something different.</p>
+          <p className="small secondary">Overlap is not waste: you may use each one for something different.</p>
         </div>
       )}
     </Card>
@@ -59,7 +59,8 @@ export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
 
 export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
   return (
-    <Card title="Stopped" subtitle="Recurring charges that are no longer appearing, and whether anything still charges from the same merchant" actions={<ReadChip />}>
+    <Card title="Stopped" subtitle="Recurring charges that are no longer appearing" badge={<ReadChip />}>
+      <CardNote>Each is checked for anything that still charges from the same merchant.</CardNote>
       {stopped.length === 0 ? (
         <EmptyState>Nothing has stopped.</EmptyState>
       ) : (
@@ -81,22 +82,20 @@ export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
                     <td>
                       <ProviderLink provider={s.provider} />
                       <StreamName provider={s.provider} merchant={s.merchant} labelOnly />
-                      {s.cadence === 'yearly' && <div className="small muted">Yearly subscription, no renewal seen</div>}
+                      {s.cadence === 'yearly' && <div className="small secondary">Yearly subscription, no renewal seen</div>}
                       <TypeNote provider={s.provider} merchant={s.merchant} />
                     </td>
                     <td className="num nowrap">
                       {formatEUR(s.lastCents)}
-                      <div className="small muted">{dateLabel(s.lastDate)}</div>
+                      <div className="small secondary">{dateLabel(s.lastDate)}</div>
                     </td>
                     <td>
                       {later.length === 0 ? (
-                        <span className="chip chip-ended" title="No charge from this merchant after the last one">
-                          No charges since
-                        </span>
+                        <Pill kind="neutral" title="No charge from this merchant after the last one">No charges since</Pill>
                       ) : (
                         <>
-                          <span className="chip chip-warn">Still charging</span>
-                          <div className="small muted">
+                          <Pill kind="attention">Still charging</Pill>
+                          <div className="small secondary">
                             {later.length} charge{later.length === 1 ? '' : 's'} since, latest {dateLabel(lastLater.date)} ({formatEUR(lastLater.amountCents)}). These may be usage top-ups rather than a subscription.
                           </div>
                         </>
@@ -116,7 +115,8 @@ export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
 export function SavingsCard({ subs }: { subs: Subscription[] }) {
   const top = subs.slice(0, 5);
   return (
-    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge. Only you know which ones you still use." actions={<ReadChip />}>
+    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge" badge={<ReadChip />}>
+      <CardNote>Only you know which ones you still use.</CardNote>
       {top.length === 0 ? (
         <EmptyState>No active recurring charges.</EmptyState>
       ) : (
@@ -126,14 +126,14 @@ export function SavingsCard({ subs }: { subs: Subscription[] }) {
               <div>
                 <span>Ending <ProviderLink provider={s.provider} /> would save</span>
                 {s.notes.map((n) => (
-                  <div key={n} className="small muted">{n}</div>
+                  <div key={n} className="small secondary">{n}</div>
                 ))}
               </div>
               <span className="num" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>≈ {formatEUR(s.yearlyCents)} a year</span>
             </div>
           ))}
           {subs.length > top.length && (
-            <p className="small muted">The other {subs.length - top.length} cost {formatEUR(subs.slice(5).reduce((a, s) => a + s.yearlyCents, 0))} a year together.</p>
+            <p className="small secondary">The other {subs.length - top.length} cost {formatEUR(subs.slice(5).reduce((a, s) => a + s.yearlyCents, 0))} a year together.</p>
           )}
         </div>
       )}

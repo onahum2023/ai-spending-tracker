@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
-import { Card, ConfirmDialog } from '../components/ui';
+import { Card, CardNote, ConfirmDialog } from '../components/ui';
 import { exportCsv } from '../lib/download';
 import { StatementImport } from '../components/StatementImport';
 import { dateLabel } from '../lib/dates';
@@ -34,35 +34,33 @@ export function DataPage() {
     <div className="stack">
       <Card
         title={demo ? 'Use your own data: extract AI charges from statements' : 'Extract AI charges from bank or card statements'}
-        subtitle="Excel or CSV exports and Revolut PDFs. Read in your browser; review before anything is saved."
+        subtitle="Excel, CSV and Revolut PDF, read in your browser"
       >
+        <CardNote>Review before anything is saved.</CardNote>
         <StatementImport onImported={demo ? () => (window.location.hash = '#/') : undefined} />
       </Card>
       <div className="grid cols-2">
         <Card
           title={demo ? 'Or import a ledger CSV' : 'Import a ledger CSV'}
-          subtitle={
-            demo
-              ? 'Import a CSV to replace the demo. The demo data is discarded, never mixed with yours.'
-              : "Add another CSV in the same format. You'll review it before anything is saved."
-          }
+          subtitle={demo ? 'Replaces the demo data, never mixed with it' : 'Same format as an export, reviewed before saving'}
         >
           <ImportPanel onImported={demo ? () => (window.location.hash = '#/') : undefined} />
         </Card>
         <Card
           title={demo ? 'Demo data' : 'Stored data'}
-          subtitle={
-            demo
-              ? 'Invented transactions, generated in your browser. Not saved anywhere.'
-              : 'Kept only in this browser (IndexedDB) on this device. Nothing is uploaded, and it is not synced to other devices.'
-          }
+          subtitle={demo ? 'Invented transactions, not saved anywhere' : 'Kept only in this browser, nothing is uploaded'}
         >
-          <div className="stat-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-            <div><div className="small muted">Transactions</div><div className="value num">{transactions.length}</div></div>
-            <div><div className="small muted">Providers</div><div className="value num">{providers.length}</div></div>
-            <div><div className="small muted">Total</div><div className="value num">{formatEUR(sumCents(transactions))}</div></div>
+          <CardNote>
+            {demo
+              ? 'Generated in your browser each time you open the demo.'
+              : 'Stored in IndexedDB on this device. It is not synced to other devices.'}
+          </CardNote>
+          <div className="stat-row" style={{ gridTemplateColumns: 'repeat(3, auto)', justifyContent: 'start' }}>
+            <div><div className="section-label">Transactions</div><div className="value num">{transactions.length}</div></div>
+            <div><div className="section-label">Providers</div><div className="value num">{providers.length}</div></div>
+            <div><div className="section-label">Total</div><div className="value num">{formatEUR(sumCents(transactions))}</div></div>
           </div>
-          {span && <p className="small muted" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
+          {span && <p className="small secondary" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
           <div className="row wrap" style={{ marginTop: 14 }}>
             <button
               className="btn"
@@ -81,7 +79,7 @@ export function DataPage() {
               </button>
             )}
           </div>
-          <p className="small muted" style={{ marginTop: 10 }}>
+          <p className="small secondary" style={{ marginTop: 10 }}>
             Exports use the import format (Merchant, Provider, Amount, Date, plus Type and Tag when used), so an export can be re-imported
             or loaded on another device. The file holds transactions only: budgets, corrections, labels, categories, tag rules and the import history are not in it.
           </p>

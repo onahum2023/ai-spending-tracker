@@ -5,6 +5,7 @@ import { SERVICE_TYPE_LABELS } from '../lib/extract/types';
 import type { Classified } from '../lib/extract/classify';
 import { payloadFor, type Verdict } from '../lib/extract/review';
 import { forgetApiKey, KEY_STORE } from '../lib/localPrefs';
+import { Pill, type PillKind } from './ui';
 
 
 function readKey(): string {
@@ -132,7 +133,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           style={{ flex: '1 1 260px' }}
           type="password"
           autoComplete="off"
-          placeholder="Anthropic API key (sk-ant-…)"
+          placeholder="sk-ant-api03-…"
           aria-label="Anthropic API key"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
@@ -156,19 +157,19 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           {busy ?? 'Ask Claude'}
         </button>
       </div>
-      {remember && <p className="small muted">The key is stored in this browser only. Untick to forget it.</p>}
+      {remember && <p className="small secondary">The key is stored in this browser only. Untick to forget it.</p>}
       {error && <div className="notice notice-error">{error}</div>}
       {preview && <pre className="ask-preview">{JSON.stringify(preview, null, 2)}</pre>}
     </div>
   );
 }
 
-type Outcome = { label: string; chip: string; note: string };
+type Outcome = { label: string; kind: PillKind; note: string };
 function outcomeOf(v: Verdict): Outcome {
-  if (v.confidence === 'low') return { label: 'Not sure', chip: 'chip chip-warn', note: 'Stays in review, with Claude’s note' };
+  if (v.confidence === 'low') return { label: 'Not sure', kind: 'attention', note: 'Stays in review, with Claude’s note' };
   return v.is_ai_spending
-    ? { label: 'AI charge', chip: 'chip chip-accent', note: 'Moves to AI charges' }
-    : { label: 'Not AI', chip: 'chip', note: 'Moves to Not AI' };
+    ? { label: 'AI charge', kind: 'inferred', note: 'Moves to AI charges' }
+    : { label: 'Not AI', kind: 'neutral', note: 'Moves to Not AI' };
 }
 
 /** Step two: shows what Claude answered and applies only what the user confirms. */
@@ -235,8 +236,8 @@ function ClaudeResults({
                   <td><div className="merchant">{c.row.merchant}</div></td>
                   <td className="amount">{formatEUR(c.row.amountCents)}</td>
                   <td>
-                    <span className={o.chip}>{o.label}</span>
-                    <div className="small muted">{v.confidence} confidence</div>
+                    <Pill kind={o.kind}>{o.label}</Pill>
+                    <div className="small secondary">{v.confidence} confidence</div>
                   </td>
                   <td className="small">
                     {v.is_ai_spending && v.confidence !== 'low' ? [v.provider, v.type ? SERVICE_TYPE_LABELS[v.type] : null].filter(Boolean).join(' · ') || '—' : '—'}
