@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MAX_TAG_LENGTH } from '../lib/csv';
-import { cleanTag, SUGGESTED_TAGS, tagsInUse } from '../lib/tags';
+import { cleanTag, planBulkTag, SUGGESTED_TAGS, tagsInUse, type BulkTagPlan } from '../lib/tags';
 import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
 import { Button, ConfirmDialog, Field, Input } from './ui';
@@ -23,29 +23,147 @@ export function TagSuggestions() {
   );
 }
 
-/** Edits one charge's tag in place. Saves when the field loses focus or Enter is pressed. */
+/**
+ * One charge's tag: Personal or Business in one click, or any other label after "…". Clicking the active tag clears it. A charge
+ * has at most one tag.
+ */
 export function TagInput({ tx }: { tx: Transaction }) {
   const { setTags } = useLedger();
-  const [draft, setDraft] = useState(tx.tag ?? '');
-  useEffect(() => setDraft(tx.tag ?? ''), [tx.tag]);
+  const cur = tx.tag ?? '';
+  const custom = cur !== '' && !SUGGESTED_TAGS.includes(cur);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(cur);
+  useEffect(() => setDraft(cur), [cur]);
   const commit = () => {
+    setEditing(false);
     const t = cleanTag(draft);
-    if (t === (tx.tag ?? '')) return setDraft(tx.tag ?? '');
-    void setTags([tx.id], t || null);
+    if (t !== cur) void setTags([tx.id], t || null);
   };
+  if (editing) {
+    return (
+      <Input
+        className="tag-input"
+        list={TAG_LIST_ID}
+        value={draft}
+        autoFocus
+        placeholder="Client: Acme"
+        maxLength={MAX_TAG_LENGTH}
+        aria-label={`Tag for ${tx.provider} charge on ${tx.date}`}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            setDraft(cur);
+            setEditing(false);
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
   return (
-    <Input
-      className="tag-input"
-      list={TAG_LIST_ID}
-      value={draft}
-      placeholder="Add tag"
-      maxLength={MAX_TAG_LENGTH}
-      aria-label={`Tag for ${tx.provider} charge on ${tx.date}`}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-      onClick={(e) => e.stopPropagation()}
-    />
+    <span className="tag-toggle" role="group" aria-label={`Tag for ${tx.provider} charge on ${tx.date}`} onClick={(e) => e.stopPropagation()}>
+      {SUGGESTED_TAGS.map((t) => (
+        <button key={t} type="button" className={cur === t ? 'is-on' : undefined} aria-pressed={cur === t} onClick={() => void setTags([tx.id], cur === t ? null : t)}>
+          {t}
+        </button>
+      ))}
+      <button
+        type="button"
+        className={custom ? 'is-on' : undefined}
+        aria-pressed={custom}
+        title={custom ? `Tagged “${cur}”. Click to change it.` : 'Another tag, such as a client or project'}
+        onClick={() => {
+          setDraft(custom ? cur : '');
+          setEditing(true);
+        }}
+      >
+        {custom ? cur : '…'}
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Shown when charges are selected: tag them all at once, or clear their tags. Tagging untagged charges is one click; when saved tags
+ * would be replaced or removed, it says how many and asks first, because tags decide what a tag-filtered quarterly export holds.
+ */
+export function SelectionBar({ rows, onClear }: { rows: Transaction[]; onClear: () => void }) {
+  const { setTags } = useLedger();
+  const [draft, setDraft] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ tag: string | null; plan: BulkTagPlan } | null>(null);
+  const write = async (t: string | null, plan: BulkTagPlan) => {
+    if (plan.ids.length > 0) await setTags(plan.ids, t);
+    const n = plan.ids.length;
+    setMessage(
+      n === 0
+        ? 'Nothing to change.'
+        : t
+          ? `Tagged ${n} charge${n === 1 ? '' : 's'} as “${t}”.`
+          : `Cleared the tag of ${n} charge${n === 1 ? '' : 's'}.`,
+    );
+    setDraft('');
+    setPending(null);
+  };
+  const apply = (t: string | null) => {
+    const plan = planBulkTag(rows, t);
+    if (plan.needsConfirm) setPending({ tag: t, plan });
+    else void write(t, plan);
+  };
+  const tag = cleanTag(draft);
+  const p = pending?.plan;
+  const lost = p ? p.replaced + p.cleared : 0;
+  return (
+    <div className="selection-bar" role="region" aria-label="Selected charges">
+      <span className="sel-count">{rows.length} selected</span>
+      {SUGGESTED_TAGS.map((t) => (
+        <button key={t} type="button" className="sel-btn" onClick={() => apply(t)}>
+          Tag as {t}
+        </button>
+      ))}
+      <input
+        className="sel-input"
+        list={TAG_LIST_ID}
+        value={draft}
+        maxLength={MAX_TAG_LENGTH}
+        placeholder="Other tag"
+        aria-label="Another tag for the selected charges"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && tag && apply(tag)}
+      />
+      {tag && (
+        <button type="button" className="sel-btn" onClick={() => apply(tag)}>
+          Apply
+        </button>
+      )}
+      <button type="button" className="sel-ghost" onClick={() => apply(null)}>
+        Clear tags
+      </button>
+      <span className="sel-msg" role="status">{message}</span>
+      <button type="button" className="sel-ghost" onClick={onClear}>
+        Clear selection
+      </button>
+      {pending && p && (
+        <ConfirmDialog
+          title={pending.tag ? 'Replace existing tags?' : 'Remove these tags?'}
+          confirmLabel={pending.tag ? `Replace ${lost} tag${lost === 1 ? '' : 's'}` : `Remove ${lost} tag${lost === 1 ? '' : 's'}`}
+          onCancel={() => setPending(null)}
+          onConfirm={() => void write(pending.tag, p)}
+        >
+          <p>
+            {pending.tag
+              ? `${p.replaced} of the ${rows.length} selected charges already ${p.replaced === 1 ? 'has' : 'have'} a different tag, which “${pending.tag}” would replace.`
+              : `${p.cleared} of the ${rows.length} selected charges ${p.cleared === 1 ? 'has a tag' : 'have tags'}, which would be removed.`}
+            {pending.tag && p.added > 0 ? ` ${p.added} untagged charge${p.added === 1 ? '' : 's'} would get it too.` : ''}
+          </p>
+          <p className="meta">
+            Tags now: {p.affectedTags.map((t) => `“${t}”`).join(', ')}. Tags decide what a tag-filtered quarterly export holds.
+          </p>
+        </ConfirmDialog>
+      )}
+    </div>
   );
 }
 

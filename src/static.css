@@ -1,10 +1,12 @@
 /* Styles for the static privacy page. The tokens are the app's own (tokens.css), so every page matches in light and dark. */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/600.css';
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--sans);
   font-size: 16px;
   line-height: 1.6;
   color: var(--text-1);

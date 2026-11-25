@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, CardNote, ChangeArrow, EmptyState, Field, Pill, ProviderAvatar, SearchInput, Select, SortHeader, Table, type SortDir } from '../components/ui';
-import { filterPeriod, lastCompleteMonth, periodLabel, providerTotals, rowsInMonths } from '../lib/analytics';
+import { lastCompleteMonth, providerTotals, rowsInMonths } from '../lib/analytics';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthShort } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
@@ -15,20 +15,24 @@ type Key = 'provider' | 'period' | 'trend' | 'total' | 'count' | 'first' | 'last
 const KINDS: ChargeKind[] = ['subscription', 'usage', 'other'];
 
 export function Providers() {
-  const { transactions, providers, period, overrides, span, today, analysis } = useLedger();
+  const { transactions, providers, overrides, span, today, analysis } = useLedger();
   const toReview = useMemo(() => reviewCounts(transactions, overrides), [transactions, overrides]);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState<Category | ''>('');
   const [kind, setKind] = useState<ChargeKind | ''>('');
   const [sort, setSort] = useState<{ key: Key; dir: SortDir }>({ key: 'period', dir: 'desc' });
 
-  const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
+  // No period picker here: a fixed window of the last 12 months up to the latest charge, beside all time.
+  const periodRows = useMemo(
+    () => (span ? rowsInMonths(transactions, addMonths(span.lastMonth, -11), span.lastMonth) : []),
+    [transactions, span],
+  );
   const periodTotals = useMemo(() => providerTotals(periodRows), [periodRows]);
   const allTotal = sumCents(transactions);
-  const label = periodLabel(period);
+  const label = 'Last 12 months';
 
   // Spending in the last 3 complete months against the 3 before, one-time charges left out: sums of recorded charges, whatever
-  // the period picker says.
+  // the provider list shows.
   const trend = useMemo(() => {
     if (!span) return null;
     const L = lastCompleteMonth(span, today);
@@ -84,9 +88,9 @@ export function Providers() {
   const activeInPeriod = providers.filter((p) => (periodTotals.get(p.provider) ?? 0) !== 0).length;
 
   return (
-    <Card
+    <Card icon="users" tone="accent"
       title={`${providers.length} providers`}
-      subtitle={`${formatEUR(sumCents(periodRows))} in ${label} · ${formatEUR(allTotal)} all time`}
+      subtitle={`${formatEUR(sumCents(periodRows))} in the last 12 months${span ? ` (${monthLabel(addMonths(span.lastMonth, -11))} to ${monthLabel(span.lastMonth)}, data through ${dateLabel(span.lastDate)})` : ''} · ${formatEUR(allTotal)} all time`}
     >
       <CardNote>
         {activeInPeriod} with spending in {label}
@@ -166,7 +170,7 @@ export function Providers() {
                       <td className="date">{dateLabel(p.lastDate)}</td>
                       <td>
                         {toReview.get(p.provider) ? (
-                          <Pill kind="attention">{toReview.get(p.provider)} to check</Pill>
+                          <Pill kind="inferred">{toReview.get(p.provider)} to check</Pill>
                         ) : (
                           <span className="muted" title="Every charge type is confirmed">✓</span>
                         )}

@@ -14,23 +14,25 @@ import { Card, Change, Pill, ProviderAvatar, ReadChip, StreamName } from './ui';
 export function WelcomeExamples() {
   return (
     <div className="w-examples">
-      <Example line={EXAMPLE_LINES[0]}>
+      <Example line={EXAMPLE_LINES[0]} tone="accent">
         <MonthlyTotalExample />
       </Example>
-      <Example line={EXAMPLE_LINES[1]}>
+      <Example line={EXAMPLE_LINES[1]} tone="rise">
         <PriceChangeExample />
       </Example>
-      <Example line={EXAMPLE_LINES[2]}>
+      <Example line={EXAMPLE_LINES[2]} tone="overlap">
         <OverlapExample />
       </Example>
     </div>
   );
 }
 
-function Example({ line, children }: { line: string; children: ReactNode }) {
+function Example({ line, tone, children }: { line: string; tone: 'accent' | 'rise' | 'overlap'; children: ReactNode }) {
   return (
-    <div className="w-example">
-      <Card>{children}</Card>
+    <div className={`w-example tone-${tone}`}>
+      <div className="w-example-art">
+        <Card>{children}</Card>
+      </div>
       <p className="w-example-line">{line}</p>
     </div>
   );
@@ -79,7 +81,7 @@ function PriceChangeExample() {
             <StreamName provider={c.provider} merchant={c.merchant} labelOnly />
           </span>
         </span>
-        <Pill kind="attention">
+        <Pill kind={up ? 'rise' : 'saving'}>
           Price {up ? 'up' : 'down'} in {monthShort(c.month)}
         </Pill>
       </div>
@@ -104,7 +106,7 @@ function OverlapExample() {
     <div className="stack">
       <div className="row-between">
         <strong>{g.sentence.split(' · ')[0]}</strong>
-        <Pill kind="attention">Overlap</Pill>
+        <Pill kind="overlap">Overlap</Pill>
       </div>
       <div className="meta num">{formatEUR(g.combinedMonthlyCents)}/month combined</div>
       <div className="w-overlap-list">

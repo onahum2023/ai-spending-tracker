@@ -111,3 +111,44 @@ export function applyTagRules<T extends LedgerRow>(rows: T[], rules: TagRule[]):
   });
   return { rows: out, tagged };
 }
+
+/** What tagging a selection of charges would do, before anything is written. */
+export interface BulkTagPlan {
+  /** The charges whose tag actually changes. */
+  ids: number[];
+  /** Untagged charges that get the tag. */
+  added: number;
+  /** Charges whose different, saved tag would be replaced. */
+  replaced: number;
+  /** Charges whose saved tag would be removed (tag is null). */
+  cleared: number;
+  /** The saved tags that would be replaced or removed, each once. */
+  affectedTags: string[];
+  /** True when saved tags would be lost: ask before writing. Tagging untagged charges never needs asking. */
+  needsConfirm: boolean;
+}
+
+export function planBulkTag(rows: { id: number; tag?: string | null }[], tag: string | null): BulkTagPlan {
+  const ids: number[] = [];
+  const affected = new Set<string>();
+  let added = 0;
+  let replaced = 0;
+  let cleared = 0;
+  for (const r of rows) {
+    const cur = r.tag ?? '';
+    if (tag === null) {
+      if (cur === '') continue;
+      cleared++;
+      affected.add(cur);
+    } else if (cur === tag) {
+      continue;
+    } else if (cur === '') {
+      added++;
+    } else {
+      replaced++;
+      affected.add(cur);
+    }
+    ids.push(r.id);
+  }
+  return { ids, added, replaced, cleared, affectedTags: [...affected].sort((a, b) => a.localeCompare(b)), needsConfirm: replaced + cleared > 0 };
+}

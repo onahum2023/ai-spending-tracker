@@ -5,15 +5,15 @@ import { TagRuleInput, TagSuggestions } from '../components/TagEditor';
 import { ChargeTypesCard } from '../components/ChargeTypes';
 import { Button, Card, CardAction, CardSection, EmptyState, Field, ReadChip, Select, StatRow } from '../components/ui';
 import { CATEGORIES, CATEGORY_LABELS, isCategory } from '../lib/categories';
-import { filterPeriod, periodLabel } from '../lib/analytics';
-import { dateLabel, monthLabel, monthOf, yearOf } from '../lib/dates';
+import { rowsInMonths } from '../lib/analytics';
+import { addMonths, dateLabel, daysInMonth, monthLabel, monthOf } from '../lib/dates';
 import { forecastCurrentMonth } from '../lib/forecast';
 import { formatEUR, medianCents, sumCents } from '../lib/money';
-import { href } from '../router';
+import { href, navigate } from '../router';
 import { useLedger } from '../store';
 
 export function ProviderDetail({ provider }: { provider: string }) {
-  const { transactions, span, period, setPeriod, today, analysis, providers, providerCategories, setProviderCategory, tagRules } = useLedger();
+  const { transactions, span, today, analysis, providers, providerCategories, setProviderCategory, tagRules } = useLedger();
   const ownCategory = providerCategories.find((c) => c.provider === provider)?.category ?? '';
   const rows = useMemo(() => transactions.filter((t) => t.provider === provider), [transactions, provider]);
   const forecast = useMemo(
@@ -33,25 +33,23 @@ export function ProviderDetail({ provider }: { provider: string }) {
   }
 
   const total = sumCents(rows);
-  const periodRows = filterPeriod(rows, period);
+  // No period picker here: the provider page always shows the last 12 months up to the latest charge, beside all time.
+  const fromMonth = addMonths(span.lastMonth, -11);
+  const periodRows = rowsInMonths(rows, fromMonth, span.lastMonth);
   const rank = providers.findIndex((p) => p.provider === provider) + 1;
   const first = rows.reduce((a, r) => (r.date < a ? r.date : a), rows[0].date);
   const last = rows.reduce((a, r) => (r.date > a ? r.date : a), rows[0].date);
   const amounts = rows.map((r) => r.amountCents);
 
-  // The same chart as the Overview's: the months of the selected year (all months for All time), from the provider's first charge.
+  // The chart shows the same 12 months, from the provider's first charge if that is later.
   const currentMonth = monthOf(span.lastDate > today ? span.lastDate : today);
-  const inProgress = period.kind === 'month' && period.month === currentMonth;
-  const yearInProgress = period.kind === 'year' && period.year === yearOf(currentMonth);
-  const chartYear = period.kind === 'all' ? null : period.kind === 'year' ? period.year : yearOf(period.month);
-  const fromFirst = span.months.filter((m) => m >= monthOf(first));
-  const inYear = fromFirst.filter((m) => chartYear === null || yearOf(m) === chartYear);
-  const months = inYear.length > 0 ? inYear : fromFirst;
+  const inProgress = span.lastMonth === currentMonth;
+  const months = span.months.filter((m) => m >= fromMonth && m >= monthOf(first));
   const projection =
     forecast.status === 'ok' && forecast.expected.length > 0 && months.includes(forecast.month)
       ? { month: forecast.month, charges: forecast.expected }
       : undefined;
-  const title = `${provider} · ${periodLabel(period)}`;
+  const title = `${provider} · last 12 months`;
 
   return (
     <div className="stack">
@@ -60,7 +58,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
         <Card
           className="chart-card"
           title={title}
-          subtitle={inProgress || yearInProgress ? `Data through ${dateLabel(span.lastDate)}` : undefined}
+          subtitle={`${monthLabel(fromMonth)} to ${monthLabel(span.lastMonth)}, data through ${dateLabel(span.lastDate)}`}
         >
           <div className="headline">
             <div className="headline-amount amt-hero num">{formatEUR(sumCents(periodRows))}</div>
@@ -74,21 +72,21 @@ export function ProviderDetail({ provider }: { provider: string }) {
               </div>
             )}
           </div>
-          <div className="chart-caption">Monthly spending{chartYear === null ? '' : ` · ${chartYear}`}</div>
+          <div className="chart-caption">Monthly spending · select a month to see its charges</div>
           <div className="chart-body">
             <ProviderMonthlyChart
               provider={provider}
               rows={rows}
               months={months}
               projection={projection}
-              selectedMonth={period.kind === 'month' ? period.month : null}
-              onSelectMonth={(month) => setPeriod({ kind: 'month', month })}
+              selectedMonth={null}
+              onSelectMonth={(month) => navigate(['transactions'], { provider, from: `${month}-01`, to: `${month}-${String(daysInMonth(month)).padStart(2, '0')}` })}
               fill
             />
           </div>
         </Card>
 
-        <Card className="overview-side" title="At a glance" subtitle="All time">
+        <Card icon="gauge" tone="accent" className="overview-side" title="At a glance" subtitle="All time">
           <CardSection>
             <StatRow label="Total" value={formatEUR(total)} sub={`#${rank} of ${providers.length} · ${Math.round((total / sumCents(transactions)) * 100)}%`} />
             <StatRow label="Charges" value={rows.length} sub={`since ${monthLabel(monthOf(first))}`} />
@@ -117,7 +115,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
 
       <ChargeTypesCard provider={provider} rows={rows} />
 
-      <Card
+      <Card icon="list" tone="accent"
         title="Transaction history"
         subtitle={`${rows.length} transactions · ${formatEUR(total)}`}
         action={<CardAction href={href(['transactions'], { provider })}>Open in Transactions</CardAction>}

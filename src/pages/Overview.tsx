@@ -58,7 +58,7 @@ function WhoItWentTo({ rows, label }: { rows: { provider: string; amountCents: n
   const max = top[0]?.totalCents ?? 1;
   const share = (cents: number) => `${Math.round((cents / total) * 100)}%`;
   return (
-    <Card
+    <Card icon="pie" tone="accent"
       title="Who it went to"
       subtitle={`${label} · ${formatEUR(total)}`}
       action={<CardAction href={href(['providers'])}>All providers</CardAction>}
@@ -123,7 +123,7 @@ function ChargesCard({ period }: { period: Period }) {
         : undefined;
   const title = period.kind === 'month' ? `Charges in ${monthLabel(period.month)}` : `Largest charges · ${periodLabel(period)}`;
   return (
-    <Card
+    <Card icon="list" tone="accent"
       title={title}
       subtitle={`${rows.length} transaction${rows.length === 1 ? '' : 's'}, largest first`}
       action={<CardAction href={href(['transactions'], filter)}>Open in Transactions</CardAction>}

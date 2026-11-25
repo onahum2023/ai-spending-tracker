@@ -50,10 +50,10 @@ export function Insights() {
         }
       >
         <div className="grid cols-2">
-          <Card title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
+          <Card icon="chart" tone="saving" title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
             <MonthlyTrendChart rows={transactions} months={span.months} />
           </Card>
-          <Card title="At a glance" subtitle="Complete months only, unless noted">
+          <Card icon="gauge" tone="accent" title="At a glance" subtitle="Complete months only, unless noted">
             <div className="stack" style={{ gap: 16 }}>
               <Stat label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`} value={formatEUR(last3)} sub={<>vs previous 3: <Change before={prev3} after={last3} /></>} />
               <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
@@ -156,11 +156,11 @@ function SpendingTypes() {
   );
   return (
     <div className="grid cols-2">
-      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed" badge={<ReadChip />}>
+      <Card icon="pie" tone="accent" title="Subscriptions, usage and one-time" subtitle="How each charge is billed" badge={<ReadChip />}>
         <CardNote>On a schedule, pay as you go, or neither.</CardNote>
         <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
-      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`} badge={<ReadChip />}>
+      <Card icon="compare" tone="accent" title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`} badge={<ReadChip />}>
         <div className="stack" style={{ gap: 16 }}>
           <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
           <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
@@ -184,10 +184,10 @@ function YearComparison() {
   const latestYear = years[years.length - 1];
   return (
     <div className="grid cols-2">
-      <Card title="Year over year" subtitle="Spending per calendar month, one line per year">
+      <Card icon="compare" tone="saving" title="Year over year" subtitle="Spending per calendar month, one line per year">
         <YearCompareChart rows={transactions} years={years} />
       </Card>
-      <Card title="Yearly totals" subtitle={`Like-for-like compares Jan–${monthShort(span.lastMonth)} of each year`}>
+      <Card icon="calendar" tone="saving" title="Yearly totals" subtitle={`Like-for-like compares Jan–${monthShort(span.lastMonth)} of each year`}>
         <Table>
             <thead>
               <tr>
@@ -267,7 +267,7 @@ function ChangesCard() {
   );
 
   return (
-    <Card
+    <Card icon="trend" tone="rise"
       title="Biggest increases and decreases"
       subtitle={`${result.after} vs ${result.before}, by provider`}
       action={
@@ -320,7 +320,7 @@ function ConcentrationCard() {
   const restShare = rest.reduce((a, s) => a + s.share, 0);
 
   return (
-    <Card
+    <Card icon="pie" tone="accent"
       title="Provider concentration"
       subtitle={win === 'all' ? 'Share of all-time spending' : `Share of spending, ${monthLabel(addMonths(span.lastMonth, -11))} – ${monthLabel(span.lastMonth)}`}
       action={
@@ -368,7 +368,7 @@ function RecurringCard() {
   const { analysis } = useLedger();
   const patterns = analysis.patterns;
   return (
-    <Card
+    <Card icon="repeat" tone="accent"
       title="Recurring-looking patterns"
       subtitle="Same provider, similar day and amount, 3+ months in a row"
       badge={<ReadChip />}

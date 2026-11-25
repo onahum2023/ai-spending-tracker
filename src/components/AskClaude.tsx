@@ -116,7 +116,10 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
   }
 
   return (
-    <div className="ask-claude stack" style={{ gap: 12 }}>
+    <div className="ask-claude outbound stack" style={{ gap: 12 }}>
+      <span className="outbound-tag">
+        <span aria-hidden="true">↗</span> Leaves your browser
+      </span>
       <div className="row-between wrap">
         <strong>Ask Claude about {items.length} line{items.length === 1 ? '' : 's'}</strong>
         <Button variant="text" onClick={() => setOpen(false)} disabled={!!busy}>Close</Button>

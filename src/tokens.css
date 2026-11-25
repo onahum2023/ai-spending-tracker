@@ -3,41 +3,61 @@
  * this file, so every page matches in light and dark.
  *
  * Rules these tokens encode:
- * - One font, sans-serif, everywhere. Amounts use tabular numerals.
+ * - One family, IBM Plex: Sans everywhere, Mono only for statement lines as the bank prints them. Amounts use tabular numerals.
  * - Text has four colours: primary, secondary, muted and accent. Nothing else.
  * - Spacing is 8, 12, 16, 24 or 32 (--sp-1 … --sp-5). The card's own padding (20px, 16px on mobile) is the one exception.
- * - A change in spending is shown in the accent colour with an arrow. No red or green for spending, ever.
+ * - Each colour stands for one idea, here and on the Welcome page: accent blue is the product and its actions; rise (red-orange)
+ *   is spending or a price going up; saving (green) is it going down; overlap (violet) is tools paid for twice; amber, with a
+ *   dashed outline, is the app's own guess; teal is privacy, on this device. A change always has an arrow too, never colour alone.
  */
 :root {
   color-scheme: light;
 
   /* surfaces */
-  --page: #f4f4f1;
+  --page: #f4f6fb;
   --surface: #ffffff;
-  --surface-2: #f8f8f6;
-  --surface-hover: #f2f2ee;
-  --border: rgba(11, 11, 11, 0.09);
-  --border-strong: rgba(11, 11, 11, 0.16);
-  --grid: #e8e7e1;
-  --axis: #c3c2b7;
+  --surface-2: #f6f8fc;
+  --surface-hover: #eef2fa;
+  --border: #e2e6ef;
+  --border-strong: #ccd3e0;
+  --grid: #e8ebf0;
+  --axis: #c3c9d4;
 
   /* text: primary, secondary, muted, accent */
-  --text-1: #0b0b0b;
-  --text-2: #52514e;
-  --text-3: #898781;
-  --text-accent: #1c5cab;
+  --text-1: #17202a;
+  --text-2: #4d5664;
+  --text-3: #66707e;
+  --text-faint: #8a93a0;
+  --text-accent: #1f43a6;
 
-  /* accent */
-  --accent: #2a78d6;
-  --accent-wash: rgba(42, 120, 214, 0.1);
+  /* accent: the product, actions, selection */
+  --accent: #2d5bda;
+  --accent-wash: #e9effc;
 
-  /* attention (the amber pill and notices), and states that are not about spending */
-  --warn-bg: #fff7e0;
-  --warn-ink: #7a5300;
-  --attention: #c98500; /* amber fill: a budget that is exceeded */
-  --good: #006300;
-  --danger: #c22f2f;
-  --danger-wash: rgba(208, 59, 59, 0.08);
+  /* signals: each colour is one idea */
+  --rise: #c2410c;
+  --rise-wash: #fbede6;
+  --saving: #13795b;
+  --saving-wash: #e5f3ee;
+  --overlap: #5b4fc7;
+  --overlap-wash: #eeecfa;
+  --amber: #a85f0a;
+  --amber-wash: #fcf0dc;
+  --guess: #c98a2e; /* the dashed outline of the app's guess */
+  --teal: #0e7c7b;
+  --teal-wash: #e2f3f2;
+
+  /* notices and states */
+  --warn-bg: var(--amber-wash);
+  --warn-ink: #6b4508;
+  --attention: var(--rise); /* a budget that is exceeded */
+  --good: var(--saving);
+  --danger: #b42318;
+  --danger-wash: #fdecea;
+
+  /* fonts */
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* standard card */
   --card-bg: var(--surface);
@@ -77,7 +97,7 @@
   --control-radius: 8px;
   --radius: 10px;
 
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--sans);
   font-size: 14px;
   line-height: 1.45;
   color: var(--text-1);
@@ -89,26 +109,35 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-2: #212120;
-    --surface-hover: #262625;
+    --page: #0e121a;
+    --surface: #161b24;
+    --surface-2: #1c2230;
+    --surface-hover: #222a38;
     --border: rgba(255, 255, 255, 0.09);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --text-1: #f0efec;
-    --text-2: #c3c2b7;
-    --text-3: #898781;
-    --text-accent: #86b6ef;
-    --accent: #3987e5;
-    --accent-wash: rgba(57, 135, 229, 0.16);
-    --warn-bg: #2e2510;
-    --warn-ink: #f1c76a;
-    --attention: #e0a63a;
-    --good: #0ca30c;
-    --danger: #e66767;
-    --danger-wash: rgba(230, 103, 103, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --grid: #252c38;
+    --axis: #3a4352;
+    --text-1: #e8ecf1;
+    --text-2: #b4bcc7;
+    --text-3: #8f98a5;
+    --text-faint: #6f7886;
+    --text-accent: #a9c0f8;
+    --accent: #6f93f0;
+    --accent-wash: rgba(134, 166, 245, 0.14);
+    --rise: #f0875a;
+    --rise-wash: rgba(240, 135, 90, 0.14);
+    --saving: #4cc59a;
+    --saving-wash: rgba(76, 197, 154, 0.14);
+    --overlap: #a39bf0;
+    --overlap-wash: rgba(163, 155, 240, 0.16);
+    --amber: #f0b45e;
+    --amber-wash: rgba(240, 180, 94, 0.14);
+    --guess: #b9843a;
+    --teal: #5cc8c5;
+    --teal-wash: rgba(92, 200, 197, 0.13);
+    --warn-ink: #f1cf86;
+    --danger: #f08080;
+    --danger-wash: rgba(240, 128, 128, 0.12);
   }
 }
 

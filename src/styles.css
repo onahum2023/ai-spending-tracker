@@ -26,14 +26,14 @@ p { margin: 0; }
 .topnav { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--border); }
 .topnav-inner { display: flex; align-items: stretch; gap: var(--sp-4); max-width: 1360px; height: 56px; margin: 0 auto; padding: 0 var(--page-pad); }
 .brand { display: flex; align-items: center; gap: var(--sp-1); font-weight: 650; font-size: var(--fs-title); color: var(--text-1); }
-.brand-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; flex: none; }
+.brand-mark { width: 26px; height: 26px; border-radius: 7px; background: #2d5bda; display: grid; place-items: center; flex: none; }
 .topnav-links { display: flex; align-items: stretch; gap: var(--sp-1); }
 .topnav-links a, .topnav-about {
   display: inline-flex; align-items: center; padding: 0 var(--sp-1); border-bottom: 2px solid transparent;
   color: var(--text-2); font-size: var(--fs-body); font-weight: 500; white-space: nowrap;
 }
 .topnav-links a:hover, .topnav-about:hover { color: var(--text-1); }
-.topnav-links a.active { color: var(--text-1); border-bottom-color: var(--accent); }
+.topnav-links a.active { color: var(--text-accent); font-weight: 600; border-bottom-color: var(--accent); }
 /* About is secondary: smaller and muted until you are on it */
 .topnav-about { font-size: var(--fs-meta); font-weight: 400; color: var(--text-3); }
 .topnav-right { display: flex; align-items: stretch; gap: var(--sp-3); margin-left: auto; }
@@ -102,14 +102,21 @@ p { margin: 0; }
 .amt-row { font-size: var(--fs-row); font-weight: 500; }
 
 
-/* Pills: three kinds only. Neutral = a fact about state; inferred = the app's read; attention = worth a look. */
+/* Pills. Neutral = a fact about state; inferred = the app's read (amber, dashed); rise / saving = a price moved; overlap = tools
+   paid for twice; attention = worth a look. */
 .pill {
   display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px;
   font-size: var(--fs-badge); font-weight: 500; line-height: 1.5; white-space: nowrap; border: 0;
 }
 .pill-neutral { background: color-mix(in srgb, var(--text-1) 7%, transparent); color: var(--text-2); }
-.pill-inferred { background: var(--accent-wash); color: var(--text-accent); }
-.pill-attention { background: var(--warn-bg); color: var(--warn-ink); }
+.pill-inferred { background: var(--amber-wash); color: var(--amber); outline: 1px dashed var(--guess); outline-offset: -1px; }
+.pill-attention { background: var(--rise-wash); color: var(--rise); }
+.pill-rise { background: var(--rise-wash); color: var(--rise); font-weight: 600; }
+.pill-saving { background: var(--saving-wash); color: var(--saving); font-weight: 600; }
+.pill-overlap { background: var(--overlap-wash); color: var(--overlap); font-weight: 600; }
+.pill-rise::before { content: '▲'; font-size: 0.85em; margin-right: 4px; }
+.pill-saving::before { content: '▼'; font-size: 0.85em; margin-right: 4px; }
+.pill-overlap::before { content: '◐'; margin-right: 4px; }
 
 /* ---------- controls ---------- */
 /* One button: 32px high, 8px radius, 13px medium. Primary = accent fill (one per view). Secondary = outline. Text = accent, no box. */
@@ -233,8 +240,8 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .change-track { position: relative; height: 10px; }
 .change-track::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px solid var(--axis); }
 .change-bar { position: absolute; top: 0; bottom: 0; }
-.change-bar.up { left: 50%; background: var(--accent); border-radius: 0 3px 3px 0; }
-.change-bar.down { right: 50%; background: var(--accent); opacity: 0.55; border-radius: 3px 0 0 3px; }
+.change-bar.up { left: 50%; background: var(--rise); border-radius: 0 3px 3px 0; }
+.change-bar.down { right: 50%; background: var(--saving); border-radius: 3px 0 0 3px; }
 
 /* ---------- import / empty ---------- */
 .dropzone {
@@ -377,6 +384,8 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .side-note { display: block; margin-top: 2px; }
 /* a change in spending: the accent colour with an arrow, whichever way it goes. Never red or green. */
 .change { color: var(--text-accent); font-weight: 600; white-space: nowrap; }
+.change-up { color: var(--rise); }
+.change-down { color: var(--saving); }
 .change-flat { color: var(--text-2); }
 .change-pct { font-weight: 500; }
 .due-list { display: flex; flex-direction: column; gap: 8px; }
@@ -397,6 +406,11 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 /* ---------- shared components ---------- */
 /* provider avatar: dark initials on a light tint of the provider's colour (colours set inline, see avatarColors) */
 .avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 600; letter-spacing: 0; line-height: 1; user-select: none; }
+/* a vendor's own mark: ink on a white tile, so the page stays calm and colour keeps its meaning */
+.avatar-mark { border-radius: 28%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border-strong); color: var(--text-1); }
+.avatar-mark svg { width: 62%; height: 62%; display: block; }
+.stack-mark { display: grid; place-items: center; border-radius: 28%; background: var(--surface); color: var(--text-1); box-shadow: 0 0 0 2px var(--ring, var(--card-bg)), inset 0 0 0 1px var(--border-strong); }
+.stack-mark svg { width: 64%; height: 64%; display: block; }
 
 /* stat tile: label, value, meta */
 .stat-grid { display: grid; gap: var(--card-gap); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
@@ -404,7 +418,7 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 .stat-tile .amt-key { font-size: var(--fs-tile); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* raw statement descriptors: monospace; labels you chose stay in the body font */
-.descriptor { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; white-space: pre-wrap; }
+.descriptor { font-family: var(--mono); font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; white-space: pre-wrap; }
 
 /* ---------- overview: hero row, chart row, charges row ---------- */
 /* row 1: the hero sits on the page background, beside one card of four stat tiles */
@@ -479,62 +493,168 @@ a.legend-item:hover { color: var(--text-1); text-decoration: underline; }
 }
 
 /* ---------- welcome: a landing page ---------- */
-/* Full-width sections separated by space, no boxes around them. Content is at most --w-max wide. Colour only where it carries meaning. */
+/* Full-width bands, each in the colour of what it is about (see tokens.css). */
 .main-welcome { max-width: none; padding: 0 0 var(--sp-4); }
 .w-inner { width: 100%; max-width: var(--w-max); margin: 0 auto; padding: 0 var(--page-pad); }
-.w-hero { padding-top: calc(var(--sp-5) * 2); }
-.w-section { padding-top: calc(var(--sp-5) * 2); }
-.w-eyebrow { margin-bottom: var(--sp-2); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); }
-.w-display { max-width: 15em; text-wrap: balance; font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.03em; line-height: 1.08; }
-.w-lead { max-width: 620px; margin-top: var(--sp-3); font-size: 20px; line-height: 1.5; color: var(--text-2); }
-.w-h2 { font-size: var(--fs-h2); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+.w-hero {
+  padding: calc(var(--sp-5) * 2) 0 calc(var(--sp-5) * 2.5);
+  background:
+    radial-gradient(780px 480px at 82% 42%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 66%),
+    radial-gradient(560px 380px at 60% 98%, color-mix(in srgb, var(--overlap) 22%, transparent), transparent 66%),
+    radial-gradient(640px 400px at 4% 0%, color-mix(in srgb, var(--teal) 18%, transparent), transparent 66%),
+    var(--page);
+}
+.w-hero-grid { display: grid; gap: var(--sp-5); align-items: center; }
+@media (min-width: 980px) { .w-hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 48px; } }
+.w-section { padding-top: calc(var(--sp-5) * 2.5); }
+.w-eyebrow { margin-bottom: var(--sp-2); font-size: var(--fs-body); font-weight: 500; color: var(--text-accent); }
+.w-display { max-width: 15em; text-wrap: balance; font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.035em; line-height: 1.04; }
+.w-lead { max-width: 34ch; margin-top: var(--sp-3); font-size: 20px; line-height: 1.5; color: var(--text-2); }
+.w-h2 { font-size: var(--fs-h2); font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; }
 .w-body { font-size: var(--fs-landing-body); line-height: 1.55; }
 .w-actions { margin-top: var(--sp-4); gap: var(--sp-2); }
-.w-trust { margin-top: var(--sp-2); font-size: var(--fs-meta); color: var(--text-2); }
-.btn-large { height: 44px; padding: 0 var(--sp-4); font-size: 15px; }
+.w-pills { list-style: none; display: flex; gap: 10px; flex-wrap: wrap; padding: 0; margin: var(--sp-3) 0 0; }
+.w-pills li { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 80%, transparent); border: 1px solid var(--border); font-size: var(--fs-meta); color: var(--text-2); }
+.w-pills svg { color: var(--teal); }
 
-/* the live preview of the Overview: a picture of the app, so nothing in it reacts */
-.w-preview { margin: var(--sp-5) 0 0; }
-.w-preview-frame { padding: var(--sp-3); border: 1px solid var(--border-strong); border-radius: calc(var(--card-radius) + 4px); pointer-events: none; user-select: none; }
-.w-preview-frame .chart-fill-box { min-height: 260px; }
-.w-preview figcaption, .w-preview .meta { margin-top: var(--sp-1); }
+/* the hero's statement example */
+.w-statement { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 22px 10px; box-shadow: 0 40px 80px -40px rgba(31, 67, 166, 0.45), 0 10px 24px -16px rgba(23, 32, 42, 0.2); }
+.w-statement figcaption { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-meta); color: var(--text-3); padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.w-found { color: var(--text-accent); background: var(--accent-wash); border-radius: 999px; padding: 3px 10px; font-weight: 600; }
+.w-statement ol { list-style: none; margin: 0; padding: 0; }
+.w-statement li { padding: 13px 0; border-bottom: 1px dashed var(--border-strong); }
+.w-statement li:last-child { border-bottom: 0; }
+.w-st-row { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; align-items: center; font-family: var(--mono); font-size: 14px; }
+.w-st-date { color: var(--text-3); }
+.w-st-text { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.w-st-amt { font-weight: 500; }
+.w-st-note { margin: 6px 0 0 104px; font-size: var(--fs-meta); color: var(--text-2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.w-was { color: var(--text-faint); text-decoration-color: var(--rise); text-decoration-thickness: 1.5px; }
+.w-st-foot { font-size: var(--fs-label); color: var(--text-faint); text-align: right; margin-top: 4px; }
 
-/* sound familiar: three large lines */
-.w-familiar { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 820px; margin-top: var(--sp-4); }
-.w-familiar p { font-size: clamp(22px, 2.6vw, 30px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.3; }
+/* Sound familiar? */
+.w-familiar { display: grid; gap: var(--sp-3); grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: var(--sp-4); }
+.w-familiar p { font-size: clamp(19px, 2vw, 23px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.35; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--t); border-radius: 14px; padding: 20px 22px; }
 
-/* what you'll find out: three samples of the app, each with a plain line under it */
+/* What you'll find out: the app's live components on a colour of their own */
 .w-examples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); margin-top: var(--sp-4); align-items: stretch; }
 .w-example { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
-.w-example > .card { flex: 1; }
+.w-example-art { flex: 1; background: var(--tw); border-radius: 16px; padding: 18px; display: flex; }
+.w-example-art > .card { flex: 1; box-shadow: 0 16px 30px -24px rgba(23, 32, 42, 0.5); }
 .w-example-line { font-size: var(--fs-landing-body); line-height: 1.5; color: var(--text-1); }
 .w-overlap-list { display: flex; flex-direction: column; gap: var(--sp-1); }
 
-/* how it works: a simple row */
-.w-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); margin: var(--sp-4) 0 0; padding: 0; list-style: none; }
-.w-steps li { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.35; }
-.w-steps li:not(:last-child)::after { content: '→'; margin-left: var(--sp-2); color: var(--text-3); }
+/* What you get: six cards, three over three */
+.w-soft { margin-top: calc(var(--sp-5) * 2.5); padding-bottom: calc(var(--sp-5) * 2.5); background: color-mix(in srgb, var(--accent-wash) 55%, var(--page)); }
+.w-features { list-style: none; padding: 0; margin: var(--sp-4) 0 0; display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.w-feature { background: var(--surface); border-radius: 16px; padding: 24px; border: 1px solid var(--border); border-top: 4px solid var(--t); }
+.w-feature-icon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--tw); color: var(--t); margin-bottom: 16px; }
+.w-feature h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; }
+.w-feature p { color: var(--text-2); font-size: 15px; line-height: 1.5; }
 
-/* privacy: a full-width band */
-.w-band { margin-top: calc(var(--sp-5) * 2); padding: calc(var(--sp-5) * 2) 0; background: var(--surface); border-block: 1px solid var(--border); }
+/* Privacy: a teal band, and where your data goes */
+.w-band { padding: calc(var(--sp-5) * 2.5) 0; background: var(--teal-wash); }
 .w-band .w-h2 { font-size: clamp(28px, 3.6vw, 40px); max-width: 22ch; }
 .w-band .w-body { max-width: 680px; margin-top: var(--sp-3); color: var(--text-2); }
 .w-band .w-body:first-of-type { color: var(--text-1); }
-.w-band p:last-child { margin-top: var(--sp-3); font-size: var(--fs-landing-body); }
+.w-band p:last-child { margin-top: var(--sp-4); font-size: var(--fs-landing-body); }
+.w-flow { list-style: none; padding: 0; margin: var(--sp-4) 0 0; display: grid; gap: 30px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.w-flow li { background: var(--surface); border-radius: 14px; padding: 18px; position: relative; display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center; }
+.w-flow-icon { grid-row: span 2; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--teal-wash); color: var(--teal); }
+.w-flow li strong { font-weight: 600; }
+.w-flow li > span:last-child { color: var(--text-3); font-size: var(--fs-meta); }
+.w-flow li.w-flow-none { background: transparent; border: 1.5px dashed color-mix(in srgb, var(--teal) 45%, transparent); }
+.w-flow li.w-flow-none strong { text-decoration: line-through; color: var(--text-3); }
+.w-flow li.w-flow-none .w-flow-icon { background: transparent; color: var(--text-3); }
+.w-flow li:not(:last-child)::after { content: '→'; position: absolute; right: -22px; top: 50%; transform: translateY(-50%); color: var(--teal); font-weight: 600; }
+.w-flow li:nth-child(3)::after { content: '✕'; color: var(--text-3); }
 
-/* questions */
-.w-faq { display: flex; flex-direction: column; max-width: 820px; margin-top: var(--sp-3); }
-.w-faq > div { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
-.w-faq .disclosure-btn { font-size: var(--fs-landing-body); font-weight: 600; color: var(--text-1); }
-.w-faq .disclosure-body { margin-top: var(--sp-1); margin-left: var(--sp-3); max-width: 680px; }
-.w-faq .disclosure-body .w-body { color: var(--text-2); }
+/* How it works and questions, side by side */
+.w-how { display: grid; gap: 64px; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr); }
+.w-steps { list-style: none; padding: 0; margin: var(--sp-4) 0 0; }
+.w-steps li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; padding-bottom: 26px; position: relative; }
+.w-steps li:not(:last-child)::before { content: ''; position: absolute; left: 21px; top: 44px; bottom: 0; border-left: 2px dashed color-mix(in srgb, var(--accent) 40%, transparent); }
+.w-step-n { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 600; font-size: 18px; }
+.w-steps strong { display: block; font-size: 17px; margin-top: 9px; }
+.w-steps p { color: var(--text-2); margin-top: 4px; font-size: 15px; }
+.w-faq { margin: var(--sp-4) 0 0; display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+.w-faq > div { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+.w-faq dt { font-weight: 600; margin-bottom: 4px; }
+.w-faq dd { margin: 0; color: var(--text-2); font-size: 15px; line-height: 1.5; }
 
-.w-closing .w-h2 { font-size: clamp(28px, 3.6vw, 40px); }
+/* Closing: a colour panel */
+.w-closing-panel { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; background: linear-gradient(135deg, #2d5bda, #4a3fc1); color: #fff; border-radius: 22px; padding: 44px 52px; }
+.w-closing .w-h2 { font-size: clamp(28px, 3.6vw, 40px); color: #fff; max-width: 18ch; }
+.w-closing .w-actions { margin-top: 0; }
+.w-closing .btn-primary { background: #fff; color: #1f43a6; border-color: #fff; }
+.w-closing .btn-primary:hover { background: #eef2fd; }
 .w-about { margin-top: calc(var(--sp-5) * 2); }
 
 @media (max-width: 900px) {
-  .w-examples, .w-steps { grid-template-columns: 1fr; }
-  .w-steps li:not(:last-child)::after { content: none; }
-  /* on a phone the preview is the app's own cards, full width, so its figures are never cut */
-  .w-preview-frame { padding: 0; border: 0; }
+  .w-examples, .w-familiar, .w-features, .w-flow, .w-how, .w-faq { grid-template-columns: 1fr; }
+  .w-flow li::after { content: none !important; }
+  .w-closing-panel { padding: 32px 24px; }
+}
+
+/* ---------- tones and card icons ---------- */
+.tone-accent { --t: var(--accent); --tw: var(--accent-wash); }
+.tone-rise { --t: var(--rise); --tw: var(--rise-wash); }
+.tone-saving { --t: var(--saving); --tw: var(--saving-wash); }
+.tone-overlap { --t: var(--overlap); --tw: var(--overlap-wash); }
+.tone-amber { --t: var(--amber); --tw: var(--amber-wash); }
+.tone-teal { --t: var(--teal); --tw: var(--teal-wash); }
+.tone-ink { --t: var(--text-2); --tw: var(--surface-2); }
+.card-head.has-icon { align-items: flex-start; gap: 0; }
+.card-head.has-icon .card-head-text { flex: 1; min-width: 0; }
+.card-head.has-icon .card-actions { margin-left: 12px; }
+.card-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--tw); color: var(--t); margin-right: 12px; }
+.card-icon svg { width: 17px; height: 17px; }
+
+/* ---------- charge type control: one click, the app's guess outlined ---------- */
+.type-control { display: flex; flex-direction: column; gap: 6px; }
+.type-seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); width: max-content; max-width: 100%; flex-wrap: wrap; }
+.type-seg button { border: 1.5px solid transparent; background: transparent; padding: 0 12px; height: 28px; border-radius: 6px; cursor: pointer; color: var(--text-2); font: inherit; font-size: var(--fs-meta); font-weight: 500; }
+.type-seg button:hover { background: var(--surface); color: var(--text-1); }
+.type-seg button.is-guess { border-style: dashed; border-color: var(--guess); background: var(--amber-wash); color: var(--amber); }
+.type-seg button.is-picked { background: var(--accent); color: #fff; }
+.type-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.type-note { max-width: 60ch; margin: 0; }
+.link-btn { border: 0; background: none; padding: 0; color: var(--text-accent); text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* ---------- tags and selection ---------- */
+.tag-toggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 7px; overflow: hidden; }
+.tag-toggle button { border: 0; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-label); font-weight: 500; padding: 4px 10px; cursor: pointer; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-toggle button + button { border-left: 1px solid var(--border-strong); }
+.tag-toggle button:hover { background: var(--surface-hover); color: var(--text-1); }
+.tag-toggle button.is-on { background: var(--accent); color: #fff; }
+.tag-toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.check-cell { width: 34px; }
+.check-cell input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+tr.is-selected td { background: var(--accent-wash); }
+.selection-bar { position: sticky; top: 64px; z-index: 5; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--accent); color: #fff; border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; font-size: var(--fs-meta); }
+.sel-count { font-weight: 600; margin-right: 4px; }
+.sel-btn { border: 0; background: #fff; color: var(--text-accent); font: inherit; font-weight: 600; border-radius: 7px; height: 28px; padding: 0 12px; cursor: pointer; }
+.sel-ghost { border: 0; background: transparent; color: #fff; opacity: 0.85; font: inherit; cursor: pointer; padding: 0 6px; }
+.sel-ghost:hover { opacity: 1; text-decoration: underline; }
+.sel-input { width: 140px; height: 28px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, 0.45); background: transparent; color: #fff; padding: 0 8px; font: inherit; }
+.sel-input::placeholder { color: rgba(255, 255, 255, 0.75); }
+.sel-msg { margin-left: auto; opacity: 0.85; }
+.select-hint { margin: 0 0 8px; }
+.type-text.is-guess { color: var(--amber); text-decoration: underline dashed var(--guess); text-underline-offset: 3px; }
+
+/* ---------- Ask Claude: the one place data leaves the browser ---------- */
+.ask-claude.outbound { border: 1.5px dashed var(--text-1); border-radius: 10px; padding: 14px 16px; background: var(--surface); }
+.outbound-tag { align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; font-size: var(--fs-label); font-weight: 600; background: var(--text-1); color: var(--surface); border-radius: 4px; padding: 2px 8px; }
+
+/* the Overview's top figure sits on a soft colour field */
+.card.hero-card {
+  background:
+    radial-gradient(520px 260px at 92% 0%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%),
+    radial-gradient(420px 220px at 60% 130%, color-mix(in srgb, var(--overlap) 11%, transparent), transparent 70%),
+    var(--card-bg);
+}
+
+/* Row selection is a desktop-table feature: on a phone the table becomes cards without checkboxes, so the hint and bar go too. */
+@media (max-width: 700px) {
+  .select-hint, .selection-bar { display: none; }
 }

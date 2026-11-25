@@ -37,7 +37,7 @@ export function DataPage() {
         <StatTile label="Data through" value={span ? dateLabel(span.lastDate) : '—'} meta="Date of the newest charge" />
         <StatTile label="Stored" value={demo ? 'In memory' : 'Locally'} meta={demo ? 'Demo data, not stored' : 'In this browser, never uploaded'} />
       </div>
-      <Card
+      <Card icon="upload" tone="accent"
         title={demo ? 'Use your own data: extract AI charges from statements' : 'Extract AI charges from bank or card statements'}
         subtitle="Excel, CSV and Revolut PDF, read in your browser"
       >
@@ -45,13 +45,13 @@ export function DataPage() {
         <StatementImport onImported={demo ? () => (window.location.hash = '#/') : undefined} />
       </Card>
       <div className="grid cols-2">
-        <Card
+        <Card icon="file" tone="accent"
           title={demo ? 'Or import a ledger CSV' : 'Import a ledger CSV'}
           subtitle={demo ? 'Replaces the demo data, never mixed with it' : 'Same format as an export, reviewed before saving'}
         >
           <ImportPanel onImported={demo ? () => (window.location.hash = '#/') : undefined} />
         </Card>
-        <Card
+        <Card icon="lock" tone="teal"
           title={demo ? 'Demo data' : 'Stored data'}
           subtitle={demo ? 'Invented transactions, not saved anywhere' : 'Kept only in this browser, nothing is uploaded'}
         >
@@ -87,7 +87,7 @@ export function DataPage() {
       <QuarterExport />
 
       <div className="grid cols-2">
-        <Card title="Import history">
+        <Card icon="list" tone="ink" title="Import history">
           {imports.length === 0 ? (
             <p className="muted">No imports yet.</p>
           ) : (
@@ -112,7 +112,7 @@ export function DataPage() {
               </Table>
           )}
         </Card>
-        <Card title="How duplicates are handled">
+        <Card icon="info" tone="ink" title="How duplicates are handled">
           <div className="stack meta" style={{ gap: 8 }}>
             <p>
               The CSV has no transaction IDs, so a record is identified by all four values together:

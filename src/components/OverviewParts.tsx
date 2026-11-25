@@ -81,7 +81,7 @@ export function OverviewChartCard({ data }: { data: OverviewData }) {
   const [view, setView] = useState<ChartView>('provider');
   const { chartProps, chartYear } = data;
   return (
-    <Card
+    <Card icon="chart" tone="accent"
       className="chart-card"
       title="Monthly spending"
       subtitle={`By ${VIEW_NAMES[view]}${chartYear}`}
