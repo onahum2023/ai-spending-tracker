@@ -76,7 +76,13 @@ function WelcomePage({ mode, onExplore }: { mode: DataMode; onExplore: () => voi
               {TRUST_PILLS.map((p) => (
                 <li key={p.text}>
                   <Icon name={p.icon} size={16} />
-                  {p.text}
+                  {p.href ? (
+                    <a href={p.href} target="_blank" rel="noopener noreferrer">
+                      {p.text}
+                    </a>
+                  ) : (
+                    p.text
+                  )}
                 </li>
               ))}
             </ul>

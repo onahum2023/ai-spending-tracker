@@ -6,7 +6,7 @@
  * There is one page: the app opens on it when the browser has no data, and "About" in the top bar opens it at any time.
  */
 import { PRIVACY_SENTENCE } from './privacy.ts';
-import { BRAND, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE } from './site.ts';
+import { BRAND, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE, REPO_URL } from './site.ts';
 
 /** Where the app lives. */
 export const APP_PATH = '/';
@@ -14,18 +14,21 @@ export const APP_PATH = '/';
 export const DEMO_PATH = `${APP_PATH}?demo=1`;
 
 export const SITE_NAME = 'AI Spending Tracker';
+/** The title of the page in search results: the words people search for ("AI subscription tracker", free) and what it does. */
+export const PAGE_TITLE = 'Free AI Subscription Tracker: find what you pay for AI tools';
 /** Small, secondary, above the headline: who the page is for. */
 export const EYEBROW = "For people who've tried a lot of AI tools";
 export const HEADLINE = "Do you know what you're still paying for?";
-export const SUBHEAD = 'See every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.';
+export const SUBHEAD = 'A free, open-source dashboard that shows every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.';
 /** The short name of what the app is, for the title of a shared link. */
 export const SHARE_TITLE = 'What do you spend on AI tools?';
 export const TRUST_LINE = 'No account. No upload.';
 /** The trust line as three short pills under the hero's buttons. */
-export const TRUST_PILLS: { text: string; icon: 'user' | 'cloud' | 'code' }[] = [
+export const TRUST_PILLS: { text: string; icon: 'check' | 'user' | 'cloud' | 'code'; href?: string }[] = [
+  { text: 'Free', icon: 'check' },
   { text: 'No account', icon: 'user' },
   { text: 'No upload', icon: 'cloud' },
-  { text: 'Open source', icon: 'code' },
+  { text: 'Open source', icon: 'code', href: REPO_URL },
 ];
 
 /** The hero's example: four lines of a card statement as the bank prints them, and what the app reads in each. Invented. */
@@ -58,7 +61,7 @@ export const PRIVACY_LINES: string[] = [
 
 export const CLOSING_TITLE = "See what you're really paying for.";
 export const META_DESCRIPTION =
-  'See what you spend on AI tools, which charges are subscriptions, price changes and what renews next. Runs in your browser: your data is never uploaded.';
+  'Free, open-source AI subscription tracker. Finds your AI charges in your bank statements and flags price jumps and overlaps. Runs in your browser, no upload.';
 
 /** Six feature cards, three over three. Each colour is what that idea is in the app (see tokens.css). */
 export const FEATURES: { title: string; text: string; tone: 'accent' | 'rise' | 'overlap' | 'saving' | 'amber' | 'teal'; icon: 'repeat' | 'trend' | 'layers' | 'piggy' | 'check' | 'tag' }[] = [
@@ -124,7 +127,35 @@ export function renderWelcomeMeta(siteUrl: string): string {
       `<meta name="twitter:image" content="${esc(siteUrl)}/og-image.png" />`,
     );
   }
+  tags.push(`<script type="application/ld+json">${renderStructuredData(siteUrl)}</script>`);
   return tags.join('\n    ');
+}
+
+/**
+ * schema.org data for search engines: the app as free software and its questions. A data block, not a script that runs, so the
+ * Content-Security-Policy does not apply to it. "<" is escaped so no text can close the tag.
+ */
+export function renderStructuredData(siteUrl: string): string {
+  const graph = [
+    {
+      '@type': 'SoftwareApplication',
+      name: SITE_NAME,
+      description: META_DESCRIPTION,
+      applicationCategory: 'FinanceApplication',
+      operatingSystem: 'Any (runs in a web browser)',
+      isAccessibleForFree: true,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+      license: 'https://www.apache.org/licenses/LICENSE-2.0',
+      ...(siteUrl ? { url: `${siteUrl}/` } : {}),
+      sameAs: [REPO_URL],
+      publisher: { '@type': 'Organization', name: OWNER, url: OWNER_URL },
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+    },
+  ];
+  return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 }
 
 /**
@@ -138,10 +169,21 @@ export function renderNoscript(): string {
     <h1>${esc(HEADLINE)}</h1>
     <p>${esc(SUBHEAD)}</p>
     <p><strong>This app needs JavaScript.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
+    <h2>What you get</h2>
     <ul>
 ${FEATURES.map((f) => `      <li><strong>${esc(f.title)}.</strong> ${esc(f.text)}</li>`).join('\n')}
     </ul>
-    <p><a href="/privacy.html">Privacy statement</a> · <a href="/third-party-notices.txt">Third-party licenses</a> · <a href="mailto:${esc(CONTACT_EMAIL)}">${esc(CONTACT_EMAIL)}</a></p>
+    <h2>How it works</h2>
+    <ol>
+${STEPS.map((s) => `      <li><strong>${esc(s.title)}.</strong> ${esc(s.text)}</li>`).join('\n')}
+    </ol>
+    <h2>${esc(PRIVACY_TITLE)}</h2>
+${PRIVACY_LINES.map((l) => `    <p>${esc(l)}</p>`).join('\n')}
+    <h2>Questions</h2>
+    <dl>
+${FAQ.map((f) => `      <dt>${esc(f.q)}</dt>\n      <dd>${esc(f.a)}</dd>`).join('\n')}
+    </dl>
+    <p><a href="${esc(REPO_URL)}" rel="noopener noreferrer">Source code on GitHub</a> · <a href="/privacy.html">Privacy statement</a> · <a href="/third-party-notices.txt">Third-party licenses</a> · <a href="mailto:${esc(CONTACT_EMAIL)}">${esc(CONTACT_EMAIL)}</a></p>
     <p>${esc(COPYRIGHT)} · ${esc(OWNERSHIP_LINE).replace(BRAND, `<a href="${esc(BRAND_URL)}" rel="noopener noreferrer">${BRAND}</a>`).replace(OWNER, `<a href="${esc(OWNER_URL)}" rel="noopener noreferrer">${OWNER}</a>`)}</p>
   </main>
 </noscript>`;

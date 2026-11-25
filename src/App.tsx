@@ -9,7 +9,7 @@ import { Transactions } from './pages/Transactions';
 import { Insights } from './pages/Insights';
 import { Welcome } from './pages/Welcome';
 import { PRIVACY_PATH } from './content/privacy';
-import { COPYRIGHT } from './content/site';
+import { COPYRIGHT, REPO_URL } from './content/site';
 import { href, navigate, useRoute } from './router';
 import { LedgerProvider, useLedger } from './store';
 
@@ -161,6 +161,9 @@ function Shell() {
         <div className={welcome ? 'w-inner' : undefined}>
           <footer className="app-foot">
             <a href={PRIVACY_PATH}>Privacy</a>
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
             <span className="app-foot-owner">{COPYRIGHT}</span>
           </footer>
         </div>

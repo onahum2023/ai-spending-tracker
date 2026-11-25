@@ -1,6 +1,6 @@
 import { BUILD_INFO, THIRD_PARTY_NOTICES_URL } from '../buildInfo';
 import { PRIVACY_PATH } from '../content/privacy';
-import { BRAND, BRAND_URL, COPYRIGHT, OWNER, OWNER_URL } from '../content/site';
+import { BRAND, BRAND_URL, COPYRIGHT, OWNER, OWNER_URL, REPO_URL } from '../content/site';
 import { dateLabel } from '../lib/dates';
 import { Button, Card } from './ui';
 
@@ -34,6 +34,12 @@ export function AboutCard() {
             <dd>{license}</dd>
           </>
         )}
+        <dt className="muted">Source code</dt>
+        <dd>
+          <Button variant="text" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+            github.com/onahum2023/ai-spending-tracker
+          </Button>
+        </dd>
         <dt className="muted">Privacy</dt>
         <dd>
           <Button variant="text" href={PRIVACY_PATH}>

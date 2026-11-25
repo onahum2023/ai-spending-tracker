@@ -5,7 +5,7 @@ The app is a static site, so any static host works. The repo is set up for Verce
 1. Import the GitHub repo in Vercel. `vercel.json` sets the Vite framework, `npm run build` and the `dist` output, so no other settings are needed.
 2. Deploy. The hash-based routes (`#/providers`) need no rewrites.
 
-`src/content/site.ts` holds the production address, the owner and the contact. To host your own copy, change those and set `SITE_URL` when building (the canonical link, social card, `robots.txt` and `sitemap.xml` follow it). `vercel.json` also redirects the `www` host of the project's own domain to the apex: remove or edit that rule for your domain.
+`src/content/site.ts` holds the production address, the owner and the contact. To host your own copy, change those and set `SITE_URL` when building (the canonical link, social card, structured data and `sitemap.xml` follow it; `robots.txt` names the production sitemap, so edit it too). `vercel.json` also redirects the `www` host of the project's own domain to the apex: remove or edit that rule for your domain.
 
 What stays private:
 
