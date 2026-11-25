@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-25
+
 ### Added
 - Discoverability: the Welcome page now says it is free ("Free" pill, "A free, open-source dashboard" in the subhead) and links to the source on GitHub (the "Open source" pill, the About card, the app footer and the no-script text). The page title is "Free AI Subscription Tracker: find what you pay for AI tools" and the description says the same.
 - schema.org structured data on the Welcome page (the app as free software, and its questions), so search engines and assistants can read what it is.
@@ -34,10 +36,6 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Provider page follows the Overview: a chart card (the provider's months for the selected year, bar click picks the month, hatched still-due charges on the current month, x-axis from its first charge) and an "At a glance" card (all-time figures, tag for new charges, category), then Charge types full width. The five stat cards are gone.
 - Charge types are read by default: label or statement description, type as text, charges, total, last charge and pills. The label box, type menu and helper text moved into the row that opens, with the pattern details. The "Confirmed" pill is gone; "App's guess" shows only while a type is not confirmed. The "Confirm all" button counts guesses.
 - Provider colours: the dark-green slot is no longer used, so the six providers with their own colour (blue, orange, aqua, yellow, pink, violet) are easier to tell apart, including when faded; the rest are "Other".
-
-## [0.2.0] - 2026-11-11
-
-### Changed
 - Five pages, organised by question: Overview (how much), Providers (who), Insights (what it says), Transactions, Data. The ledger is shown plainly; anything the app worked out is marked **App's read** or **Estimate**, with the reasoning one click away.
 - The Subscriptions page is gone. Per-provider details are on the provider page (each charge type opens to what the app reads about it), and price changes, stopped, overlap and savings are in Insights. `#/subscriptions` opens Overview.
 - Trends is now **Insights**, grouped into Patterns, Shifts, Suggestions and Comparisons. `#/trends` opens Insights.
