@@ -22,7 +22,8 @@ describe('welcome page', () => {
     expect(EXAMPLE_LINES).toHaveLength(3);
     expect(STEPS).toHaveLength(3);
     expect(CLOSING_TITLE).toBe("See what you're really paying for.");
-    expect(FEATURES).toHaveLength(4); // for the no-script text
+    expect(FEATURES).toHaveLength(6); // six cards, three over three, and the no-script text
+    for (const f of FEATURES) expect(['accent', 'rise', 'overlap', 'saving', 'amber', 'teal']).toContain(f.tone);
     expect(FAQ.length).toBeGreaterThanOrEqual(5);
     const page = read('src/pages/Welcome.tsx');
     expect(page).toContain('Try it with demo data');
@@ -30,7 +31,7 @@ describe('welcome page', () => {
     expect(page).toContain('Import more data');
     expect(page).toContain('Open Overview');
     expect(page.indexOf('className="w-eyebrow"')).toBeLessThan(page.indexOf('<h1 className="w-display">'));
-    const order = ['<h1 className="w-display">', 'title="Sound familiar?"', "title=\"What you'll find out\"", 'title="How it works"', 'className="w-band"', 'title="Questions"', 'className="w-section w-closing"', '<AboutCard />'].map((t) => page.indexOf(t));
+    const order = ['<h1 className="w-display">', 'title="Sound familiar?"', "title=\"What you'll find out\"", 'title="What you get"', 'className="w-band"', 'id="w-how"', 'id="w-faq"', 'className="w-section w-closing"', '<AboutCard />'].map((t) => page.indexOf(t));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
     // one primary action, shown twice (hero and closing), and a way to import in the hero
@@ -76,16 +77,15 @@ describe('welcome page', () => {
     expect(noscript.match(/<h1[ >]/g)).toHaveLength(1);
   });
 
-  it('renders its preview and example insights live from the demo data, read-only and apart from what is stored', () => {
+  it('shows an invented statement in the hero, and renders its example insights live from the demo data, apart from what is stored', () => {
     const page = read('src/pages/Welcome.tsx');
-    // a demo-only ledger around the whole page, and the real Overview parts in a preview nothing can reach
+    // a demo-only ledger around the whole page; the hero is an annotated statement, marked as invented, not a screenshot
     expect(page).toContain('<LedgerProvider demoOnly>');
-    expect(page).toContain('OverviewHero');
-    expect(page).toContain('OverviewChartCard');
-    expect(page).toMatch(/className="w-preview-frame" inert aria-hidden="true"/);
+    expect(page).toContain('STATEMENT_EXAMPLE');
+    expect(page).toContain('Invented example');
     expect(page).not.toMatch(/<img|<picture|screenshots\//);
     const examples = read('src/components/WelcomeExamples.tsx');
-    for (const part of ['ProviderAvatar', 'Pill kind="attention"', 'ReadChip', 'Change ']) expect(examples).toContain(part);
+    for (const part of ['ProviderAvatar', 'Pill kind="overlap"', 'ReadChip', 'Change ']) expect(examples).toContain(part);
     const store = read('src/store.tsx');
     expect(store).toContain('demoOnly');
     // the demo-only ledger never loads from or saves to storage, and never touches the demo flag

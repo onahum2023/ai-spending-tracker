@@ -5,6 +5,7 @@ import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
 import { avatarColors, providerInitials } from './avatar';
+import { vendorMark } from '../lib/vendorIcons';
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' ');
 
@@ -17,11 +18,57 @@ const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).j
  * - `action`: top right. Use `CardAction` (accent text link with a trailing arrow). A control that is not a link, such as a
  *   segmented toggle, may sit here too.
  */
+export type Tone = 'accent' | 'rise' | 'saving' | 'overlap' | 'amber' | 'teal' | 'ink';
+export type IconName =
+  | 'repeat' | 'trend' | 'layers' | 'piggy' | 'check' | 'tag' | 'calendar' | 'list' | 'gauge' | 'pie' | 'users'
+  | 'stop' | 'file' | 'download' | 'upload' | 'info' | 'chart' | 'compare' | 'lock' | 'bolt'
+  | 'browser' | 'disk' | 'server' | 'user' | 'cloud' | 'code';
+
+const ICON_PATHS: Record<IconName, ReactNode> = {
+  repeat: <><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></>,
+  trend: <><path d="M22 7 13.5 15.5l-5-5L2 17" /><path d="M16 7h6v6" /></>,
+  layers: <><path d="m12 2 10 5-10 5L2 7z" /><path d="m2 12 10 5 10-5" /><path d="m2 17 10 5 10-5" /></>,
+  piggy: <><path d="M19 5c-1.5 0-2.8.6-3.7 1.6A7 7 0 0 0 5 11c0 2.2 1 4.2 2.6 5.5V20h3v-2h3v2h3v-3.4A6.9 6.9 0 0 0 19 14h2v-4h-2a7 7 0 0 0-.9-2.1" /><path d="M15.5 11h.01" /></>,
+  check: <><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>,
+  tag: <><path d="M12 2H2v10l9.3 9.3a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4z" /><circle cx="7" cy="7" r="1.5" /></>,
+  calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+  list: <><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3 6h.01M3 12h.01M3 18h.01" /></>,
+  gauge: <><path d="m12 14 4-4" /><path d="M3.3 19a10 10 0 1 1 17.4 0" /></>,
+  pie: <><path d="M21.2 15.9A10 10 0 1 1 8 2.8" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></>,
+  users: <><circle cx="9" cy="8" r="4" /><path d="M2 21c0-4 3-6 7-6s7 2 7 6" /><path d="M16 3.1a4 4 0 0 1 0 7.8M22 21c0-3-1.7-5-4.5-5.8" /></>,
+  stop: <><circle cx="12" cy="12" r="9" /><path d="M9 9h6v6H9z" /></>,
+  file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8M8 17h5" /></>,
+  download: <><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>,
+  upload: <><path d="M12 15V3" /><path d="m7 8 5-5 5 5" /><path d="M5 21h14" /></>,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-5M12 8h.01" /></>,
+  chart: <><path d="M3 3v18h18" /><path d="M7 15v2M11 11v6M15 8v9M19 5v12" /></>,
+  compare: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
+  lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
+  bolt: <><path d="M13 2 3 14h9l-1 8 10-12h-9z" /></>,
+  browser: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M2 9h20" /><path d="M6 6.5h.01M9 6.5h.01" /></>,
+  disk: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>,
+  server: <><rect x="3" y="3" width="18" height="7" rx="2" /><rect x="3" y="14" width="18" height="7" rx="2" /><path d="M2 2l20 20" /></>,
+  user: <><circle cx="9" cy="8" r="4" /><path d="M2 21c0-4 3-6 7-6s7 2 7 6" /><path d="m17 8 5 5M22 8l-5 5" /></>,
+  cloud: <><path d="m2 2 20 20" /><path d="M5.8 8.3A5.5 5.5 0 0 0 7 19h10.5a3.5 3.5 0 0 0 2.3-.9" /><path d="M21 15.4A3.5 3.5 0 0 0 17.5 11h-1A6.5 6.5 0 0 0 9.7 5.3" /></>,
+  code: <><path d="m16 18 6-6-6-6" /><path d="m8 6-6 6 6 6" /></>,
+};
+
+/** A line icon on the shared 24px grid. Decorative: always paired with text. */
+export function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      {ICON_PATHS[name]}
+    </svg>
+  );
+}
+
 export function Card({
   title,
   subtitle,
   badge,
   action,
+  icon,
+  tone = 'accent',
   children,
   className = '',
 }: {
@@ -29,13 +76,21 @@ export function Card({
   subtitle?: ReactNode;
   badge?: ReactNode;
   action?: ReactNode;
+  /** A small coloured icon beside the title. The tone is the colour of what the card is about (see tokens.css). */
+  icon?: IconName;
+  tone?: Tone;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <section className={`card ${className}`.trim()}>
       {(title || action) && (
-        <header className="card-head">
+        <header className={cx('card-head', icon && 'has-icon')}>
+          {icon && (
+            <span className={`card-icon tone-${tone}`}>
+              <Icon name={icon} />
+            </span>
+          )}
           <div className="card-head-text">
             <div className="card-title-row">
               {title && <h2 className="card-title">{title}</h2>}
@@ -119,12 +174,13 @@ export function StatTile({ label, value, meta }: { label: ReactNode; value: Reac
 }
 
 /**
- * A change in spending: an arrow and a sign in the accent colour, whichever way it goes (never red or green). A flat change has no
- * arrow and is secondary text. `direction` is for a caller that has its own rule for "flat" (the Providers trend).
+ * A change in spending: an arrow and a sign, in rise colour when spending goes up and saving colour when it goes down. The arrow
+ * says it too, so colour is never the only cue. A flat change has no arrow and is secondary text. `direction` is for a caller that
+ * has its own rule for "flat" (the Providers trend).
  */
 export function ChangeArrow({ direction, children, title }: { direction: 'up' | 'down' | 'flat'; children: ReactNode; title?: string }) {
   return (
-    <span className={cx('change num', direction === 'flat' && 'change-flat')} title={title}>
+    <span className={cx('change num', `change-${direction}`)} title={title}>
       {direction !== 'flat' && <span aria-hidden="true">{direction === 'up' ? '▲' : '▼'} </span>}
       {children}
     </span>
@@ -156,6 +212,11 @@ export function SeriesDot({ provider }: { provider: string }) {
  */
 export function ProviderAvatar({ provider, size = 24, text }: { provider: string; size?: number; /** Replaces the initials, for a group such as "+5". */ text?: string }) {
   const { colors, scheme } = useLedger();
+  // The vendor's own mark when the app ships one (bundled, never fetched); otherwise its initials.
+  const mark = text === undefined ? vendorMark(provider) : null;
+  if (mark) {
+    return <span className="avatar avatar-mark" style={{ width: size, height: size }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: mark }} />;
+  }
   return (
     <span className="avatar" style={{ ...avatarColors(colors.color(provider), scheme), width: size, height: size, fontSize: Math.round(size * 0.42) }} aria-hidden="true">
       {text ?? providerInitials(provider)}
@@ -169,6 +230,8 @@ export function ProviderAvatar({ provider, size = 24, text }: { provider: string
  */
 export function StackDot({ provider, size = 16 }: { provider: string; size?: number }) {
   const { colors } = useLedger();
+  const mark = vendorMark(provider);
+  if (mark) return <span className="stack-dot stack-mark" style={{ width: size + 4, height: size + 4 }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: mark }} />;
   return <span className="stack-dot" style={{ background: colors.color(provider), width: size, height: size }} aria-hidden="true" />;
 }
 
@@ -472,11 +535,12 @@ export function Disclosure({ label, children }: { label: string; children: React
   );
 }
 
-export type PillKind = 'neutral' | 'inferred' | 'attention';
+export type PillKind = 'neutral' | 'inferred' | 'attention' | 'rise' | 'saving' | 'overlap';
 
 /**
- * The only pill. Three kinds: neutral (a fact about state: Stopped, One-time), inferred (the app's read: Estimate, App's guess)
- * and attention (worth a look: Price change, Overlap, Still charging).
+ * The only pill. Neutral is a fact about state (Stopped, One-time); inferred is the app's read (Estimate, App's guess), amber with a
+ * dashed outline; rise and saving are a price going up or down; overlap is tools paid for twice; attention is worth a look (Still
+ * charging). Rise, saving and overlap carry a glyph as well as a colour.
  */
 export function Pill({ kind = 'neutral', title, children }: { kind?: PillKind; title?: string; children: ReactNode }) {
   return (

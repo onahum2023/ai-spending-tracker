@@ -8,7 +8,7 @@ import { Button, Card } from './ui';
 export function AboutCard() {
   const { version, commit, date, license } = BUILD_INFO;
   return (
-    <Card title="About" subtitle="This version of the app">
+    <Card icon="info" tone="ink" title="About" subtitle="This version of the app">
       <dl className="about-list small">
         <dt className="muted">Version</dt>
         <dd className="num">{version}</dd>

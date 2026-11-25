@@ -29,9 +29,9 @@ export function subscriptionPills(s: Subscription, report: SubscriptionReport): 
   const latest = recentChanges(s, report)[0];
   if (latest) {
     const up = latest.toCents > latest.fromCents;
-    pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latest.month)}`, kind: 'attention' });
+    pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latest.month)}`, kind: up ? 'rise' : 'saving' });
   }
-  if (overlapOf(s, report)) pills.push({ text: 'Overlap', kind: 'attention' });
+  if (overlapOf(s, report)) pills.push({ text: 'Overlap', kind: 'overlap' });
   return pills;
 }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BulkTag, TagSuggestions } from '../components/TagEditor';
+import { SelectionBar, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
 import { Button, Card, CardAction, ConfirmDialog, Field, Input, SearchInput, Select, type SortDir } from '../components/ui';
 import { dateLabel, daysInMonth } from '../lib/dates';
@@ -15,6 +15,7 @@ export function Transactions({ route }: { route: Route }) {
   const { transactions, providers, span, period, analysis, mode, deleteTransactions } = useLedger();
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const q = route.query.get('q') ?? '';
   const provider = route.query.get('provider') ?? '';
   const type = route.query.get('type') ?? '';
@@ -47,6 +48,7 @@ export function Transactions({ route }: { route: Route }) {
 
   const anyFilter = q || provider || type || tag || from || to;
   const tags = useMemo(() => tagsInUse(transactions), [transactions]);
+  const selectedRows = useMemo(() => filtered.filter((t) => selected.has(t.id)), [filtered, selected]);
   const types: ChargeKind[] = ['subscription', 'usage', 'other'];
 
   const usePeriod = () => {
@@ -101,7 +103,7 @@ export function Transactions({ route }: { route: Route }) {
         {from && to && from > to && <div className="notice notice-warn" style={{ marginTop: 12 }}>The start date is after the end date.</div>}
       </Card>
 
-      <Card
+      <Card icon="list" tone="accent"
         title={`${filtered.length} of ${transactions.length} transactions`}
         subtitle={`${formatEUR(sumCents(filtered))} shown${provider ? ` · ${provider}` : ''}`}
         action={
@@ -112,10 +114,16 @@ export function Transactions({ route }: { route: Route }) {
         }
       >
         <TagSuggestions />
-        {filtered.length > 0 && <BulkTag rows={filtered} />}
+        {selectedRows.length > 0 ? (
+          <SelectionBar rows={selectedRows} onClear={() => setSelected(new Set())} />
+        ) : (
+          filtered.length > 0 && <p className="meta select-hint">Tick charges to tag several at once.</p>
+        )}
         <TransactionTable
           editableTags
           onDelete={setPendingDelete}
+          selected={selected}
+          onSelectedChange={setSelected}
           rows={filtered}
           sort={{ key: sortKey, dir: sortDir }}
           onSort={(s) => update({ sort: s.key, dir: s.dir })}

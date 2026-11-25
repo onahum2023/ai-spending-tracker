@@ -87,6 +87,8 @@ function Shell() {
         title = 'Providers';
         page = <Providers />;
       }
+      // The provider pages show a fixed window (the last 12 months and all time), so they have no period picker.
+      showPeriod = false;
       break;
     case 'transactions':
       title = 'Transactions';

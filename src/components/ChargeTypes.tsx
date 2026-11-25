@@ -3,12 +3,12 @@ import { dateLabel } from '../lib/dates';
 import { labelMap, labelOf, MAX_LABEL_LENGTH } from '../lib/labels';
 import { formatEUR } from '../lib/money';
 import type { SubscriptionReport } from '../lib/insights';
-import { OVERRIDE_HELP, OVERRIDE_LABELS, typeLabel, WHY, type OverrideKind } from '../lib/overrides';
+import { OVERRIDE_HELP, OVERRIDE_LABELS, typeLabel, WHY, type OverrideKind, type TypeInfo } from '../lib/overrides';
 import { groupChargeTypes, listChargeTypes, patternsByChargeType, suggestedSetting, type ChargeTypeGroup, type ChargeTypeSummary, type TypePatterns } from '../lib/providerChargeTypes';
 import type { Transaction } from '../lib/types';
 import { useLedger } from '../store';
 import { stoppedPills, StoppedDetail, SubscriptionDetail, subscriptionPills, type RowPill } from './SubscriptionDetail';
-import { Button, Card, Descriptor, Disclosure, EmptyState, Field, Input, Pill, ReadChip, RowToggle, Select, Table } from './ui';
+import { Button, Card, Descriptor, Disclosure, EmptyState, Field, Input, Pill, ReadChip, RowToggle, Table } from './ui';
 
 const mergePatterns = (list: (TypePatterns<Transaction> | undefined)[]): TypePatterns<Transaction> | undefined => {
   const present = list.filter((x): x is TypePatterns<Transaction> => Boolean(x));
@@ -16,6 +16,53 @@ const mergePatterns = (list: (TypePatterns<Transaction> | undefined)[]): TypePat
 };
 
 const OPTIONS: OverrideKind[] = ['monthly', 'yearly', 'usage', 'other'];
+const SHORT: Record<OverrideKind, string> = { monthly: 'Monthly', yearly: 'Yearly', usage: 'Usage', other: 'One-time' };
+
+/**
+ * What a kind of charge is, in one click. The app's guess has a dashed amber outline until you confirm it: clicking the guess
+ * confirms it, clicking another option corrects it. Applies to every charge of this type, past and future; totals never change.
+ */
+export function TypeControl({ provider, merchant, name, setting, guess, count }: { provider: string; merchant: string; name: string; setting: OverrideKind | null; guess: TypeInfo; count: number }) {
+  const { setOverride } = useLedger();
+  const suggested = suggestedSetting(guess);
+  return (
+    <div className="type-control">
+      <div className="type-seg" role="group" aria-label={`What kind of charge is ${name}?`}>
+        {OPTIONS.map((k) => {
+          const picked = setting === k;
+          const isGuess = setting === null && k === suggested;
+          return (
+            <button
+              key={k}
+              type="button"
+              className={picked ? 'is-picked' : isGuess ? 'is-guess' : undefined}
+              aria-pressed={picked}
+              title={`${OVERRIDE_LABELS[k]}: ${OVERRIDE_HELP[k]}`}
+              onClick={() => void setOverride(provider, merchant, k)}
+            >
+              {SHORT[k]}
+              {isGuess && <span className="sr-only"> (the app's guess, not confirmed yet)</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="meta type-note">
+        {setting === null ? (
+          <>The app's guess is outlined: click it to confirm, or pick another. {WHY[guess.source].replace(/\.?$/, '.')} </>
+        ) : (
+          <>
+            {OVERRIDE_HELP[setting]}{' '}
+            <button type="button" className="link-btn" onClick={() => void setOverride(provider, merchant, null)}>
+              Go back to the app's guess
+            </button>
+            .{' '}
+          </>
+        )}
+        Applies to {count === 1 ? 'this charge' : `all ${count} charges of this type`}, and to new ones.
+      </p>
+    </div>
+  );
+}
 
 /** A small text box for the label of a charge type. Saves when you leave it or press Enter; empty removes the label. */
 function LabelInput({ provider, merchant }: { provider: string; merchant: string }) {
@@ -134,10 +181,8 @@ function PlanHeader({ g, patterns, report }: { g: ChargeTypeGroup; patterns?: Ty
  * that opens under it.
  */
 function ChargeTypeRow({ t, patterns, report, member = false }: { t: ChargeTypeSummary; patterns?: TypePatterns<Transaction>; report: SubscriptionReport<Transaction>; member?: boolean }) {
-  const { setOverride } = useLedger();
   const [open, setOpen] = useState(false);
   const panelId = useId();
-  const suggested = suggestedSetting(t.guess);
   const reviewed = t.setting !== null;
   const guessText = typeLabel(t.guess);
   const pills: RowPill[] = [...(reviewed ? [] : [{ text: 'App’s guess', kind: 'inferred' as const }]), ...rowPills(patterns, report)];
@@ -166,30 +211,10 @@ function ChargeTypeRow({ t, patterns, report, member = false }: { t: ChargeTypeS
             <Field label="Label">
               <LabelInput provider={t.provider} merchant={t.merchant} />
             </Field>
-            <Field label="Type">
-              <Select
-                value={t.setting ?? ''}
-                aria-label={`Charge type of ${t.name}`}
-                title={`Applies to all ${t.count} charge${t.count === 1 ? '' : 's'} of this type, and to new ones you import. Totals never change.`}
-                onChange={(e) => void setOverride(t.provider, t.merchant, (e.target.value || null) as OverrideKind | null)}
-              >
-                <option value="">{reviewed ? `Reset: let the app guess (${guessText})` : `App’s guess: ${guessText}`}</option>
-                {OPTIONS.map((k) => (
-                  <option key={k} value={k}>
-                    {OVERRIDE_LABELS[k]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            {!reviewed && (
-              <Button onClick={() => void setOverride(t.provider, t.merchant, suggested)} aria-label={`Confirm ${t.name} as ${OVERRIDE_LABELS[suggested]}`}>
-                Confirm {OVERRIDE_LABELS[suggested]}
-              </Button>
-            )}
           </div>
-          <p className="meta" title={reviewed ? undefined : WHY[t.guess.source]}>
-            {reviewed ? OVERRIDE_HELP[t.setting!] : WHY[t.guess.source]}
-          </p>
+          <Field label="Type">
+            <TypeControl provider={t.provider} merchant={t.merchant} name={t.name} setting={t.setting} guess={t.guess} count={t.count} />
+          </Field>
           <p className="meta">
             Statement description: <Descriptor>{t.descriptor}</Descriptor>
             {t.rawVariants > 1 ? ` · ${t.rawVariants} variations of it` : ''}
@@ -215,7 +240,7 @@ export function ChargeTypesCard({ rows }: { provider: string; rows: Transaction[
   const groups = useMemo(() => groupChargeTypes(types), [types]);
   const toReview = types.filter((t) => t.setting === null);
   return (
-    <Card
+    <Card icon="check" tone="amber"
       title="Charge types"
       subtitle="Each charge type is a distinct line on your statement"
     >

@@ -21,6 +21,20 @@ export const SUBHEAD = 'See every AI service on your statements, what each one c
 /** The short name of what the app is, for the title of a shared link. */
 export const SHARE_TITLE = 'What do you spend on AI tools?';
 export const TRUST_LINE = 'No account. No upload.';
+/** The trust line as three short pills under the hero's buttons. */
+export const TRUST_PILLS: { text: string; icon: 'user' | 'cloud' | 'code' }[] = [
+  { text: 'No account', icon: 'user' },
+  { text: 'No upload', icon: 'cloud' },
+  { text: 'Open source', icon: 'code' },
+];
+
+/** The hero's example: four lines of a card statement as the bank prints them, and what the app reads in each. Invented. */
+export const STATEMENT_EXAMPLE: { date: string; provider: string; text: string; amount: string; note: { kind: 'rise' | 'overlap' | 'inferred'; pill: string; text: string; was?: string } }[] = [
+  { date: '15 NOV', provider: 'OpenAI', text: 'OPENAI *CHATGPT SUBSCR', amount: '110.13', note: { kind: 'rise', pill: '×4.8', text: 'until June', was: '€22.80' } },
+  { date: '09 NOV', provider: 'Cursor', text: 'CURSOR AI POWERED IDE', amount: '18.73', note: { kind: 'overlap', pill: 'Overlap', text: 'one of 3 coding tools, €53.35 a month together' } },
+  { date: '05 NOV', provider: 'GitHub', text: 'GITHUB INC COPILOT', amount: '9.62', note: { kind: 'overlap', pill: 'Overlap', text: 'with Cursor and Lovable' } },
+  { date: '12 NOV', provider: 'Supabase', text: 'SUPABASE SINGAPORE', amount: '22.80', note: { kind: 'inferred', pill: 'App’s guess', text: 'monthly since April, around the 12th' } },
+];
 
 /** "Sound familiar?": three short lines, no icons. */
 export const FAMILIAR: string[] = [
@@ -46,35 +60,38 @@ export const CLOSING_TITLE = "See what you're really paying for.";
 export const META_DESCRIPTION =
   'See what you spend on AI tools, which charges are subscriptions, price changes and what renews next. Runs in your browser: your data is never uploaded.';
 
-export const FEATURES: { title: string; text: string }[] = [
-  { title: 'Subscriptions the app finds', text: 'Recurring charges found from your statements, with the reasoning one click away, and what ending each subscription would save.' },
-  { title: 'Price changes and overlap', text: 'Spot a plan that went from €22 to €109, and several chat assistants you pay for at once.' },
-  { title: 'Charge types you can correct', text: 'Every charge is a subscription, usage or one-time. The app guesses and you correct it, for a whole service or a single charge.' },
-  { title: 'Budgets, tags and quarterly export', text: 'Set a monthly budget, tag charges Personal or Business, and export a quarter for expense claims.' },
+/** Six feature cards, three over three. Each colour is what that idea is in the app (see tokens.css). */
+export const FEATURES: { title: string; text: string; tone: 'accent' | 'rise' | 'overlap' | 'saving' | 'amber' | 'teal'; icon: 'repeat' | 'trend' | 'layers' | 'piggy' | 'check' | 'tag' }[] = [
+  { title: 'Subscriptions, found for you', text: 'Recurring AI charges are picked out of your statements, with the reasoning one click away.', tone: 'accent', icon: 'repeat' },
+  { title: 'Price jumps, flagged', text: 'A plan that went from €22 to €110 stands out the month it happens, not three months later.', tone: 'rise', icon: 'trend' },
+  { title: 'Tools you pay for twice', text: 'Two chat assistants or three coding tools at once? Overlaps are grouped, with what they cost together.', tone: 'overlap', icon: 'layers' },
+  { title: 'What ending one would save', text: 'Every subscription shows its cost per year, so you can see what cancelling it is worth.', tone: 'saving', icon: 'piggy' },
+  { title: 'Guesses you fix in one click', text: 'Subscription, usage or one-time: the app’s guess is outlined until you confirm it or pick another.', tone: 'amber', icon: 'check' },
+  { title: 'Budgets, tags and export', text: 'A monthly budget against the month-end estimate, Personal or Business tags, and a quarter exported for expenses.', tone: 'teal', icon: 'tag' },
 ];
 
-export const STEPS: string[] = [
-  'Bring your bank or card statements.',
-  'The app finds your AI services.',
-  'See where the money goes.',
+/** Where your data goes, and where it doesn't: four steps, the last crossed out. */
+export const PRIVACY_FLOW: { title: string; text: string; icon: 'file' | 'browser' | 'disk' | 'server'; none?: boolean }[] = [
+  { title: 'Your statement', text: 'A CSV, Excel or PDF from your bank', icon: 'file' },
+  { title: 'Read in your browser', text: 'On your device, by this page', icon: 'browser' },
+  { title: 'Stored in this browser', text: 'Clear it whenever you like', icon: 'disk' },
+  { title: 'Our servers', text: 'There are none', icon: 'server', none: true },
 ];
 
+export const STEPS: { title: string; text: string }[] = [
+  { title: 'Bring your bank or card statements', text: 'The CSV, Excel or PDF files you already download.' },
+  { title: 'The app finds your AI services', text: 'Each charge is explained. Anything it is unsure about is yours to keep or leave out.' },
+  { title: 'See where the money goes', text: 'Subscriptions, price jumps, overlaps and trends.' },
+];
+
+/** Short answers, shown open: the page should not read like the app's documentation. */
 export const FAQ: { q: string; a: string }[] = [
-  {
-    q: 'Which banks and file formats work?',
-    a: 'Excel (.xlsx) or CSV exports from your bank or card, including American Express and common bank CSVs such as Revolut and ING-style files, and Revolut PDF statements. Old .xls files, scanned PDFs and other banks’ PDFs are not read: export a CSV instead. You can also import a CSV that is already in the app’s own format.',
-  },
+  { q: 'Which banks work?', a: 'Excel or CSV exports from most banks and cards, including American Express, and Revolut PDF statements. For other PDFs, export a CSV.' },
   { q: 'Do I need an account?', a: 'No. There is no account and no backend.' },
-  {
-    q: 'Where does my data live?',
-    a: 'In your browser, on your device, in IndexedDB. It is not synced between devices and it is lost if you clear your browser’s data, so export your transactions as a CSV now and then. The CSV does not hold your budgets, corrections or labels.',
-  },
-  { q: 'How do I delete it?', a: 'Open Data and choose Clear local data. You can also clear this site’s data in your browser settings.' },
-  {
-    q: 'Is anything ever sent anywhere?',
-    a: 'Only if you press Ask Claude, an optional feature that needs your own Anthropic API key. It sends just the statement lines you choose, straight from your browser to Anthropic. See the privacy statement for exactly what.',
-  },
-  { q: 'Can I try it without my own data?', a: 'Yes. Explore demo data shows the whole app with invented transactions. Nothing is saved.' },
+  { q: 'Where is my data kept?', a: 'In this browser, on this device. It is not synced, so export a CSV now and then.' },
+  { q: 'How do I delete it?', a: 'Open Data and choose Clear local data, or clear this site’s data in your browser.' },
+  { q: 'Is anything ever sent?', a: 'Only if you press Ask Claude, with your own Anthropic API key, and only the lines you pick.' },
+  { q: 'Can I just look around?', a: 'Yes. The demo shows the whole app with invented charges. Nothing is saved.' },
 ];
 
 export { PRIVACY_SENTENCE };

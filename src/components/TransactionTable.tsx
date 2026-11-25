@@ -38,6 +38,8 @@ export function TransactionTable({
   initialSort = { key: 'date', dir: 'desc' },
   editableTags = false,
   onDelete,
+  selected,
+  onSelectedChange,
 }: {
   rows: Transaction[];
   showProvider?: boolean;
@@ -52,6 +54,9 @@ export function TransactionTable({
   editableTags?: boolean;
   /** Adds a delete button to each charge. The caller asks for confirmation and does the deleting. */
   onDelete?: (t: Transaction) => void;
+  /** Row checkboxes, for acting on several charges at once. */
+  selected?: Set<number>;
+  onSelectedChange?: (next: Set<number>) => void;
 }) {
   const [localSort, setLocalSort] = useState<{ key: TxSortKey; dir: SortDir }>(initialSort);
   const sort = controlledSort ?? localSort;
@@ -67,12 +72,33 @@ export function TransactionTable({
   if (rows.length === 0) return <EmptyState>{emptyText}</EmptyState>;
 
   const openProvider = (t: Transaction) => navigate(['providers', t.provider]);
+  const selectable = !!selected && !!onSelectedChange;
+  const allVisible = selectable && visible.every((t) => selected!.has(t.id));
+  const toggle = (id: number) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectedChange!(next);
+  };
+  const toggleAll = () => {
+    const next = new Set(selected);
+    for (const t of visible) {
+      if (allVisible) next.delete(t.id);
+      else next.add(t.id);
+    }
+    onSelectedChange!(next);
+  };
 
   return (
     <>
       <Table className="desktop-table">
           <thead>
             <tr>
+              {selectable && (
+                <th className="check-cell">
+                  <input type="checkbox" checked={allVisible} onChange={toggleAll} aria-label={allVisible ? 'Unselect the charges shown' : 'Select the charges shown'} />
+                </th>
+              )}
               <SortHeader label="Date" k="date" sort={sort} onSort={setSort} />
               <SortHeader label="Merchant descriptor" k="merchant" sort={sort} onSort={setSort} defaultDir="asc" />
               {showProvider && <SortHeader label="Provider" k="provider" sort={sort} onSort={setSort} defaultDir="asc" />}
@@ -86,10 +112,20 @@ export function TransactionTable({
             {visible.map((t) => (
               <tr
                 key={t.id}
-                className={showProvider ? 'clickable' : undefined}
+                className={[showProvider ? 'clickable' : '', selectable && selected!.has(t.id) ? 'is-selected' : ''].join(' ').trim() || undefined}
                 onClick={showProvider ? () => openProvider(t) : undefined}
                 title={showProvider ? `Open ${t.provider}` : undefined}
               >
+                {selectable && (
+                  <td className="check-cell" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected!.has(t.id)}
+                      onChange={() => toggle(t.id)}
+                      aria-label={`Select the ${t.provider} charge of ${formatEUR(t.amountCents)} on ${dateLabel(t.date)}`}
+                    />
+                  </td>
+                )}
                 <td className="date">{dateLabel(t.date)}</td>
                 <td><Descriptor>{t.merchant}</Descriptor></td>
                 {showProvider && (
@@ -99,8 +135,13 @@ export function TransactionTable({
                 )}
                 {showType && (
                   <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
-                    <a className="type-text" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
+                    <a
+                      className={`type-text${analysis.typeOf(t).source === 'you' ? '' : ' is-guess'}`}
+                      href={providerHref(t.provider)}
+                      title={`${WHY[analysis.typeOf(t).source]}. ${analysis.typeOf(t).source === 'you' ? 'Change' : 'Confirm or change'} it on the provider page.`}
+                    >
                       {typeText(t)}
+                      {analysis.typeOf(t).source !== 'you' && <span className="sr-only"> (the app's guess)</span>}
                     </a>
                   </td>
                 )}
@@ -129,7 +170,7 @@ export function TransactionTable({
           {showTotal && (
             <tfoot>
               <tr>
-                <td colSpan={2 + (showProvider ? 1 : 0) + (showType ? 1 : 0) + (showTag ? 1 : 0)}>
+                <td colSpan={2 + (showProvider ? 1 : 0) + (showType ? 1 : 0) + (showTag ? 1 : 0) + (selectable ? 1 : 0)}>
                   {rows.length} transaction{rows.length === 1 ? '' : 's'}
                 </td>
                 <td className="amount">{formatEUR(total)}</td>

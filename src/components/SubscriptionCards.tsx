@@ -5,7 +5,7 @@ import { Card, CardNote, Change, Pill, EmptyState, ProviderLink, ReadChip, Strea
 
 export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
   return (
-    <Card title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more" badge={<ReadChip />}>
+    <Card icon="trend" tone="rise" title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more" badge={<ReadChip />}>
       {changes.length === 0 ? (
         <EmptyState>No price changes seen.</EmptyState>
       ) : (
@@ -31,7 +31,7 @@ export function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
 
 export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
   return (
-    <Card title="Overlap" subtitle="Several recurring charges in the same kind of tool" badge={<ReadChip />}>
+    <Card icon="layers" tone="overlap" title="Overlap" subtitle="Several recurring charges in the same kind of tool" badge={<ReadChip />}>
       {groups.length === 0 ? (
         <EmptyState>No overlap: at most one recurring charge per kind of tool.</EmptyState>
       ) : (
@@ -59,7 +59,7 @@ export function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
 
 export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
   return (
-    <Card title="Stopped" subtitle="Recurring charges that are no longer appearing" badge={<ReadChip />}>
+    <Card icon="stop" tone="ink" title="Stopped" subtitle="Recurring charges that are no longer appearing" badge={<ReadChip />}>
       <CardNote>Each is checked for anything that still charges from the same merchant.</CardNote>
       {stopped.length === 0 ? (
         <EmptyState>Nothing has stopped.</EmptyState>
@@ -113,7 +113,7 @@ export function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
 export function SavingsCard({ subs }: { subs: Subscription[] }) {
   const top = subs.slice(0, 5);
   return (
-    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge" badge={<ReadChip />}>
+    <Card icon="piggy" tone="saving" title="What ending one would save" subtitle="Per-year cost from the latest charge" badge={<ReadChip />}>
       <CardNote>Only you know which ones you still use.</CardNote>
       {top.length === 0 ? (
         <EmptyState>No active recurring charges.</EmptyState>
