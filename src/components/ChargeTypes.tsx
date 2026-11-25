@@ -143,7 +143,7 @@ export function ChargeTypesCard({ rows, actions }: { provider: string; rows: Tra
   const types = useMemo(() => listChargeTypes(rows, overrides, labels, analysis.typeOf), [rows, overrides, labels, analysis]);
   const toReview = types.filter((t) => t.setting === null);
   return (
-    <Card
+    <Card icon="check" tone="amber"
       title="Charge types"
       subtitle={
         types.length === 1

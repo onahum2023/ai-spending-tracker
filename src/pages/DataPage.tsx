@@ -39,14 +39,14 @@ export function DataPage() {
         <Stat label="Date range" value={span ? dateLabel(span.firstDate) : '—'} sub={span ? `to ${dateLabel(span.lastDate)}` : undefined} />
       </StatStrip>
 
-      <Card
+      <Card icon="upload" tone="brand"
         title={demo ? 'Use your own data: extract AI charges from statements' : 'Extract AI charges from bank or card statements'}
         subtitle="Excel or CSV exports and Revolut PDFs. Read in your browser; review before anything is saved."
       >
         <StatementImport onImported={demo ? () => (window.location.hash = '#/') : undefined} />
       </Card>
       <div className="grid cols-2">
-        <Card
+        <Card icon="file" tone="brand"
           title={demo ? 'Or import a ledger CSV' : 'Import a ledger CSV'}
           subtitle={
             demo
@@ -56,7 +56,7 @@ export function DataPage() {
         >
           <ImportPanel onImported={demo ? () => (window.location.hash = '#/') : undefined} />
         </Card>
-        <Card
+        <Card icon="lock" tone="teal"
           title={demo ? 'Demo data' : 'Stored data'}
           subtitle={
             demo
@@ -92,7 +92,7 @@ export function DataPage() {
       <QuarterExport />
 
       <div className="grid cols-2">
-        <Card title="Import history">
+        <Card icon="list" tone="ink" title="Import history">
           {imports.length === 0 ? (
             <EmptyState>No imports yet.</EmptyState>
           ) : (
@@ -119,7 +119,7 @@ export function DataPage() {
             </div>
           )}
         </Card>
-        <Card title="How duplicates are handled">
+        <Card icon="info" tone="ink" title="How duplicates are handled">
           <div className="stack small secondary gap-2">
             <p>
               The CSV has no transaction IDs, so a record is identified by all four values together:

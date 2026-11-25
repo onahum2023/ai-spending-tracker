@@ -15,7 +15,16 @@ const lobe = (name: string) =>
 const simple = (path: string) =>
   `<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="${path}"/></svg>`;
 
-/** Inline SVG markup for the marks shown in the landing page's statement example. */
-export function landingMarks(): Record<'openai' | 'cursor' | 'github' | 'supabase', string> {
-  return { openai: lobe('openai'), cursor: lobe('cursor'), github: lobe('github'), supabase: simple(siSupabase.path) };
+export type LandingMark = 'openai' | 'anthropic' | 'cursor' | 'lovable' | 'github' | 'supabase';
+
+/** Inline SVG markup for the vendor marks shown on the landing page. */
+export function landingMarks(): Record<LandingMark, string> {
+  return {
+    openai: lobe('openai'),
+    anthropic: lobe('anthropic'),
+    cursor: lobe('cursor'),
+    lovable: lobe('lovable'),
+    github: lobe('github'),
+    supabase: simple(siSupabase.path),
+  };
 }

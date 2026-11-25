@@ -3,7 +3,7 @@ import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts
 import { BudgetCard } from '../components/BudgetCard';
 import { MonthHero } from '../components/ForecastCard';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, DeltaChip, EmptyState, Notice, PriceJump, ProviderDot, Segmented, Stat, StatStrip, VendorMark, VendorStack } from '../components/ui';
+import { Card, Delta, DeltaChip, EmptyState, Icon, Notice, PriceJump, ProviderDot, Segmented, Stat, StatStrip, VendorMark, VendorStack } from '../components/ui';
 import { CATEGORY_NOUNS } from '../lib/categories';
 import { labelMap, labelOf } from '../lib/labels';
 import { reviewCounts } from '../lib/providerChargeTypes';
@@ -40,7 +40,7 @@ export function Overview() {
       <AttentionCard />
 
       <div className="grid cols-2">
-        <Card
+        <Card icon="chart" tone="brand"
           title={`Monthly spending by ${view}${period.kind === 'all' ? '' : ` · ${period.kind === 'year' ? period.year : yearOf(period.month)}`}`}
           subtitle="Click a month to explore it"
           actions={
@@ -150,7 +150,12 @@ function AttentionCard() {
   return (
     <section className="card attention" aria-labelledby="attention-h">
       <div className="attention-head">
-        <h2 id="attention-h">Needs your attention</h2>
+        <div className="card-title">
+          <span className="card-icon tone-amber">
+            <Icon name="bell" />
+          </span>
+          <h2 id="attention-h">Needs your attention</h2>
+        </div>
         <span className="muted">{count === 0 ? 'Nothing right now' : `${count} thing${count === 1 ? '' : 's'}`}</span>
       </div>
       {count === 0 ? (
@@ -217,7 +222,7 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
   const top = summary.slice(0, 8);
   const max = top[0]?.totalCents ?? 1;
   return (
-    <Card
+    <Card icon="pie" tone="brand"
       title="Largest contributors"
       subtitle={`${label} · ${formatEUR(total)} across ${summary.length} provider${summary.length === 1 ? '' : 's'}`}
       actions={<a className="btn btn-sm btn-ghost" href={href(['providers'])}>All providers</a>}
@@ -261,7 +266,7 @@ function ChargesCard({ period }: { period: Period }) {
   const rows = filterPeriod(transactions, period);
   if (period.kind === 'month') {
     return (
-      <Card
+      <Card icon="list" tone="brand"
         title={`Charges in ${monthLabel(period.month)}`}
         subtitle={`${rows.length} transaction${rows.length === 1 ? '' : 's'}`}
         actions={
@@ -278,7 +283,7 @@ function ChargesCard({ period }: { period: Period }) {
   }
   const largest = [...rows].sort((a, b) => b.amountCents - a.amountCents).slice(0, 8);
   return (
-    <Card title="Largest charges" subtitle={`${periodLabel(period)} · top ${largest.length} of ${rows.length}`}>
+    <Card icon="list" tone="brand" title="Largest charges" subtitle={`${periodLabel(period)} · top ${largest.length} of ${rows.length}`}>
       <TransactionTable rows={largest} showTotal={false} initialSort={{ key: 'amount', dir: 'desc' }} />
     </Card>
   );

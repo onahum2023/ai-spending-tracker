@@ -47,7 +47,7 @@ export function Trends() {
         <Stat label="Lowest complete month" value={low ? formatEUR(byMonth.get(low) ?? 0) : '—'} sub={low ? monthLabel(low) : ''} />
       </StatStrip>
 
-      <Card title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
+      <Card icon="chart" tone="saving" title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
         <MonthlyTrendChart rows={transactions} months={span.months} />
       </Card>
 
@@ -78,10 +78,10 @@ function SpendingTypes() {
   );
   return (
     <div className="grid cols-2">
-      <Card title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither">
+      <Card icon="pie" tone="brand" title="Subscriptions, usage and one-time" subtitle="How each charge is billed: on a schedule, pay as you go, or neither">
         <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
-      <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
+      <Card icon="compare" tone="brand" title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
         <div className="stack gap-4">
           <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
           <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
@@ -106,10 +106,10 @@ function YearComparison() {
   const latestYear = years[years.length - 1];
   return (
     <div className="grid cols-2">
-      <Card title="Year over year" subtitle="Spending per calendar month, one line per year">
+      <Card icon="compare" tone="saving" title="Year over year" subtitle="Spending per calendar month, one line per year">
         <YearCompareChart rows={transactions} years={years} />
       </Card>
-      <Card title="Yearly totals" subtitle={`Like-for-like compares Jan–${monthShort(span.lastMonth)} of each year`}>
+      <Card icon="calendar" tone="saving" title="Yearly totals" subtitle={`Like-for-like compares Jan–${monthShort(span.lastMonth)} of each year`}>
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -191,7 +191,7 @@ function ChangesCard() {
   );
 
   return (
-    <Card
+    <Card icon="trend" tone="rise"
       title="Biggest increases and decreases"
       subtitle={`${result.after} vs ${result.before}, by provider`}
       actions={
@@ -244,7 +244,7 @@ function ConcentrationCard() {
   const restShare = rest.reduce((a, s) => a + s.share, 0);
 
   return (
-    <Card
+    <Card icon="pie" tone="brand"
       title="Provider concentration"
       subtitle={win === 'all' ? 'Share of all-time spending' : `Share of spending, ${monthLabel(addMonths(span.lastMonth, -11))} – ${monthLabel(span.lastMonth)}`}
       actions={
@@ -301,7 +301,7 @@ function RecurringCard() {
   const { analysis } = useLedger();
   const patterns = analysis.patterns;
   return (
-    <Card
+    <Card icon="repeat" tone="brand"
       title="Recurring-looking patterns"
       subtitle="Charges from the same provider on a similar day and amount for 3+ consecutive months. These are observations from the data, not confirmed subscriptions."
     >

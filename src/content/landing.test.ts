@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APP_PATH, DEMO_PATH, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, renderLandingBody, renderLandingMeta, SHOTS, STEPS } from './landing';
+import { APP_PATH, DEMO_PATH, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, renderLandingBody, renderLandingMeta, STEPS } from './landing';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
 import { PRODUCTION_URL } from './site';
 
@@ -17,7 +17,7 @@ describe('landing page', () => {
     expect(body).toContain(`href="${DEMO_PATH}"`);
     expect(body).toContain(`href="${APP_PATH}"`);
     expect(body).toContain(`href="${PRIVACY_PATH}"`);
-    expect(FEATURES).toHaveLength(4);
+    expect(FEATURES).toHaveLength(6);
     expect(STEPS.length).toBeGreaterThanOrEqual(3);
     expect(FAQ.length).toBeGreaterThanOrEqual(5);
   });
@@ -26,12 +26,10 @@ describe('landing page', () => {
     expect(existsSync(join(root, 'app.html'))).toBe(true);
     expect(existsSync(join(root, 'privacy.html'))).toBe(true);
     for (const f of ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'og-image.png', 'third-party-notices.txt']) expect(existsSync(join(root, 'public', f))).toBe(true);
-    for (const s of SHOTS) {
-      expect(existsSync(join(root, 'public/screenshots', s.file))).toBe(true);
-      expect(s.alt.length).toBeGreaterThan(20);
-    }
     const imgs = [...body.matchAll(/<img [^>]*>/g)].map((m) => m[0]);
-    expect(imgs.length).toBe(SHOTS.length + 1); // screenshots + the brand mark
+    expect(imgs.length).toBe(1); // the brand mark; the feature pictures are drawn inline
+    // Every inline drawing is either decorative or says what it shows.
+    for (const svg of body.matchAll(/<svg [^>]*>/g)) expect(svg[0]).toMatch(/aria-hidden="true"|role="img" aria-label="[^"]{20,}"/);
     for (const tag of imgs) expect(tag).toMatch(/\salt="[^"]*"/);
     for (const tag of imgs) expect(tag).toMatch(/\swidth="\d+"/);
   });

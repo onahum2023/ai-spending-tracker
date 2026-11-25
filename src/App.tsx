@@ -87,7 +87,9 @@ function Shell() {
       } else {
         title = 'Providers';
         desc = 'Every provider you pay, ranked by spend. Open one to confirm how its charges are read.';
+        scope = through && `Last 12 months and all time, through ${through}`;
         page = <Providers />;
+        showPeriod = false;
       }
       break;
     case 'subscriptions':

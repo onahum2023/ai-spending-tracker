@@ -111,14 +111,14 @@ function ActiveSubscriptions({ report }: { report: SubscriptionReport }) {
 
   if (subs.length === 0) {
     return (
-      <Card title="Active recurring charges">
+      <Card icon="repeat" tone="brand" title="Active recurring charges">
         <EmptyState>Nothing is currently recurring.</EmptyState>
       </Card>
     );
   }
   return (
     <div className="subs-layout">
-      <Card title="Active recurring charges" subtitle="Select one to see why the app counts it, what it costs a year and what kind of charge it is.">
+      <Card icon="repeat" tone="brand" title="Active recurring charges" subtitle="Select one to see why the app counts it, what it costs a year and what kind of charge it is.">
         <ul className="sub-list">
           {subs.map((s) => (
             <SubscriptionLine key={subKey(s)} s={s} report={report} selected={current === s} onSelect={() => setSelected(subKey(s))} />
@@ -303,7 +303,7 @@ function MonthStrip({ s, report, stream }: { s: Subscription; report: Subscripti
 
 function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcoming: UpcomingCharge[]; fresh: boolean; latest: string; asOf: string; total: number }) {
   return (
-    <Card title={`Next ${UPCOMING_DAYS} days`} subtitle={`From ${dateLabel(asOf)}, on the day each recurring charge usually lands`}>
+    <Card icon="calendar" tone="teal" title={`Next ${UPCOMING_DAYS} days`} subtitle={`From ${dateLabel(asOf)}, on the day each recurring charge usually lands`}>
       {!fresh ? (
         <Notice tone="warn">
           No calendar: the latest recorded charge is from {dateLabel(latest)}, more than {STALE_AFTER_DAYS} days ago, so dates
@@ -341,7 +341,7 @@ function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcoming: Upco
 
 function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
   return (
-    <Card title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more">
+    <Card icon="trend" tone="rise" title="Price changes" subtitle="Where the amount of a recurring charge moved by 10% or more">
       {changes.length === 0 ? (
         <EmptyState>No price changes seen.</EmptyState>
       ) : (
@@ -370,7 +370,7 @@ function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
 
 function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
   return (
-    <Card title="Overlap" subtitle="Several recurring charges in the same kind of tool">
+    <Card icon="layers" tone="overlap" title="Overlap" subtitle="Several recurring charges in the same kind of tool">
       {groups.length === 0 ? (
         <EmptyState>No overlap: at most one recurring charge per kind of tool.</EmptyState>
       ) : (
@@ -400,7 +400,7 @@ function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
 
 function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
   return (
-    <Card title="Stopped" subtitle="Recurring charges that are no longer appearing, and whether anything still charges from the same merchant">
+    <Card icon="stop" tone="ink" title="Stopped" subtitle="Recurring charges that are no longer appearing, and whether anything still charges from the same merchant">
       {stopped.length === 0 ? (
         <EmptyState>Nothing has stopped.</EmptyState>
       ) : (
@@ -457,7 +457,7 @@ function StoppedCard({ stopped }: { stopped: StoppedSubscription[] }) {
 function SavingsCard({ subs }: { subs: Subscription[] }) {
   const top = subs.slice(0, 5);
   return (
-    <Card title="What ending one would save" subtitle="Per-year cost from the latest charge. Only you know which ones you still use.">
+    <Card icon="piggy" tone="saving" title="What ending one would save" subtitle="Per-year cost from the latest charge. Only you know which ones you still use.">
       {top.length === 0 ? (
         <EmptyState>No active recurring charges.</EmptyState>
       ) : (

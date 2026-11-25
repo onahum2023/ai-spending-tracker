@@ -47,10 +47,10 @@ export function ProviderDetail({ provider }: { provider: string }) {
       </StatStrip>
 
       <div className="grid cols-2">
-        <Card title="Monthly spending" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}`}>
+        <Card icon="chart" tone="saving" title="Monthly spending" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}`}>
           <SingleSeriesMonthlyChart rows={rows} months={months} color={colors.color(provider)} />
         </Card>
-        <Card title="Subscription patterns" subtitle="Monthly ones are observed in the data, not confirmed. Yearly ones are set by you.">
+        <Card icon="repeat" tone="brand" title="Subscription patterns" subtitle="Monthly ones are observed in the data, not confirmed. Yearly ones are set by you.">
           {patterns.length === 0 ? (
             <EmptyState>No charge repeats monthly on a similar day for 3+ months, and none is set as a subscription.</EmptyState>
           ) : (
@@ -103,7 +103,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
         }
       />
 
-      <Card
+      <Card icon="list" tone="brand"
         title="Transaction history"
         subtitle={`${rows.length} transactions · ${formatEUR(total)} · ${dateLabel(first)} to ${dateLabel(last)}`}
         actions={<a className="btn btn-sm btn-ghost" href={href(['transactions'], { provider })}>Open in Charges</a>}

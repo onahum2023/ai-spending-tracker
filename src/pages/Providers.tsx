@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Card, EmptyState, ProviderDot, SearchInput, SortHeader, Stat, StatStrip, Toolbar, type SortDir } from '../components/ui';
-import { filterPeriod, periodLabel, providerTotals } from '../lib/analytics';
-import { dateLabel } from '../lib/dates';
+import { providerTotals, rowsInMonths } from '../lib/analytics';
+import { addMonths, dateLabel, monthLabel } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
 import { reviewCounts } from '../lib/providerChargeTypes';
 import { navigate, providerHref } from '../router';
@@ -10,16 +10,21 @@ import { useLedger } from '../store';
 type Key = 'provider' | 'period' | 'total' | 'count' | 'first' | 'last';
 
 export function Providers() {
-  const { transactions, providers, period, overrides } = useLedger();
+  const { transactions, providers, span, overrides } = useLedger();
   const toReview = useMemo(() => reviewCounts(transactions, overrides), [transactions, overrides]);
   const toReviewTotal = [...toReview.values()].reduce((a, b) => a + b, 0);
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<{ key: Key; dir: SortDir }>({ key: 'period', dir: 'desc' });
 
-  const periodRows = useMemo(() => filterPeriod(transactions, period), [transactions, period]);
+  // A fixed window instead of the period picker: the last 12 months up to the latest charge.
+  const periodRows = useMemo(
+    () => (span ? rowsInMonths(transactions, addMonths(span.lastMonth, -11), span.lastMonth) : []),
+    [transactions, span],
+  );
   const periodTotals = useMemo(() => providerTotals(periodRows), [periodRows]);
   const allTotal = sumCents(transactions);
-  const label = periodLabel(period);
+  const label = 'Last 12 months';
+  const since = span ? monthLabel(addMonths(span.lastMonth, -11)) : '';
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -46,7 +51,7 @@ export function Providers() {
   return (
     <div className="stack">
       <StatStrip>
-        <Stat lead label={`Spending in ${label}`} value={formatEUR(sumCents(periodRows))} sub={`${activeInPeriod} of ${providers.length} providers charged`} />
+        <Stat lead label="Last 12 months" value={formatEUR(sumCents(periodRows))} sub={`${activeInPeriod} of ${providers.length} providers charged since ${since}`} />
         <Stat label="All time" value={formatEUR(allTotal)} sub={`across ${providers.length} providers`} />
         <Stat
           label="Charge types to review"
@@ -55,7 +60,7 @@ export function Providers() {
         />
       </StatStrip>
 
-    <Card
+    <Card icon="users" tone="brand"
       title="All providers"
       subtitle="Select a provider to see its charges and confirm how they are read"
       actions={

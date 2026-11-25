@@ -23,7 +23,7 @@ export function QuarterExport() {
   };
 
   return (
-    <Card title="Export a quarter" subtitle="Charges for one quarter, optionally for one tag, for expense claims or your accountant">
+    <Card icon="download" tone="teal" title="Export a quarter" subtitle="Charges for one quarter, optionally for one tag, for expense claims or your accountant">
       {!report ? (
         <EmptyState>No transactions yet.</EmptyState>
       ) : (

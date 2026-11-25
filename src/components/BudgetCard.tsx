@@ -52,7 +52,7 @@ export function BudgetCard() {
 
   if (editing) {
     return (
-      <Card title="Monthly budget" subtitle="Leave a field empty for no budget. Saved in this browser only.">
+      <Card icon="gauge" tone="teal" title="Monthly budget" subtitle="Leave a field empty for no budget. Saved in this browser only.">
         <BudgetForm
           initial={budgets}
           categories={present}
@@ -68,14 +68,14 @@ export function BudgetCard() {
 
   if (!hasBudgets(budgets)) {
     return (
-      <Card title="Monthly budget" subtitle="Set a limit and see it against the month-end estimate">
+      <Card icon="gauge" tone="teal" title="Monthly budget" subtitle="Set a limit and see it against the month-end estimate">
         <button className="btn" onClick={() => setEditing(true)}>Set a budget…</button>
       </Card>
     );
   }
 
   return (
-    <Card
+    <Card icon="gauge" tone="teal"
       title={`Budget · ${monthLabelLong(report.month)}`}
       subtitle="Spent so far, with the month-end estimate"
       actions={<button className="btn btn-sm" onClick={() => setEditing(true)}>Edit</button>}

@@ -65,7 +65,7 @@ export function Transactions({ route }: { route: Route }) {
         <Stat label="Providers" value={new Set(filtered.map((t) => t.provider)).size} sub="in the charges shown" />
       </StatStrip>
 
-      <Card
+      <Card icon="list" tone="brand"
         title="Charges"
         subtitle="Search, filter and correct individual charges"
         actions={

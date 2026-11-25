@@ -6,17 +6,59 @@ import { providerHref } from '../router';
 import { useLedger } from '../store';
 import { vendorLetter, vendorMark } from '../lib/vendorIcons';
 
+export type Tone = 'brand' | 'rise' | 'overlap' | 'saving' | 'amber' | 'teal' | 'ink';
+export type IconName =
+  | 'repeat' | 'trend' | 'layers' | 'piggy' | 'check' | 'tag' | 'calendar' | 'bell' | 'list' | 'gauge'
+  | 'pie' | 'users' | 'stop' | 'file' | 'download' | 'upload' | 'info' | 'chart' | 'compare' | 'lock';
+
+const ICON_PATHS: Record<IconName, ReactNode> = {
+  repeat: <><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></>,
+  trend: <><path d="M22 7 13.5 15.5l-5-5L2 17" /><path d="M16 7h6v6" /></>,
+  layers: <><path d="m12 2 10 5-10 5L2 7z" /><path d="m2 12 10 5 10-5" /><path d="m2 17 10 5 10-5" /></>,
+  piggy: <><path d="M19 5c-1.5 0-2.8.6-3.7 1.6A7 7 0 0 0 5 11c0 2.2 1 4.2 2.6 5.5V20h3v-2h3v2h3v-3.4A6.9 6.9 0 0 0 19 14h2v-4h-2a7 7 0 0 0-.9-2.1" /><path d="M15.5 11h.01" /></>,
+  check: <><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>,
+  tag: <><path d="M12 2H2v10l9.3 9.3a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4z" /><circle cx="7" cy="7" r="1.5" /></>,
+  calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+  bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></>,
+  list: <><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3 6h.01M3 12h.01M3 18h.01" /></>,
+  gauge: <><path d="m12 14 4-4" /><path d="M3.3 19a10 10 0 1 1 17.4 0" /></>,
+  pie: <><path d="M21.2 15.9A10 10 0 1 1 8 2.8" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></>,
+  users: <><circle cx="9" cy="8" r="4" /><path d="M2 21c0-4 3-6 7-6s7 2 7 6" /><path d="M16 3.1a4 4 0 0 1 0 7.8M22 21c0-3-1.7-5-4.5-5.8" /></>,
+  stop: <><circle cx="12" cy="12" r="9" /><path d="M9 9h6v6H9z" /></>,
+  file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8M8 17h5" /></>,
+  download: <><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>,
+  upload: <><path d="M12 15V3" /><path d="m7 8 5-5 5 5" /><path d="M5 21h14" /></>,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-5M12 8h.01" /></>,
+  chart: <><path d="M3 3v18h18" /><path d="M7 15v2M11 11v6M15 8v9M19 5v12" /></>,
+  compare: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
+  lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
+};
+
+/** A line icon on the shared 24px grid. Decorative: always paired with text. */
+export function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      {ICON_PATHS[name]}
+    </svg>
+  );
+}
+
 export function Card({
   title,
   subtitle,
   actions,
   toolbar,
+  icon,
+  tone = 'brand',
   children,
   className = '',
 }: {
   title?: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  /** A small coloured icon beside the title. The tone says what kind of thing the card is about. */
+  icon?: IconName;
+  tone?: Tone;
   /** A row of filters or search above the body, under the heading. */
   toolbar?: ReactNode;
   children: ReactNode;
@@ -25,9 +67,19 @@ export function Card({
   return (
     <section className={`card ${className}`}>
       {(title || actions) && (
-        <div className="card-head">
+        <div className={`card-head${icon ? ' has-icon' : ''}`}>
           <div>
-            {title && <h2>{title}</h2>}
+            {title &&
+              (icon ? (
+                <div className="card-title">
+                  <span className={`card-icon tone-${tone}`}>
+                    <Icon name={icon} />
+                  </span>
+                  <h2>{title}</h2>
+                </div>
+              ) : (
+                <h2>{title}</h2>
+              ))}
             {subtitle && <p>{subtitle}</p>}
           </div>
           {actions}
