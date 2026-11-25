@@ -93,7 +93,7 @@ export function Providers() {
       subtitle={`${formatEUR(sumCents(periodRows))} in the last 12 months${span ? ` (${monthLabel(addMonths(span.lastMonth, -11))} to ${monthLabel(span.lastMonth)}, data through ${dateLabel(span.lastDate)})` : ''} · ${formatEUR(allTotal)} all time`}
     >
       <CardNote>
-        {activeInPeriod} with spending in {label}
+        {activeInPeriod} with spending in the last 12 months
       </CardNote>
       <div className="filters" style={{ marginBottom: 12 }}>
         <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
