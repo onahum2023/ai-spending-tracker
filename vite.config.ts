@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { renderNoscript, renderWelcomeMeta } from './src/content/welcome.ts';
 import { PRIVACY_IS_DRAFT, renderPrivacyBody } from './src/content/privacy.ts';
-import { PRODUCTION_URL } from './src/content/site.ts';
+import { PRODUCTION_URL, renderSitemap } from './src/content/site.ts';
 import pkg from './package.json' with { type: 'json' };
 import vercel from './vercel.json' with { type: 'json' };
 
@@ -30,6 +30,15 @@ function siteUrl(): string {
   return (process.env.SITE_URL || PRODUCTION_URL).replace(/\/+$/, '');
 }
 
+// The date a page's own content last changed, from git (so the sitemap's lastmod moves only when the page does). Empty without git history.
+function lastChanged(...paths: string[]): string {
+  try {
+    return execSync(`git log -1 --format=%cs -- ${paths.join(' ')}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return '';
+  }
+}
+
 // Fills the privacy page, and the tags and no-script text of index.html, from src/content, so the wording lives in one place.
 function staticPages(): Plugin {
   return {
@@ -49,6 +58,12 @@ function staticPages(): Plugin {
         }
         return html;
       },
+    },
+    // sitemap.xml lists only pages that may be indexed: the app at "/" and, once it is no longer a draft, the privacy statement.
+    generateBundle() {
+      const pages = [{ path: '/', lastmod: lastChanged('index.html', 'src/content/welcome.ts', 'src/pages/Welcome.tsx') }];
+      if (!PRIVACY_IS_DRAFT) pages.push({ path: '/privacy', lastmod: lastChanged('privacy.html', 'src/content/privacy.ts') });
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: renderSitemap(siteUrl(), pages) });
     },
   };
 }

@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APP_PATH, CLOSING_TITLE, DEMO_PATH, EXAMPLE_LINES, EYEBROW, FAMILIAR, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, PRIVACY_LINES, PRIVACY_TITLE, renderNoscript, renderWelcomeMeta, STEPS, SUBHEAD, TRUST_LINE } from './welcome';
+import { APP_PATH, CLOSING_TITLE, DEMO_PATH, EXAMPLE_LINES, EYEBROW, FAMILIAR, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, PAGE_TITLE, PRIVACY_LINES, PRIVACY_TITLE, renderNoscript, renderStructuredData, renderWelcomeMeta, STEPS, SUBHEAD, TRUST_LINE, TRUST_PILLS } from './welcome';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
-import { PRODUCTION_URL } from './site';
+import { PRODUCTION_URL, REPO_URL } from './site';
 
 const root = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -12,7 +12,7 @@ describe('welcome page', () => {
   it('sells: the hero, the way in, the trust line and the sections come in the order of the brief', () => {
     expect(EYEBROW).toBe("For people who've tried a lot of AI tools");
     expect(HEADLINE).toBe("Do you know what you're still paying for?");
-    expect(SUBHEAD).toBe('See every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.');
+    expect(SUBHEAD).toBe('A free, open-source dashboard that shows every AI service on your statements, what each one costs you, and which ones you forgot about. Nothing leaves your browser.');
     expect(TRUST_LINE).toBe('No account. No upload.');
     expect(FAMILIAR).toEqual([
       "You signed up to try one thing. You're still paying for it.",
@@ -75,6 +75,43 @@ describe('welcome page', () => {
     expect(noscript).toContain(`href="${PRIVACY_PATH}"`);
     expect(noscript).not.toMatch(/<script|\son[a-z]+=/i);
     expect(noscript.match(/<h1[ >]/g)).toHaveLength(1);
+  });
+
+  it('says it is free and open source, and links to the code', () => {
+    expect(TRUST_PILLS.map((p) => p.text)).toEqual(['Free', 'No account', 'No upload', 'Open source']);
+    expect(TRUST_PILLS.find((p) => p.text === 'Open source')?.href).toBe(REPO_URL);
+    expect(REPO_URL).toMatch(/^https:\/\/github\.com\/[\w-]+\/[\w-]+$/);
+    expect(SUBHEAD).toMatch(/free, open-source/i);
+    expect(read('index.html')).toContain(`<title>${PAGE_TITLE}</title>`);
+    expect(PAGE_TITLE.length).toBeLessThanOrEqual(65);
+    expect(PAGE_TITLE).toMatch(/AI Subscription Tracker/);
+    expect(META_DESCRIPTION.length).toBeLessThanOrEqual(160);
+    expect(renderNoscript()).toContain(`href="${REPO_URL}"`);
+    expect(read('src/components/AboutCard.tsx')).toContain('REPO_URL');
+    expect(read('src/App.tsx')).toContain('REPO_URL');
+  });
+
+  it('gives search engines the app as free software and its questions as schema.org data, safe inside a script tag', () => {
+    const data = JSON.parse(renderStructuredData(PRODUCTION_URL));
+    const [app, faq] = data['@graph'];
+    expect(app['@type']).toBe('SoftwareApplication');
+    expect(app.offers.price).toBe('0');
+    expect(app.isAccessibleForFree).toBe(true);
+    expect(app.url).toBe(`${PRODUCTION_URL}/`);
+    expect(faq['@type']).toBe('FAQPage');
+    expect(faq.mainEntity.map((q: { name: string }) => q.name)).toEqual(FAQ.map((f) => f.q));
+    expect(JSON.parse(renderStructuredData(''))['@graph'][0].url).toBeUndefined(); // an absolute address or none
+    expect(renderStructuredData('')).not.toContain('<');
+    expect(renderWelcomeMeta('')).toContain('<script type="application/ld+json">');
+  });
+
+  it('shows crawlers without JavaScript the whole page: what you get, how it works, privacy and the questions', () => {
+    const noscript = renderNoscript();
+    for (const f of FEATURES) expect(noscript).toContain(f.title);
+    for (const s of STEPS) expect(noscript).toContain(s.title);
+    expect(noscript).toContain(PRIVACY_TITLE);
+    for (const f of FAQ) expect(noscript).toContain(f.q.replace(/'/g, '&#39;').replace(/’/g, '’'));
+    expect(noscript.match(/<h2>/g)?.length).toBeGreaterThanOrEqual(4);
   });
 
   it('shows an invented statement in the hero, and renders its example insights live from the demo data, apart from what is stored', () => {

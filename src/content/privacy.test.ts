@@ -117,14 +117,14 @@ describe('privacy statement matches the app', () => {
     expect(read('src/pages/DataPage.tsx')).toMatch(/transactions only/);
   });
 
-  it('states the runtime-log retention without promising more than Vercel documents, in step with the README', () => {
+  it('states the runtime-log retention without promising more than Vercel documents, in step with the self-hosting doc', () => {
     const body = renderPrivacyBody();
     expect(LOG_RETENTION).toBe('one day');
     expect(body).toContain('Vercel documents one day of retention');
     // it is a period for the runtime logs only: other Vercel data is said to follow other periods
     expect(body).toMatch(/not a promise about everything Vercel keeps/);
     expect(body).not.toMatch(/period to be confirmed|kept by Vercel for one day/);
-    expect(read('README.md')).toMatch(/for one day on the Pro plan/);
+    expect(read('docs/self-hosting.md')).toMatch(/for one day on the Pro plan/);
   });
 
   it('keeps the API key in memory unless "Remember on this device" is ticked, and never in a URL', () => {
