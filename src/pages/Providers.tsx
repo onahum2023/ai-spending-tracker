@@ -90,7 +90,7 @@ export function Providers() {
   return (
     <Card icon="users" tone="accent"
       title={`${providers.length} providers`}
-      subtitle={`${formatEUR(sumCents(periodRows))} in the last 12 months · ${formatEUR(allTotal)} all time`}
+      subtitle={`${formatEUR(sumCents(periodRows))} in the last 12 months${span ? ` (${monthLabel(addMonths(span.lastMonth, -11))} to ${monthLabel(span.lastMonth)}, data through ${dateLabel(span.lastDate)})` : ''} · ${formatEUR(allTotal)} all time`}
     >
       <CardNote>
         {activeInPeriod} with spending in {label}

@@ -653,3 +653,8 @@ tr.is-selected td { background: var(--accent-wash); }
     radial-gradient(420px 220px at 60% 130%, color-mix(in srgb, var(--overlap) 11%, transparent), transparent 70%),
     var(--card-bg);
 }
+
+/* Row selection is a desktop-table feature: on a phone the table becomes cards without checkboxes, so the hint and bar go too. */
+@media (max-width: 700px) {
+  .select-hint, .selection-bar { display: none; }
+}
