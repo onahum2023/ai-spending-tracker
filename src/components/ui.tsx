@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
 import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
@@ -9,12 +9,15 @@ export function Card({
   title,
   subtitle,
   actions,
+  toolbar,
   children,
   className = '',
 }: {
   title?: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  /** A row of filters or search above the body, under the heading. */
+  toolbar?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -29,17 +32,117 @@ export function Card({
           {actions}
         </div>
       )}
+      {toolbar && <div className="card-toolbar">{toolbar}</div>}
       <div className="card-body">{children}</div>
     </section>
   );
 }
 
-export function Kpi({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
+/** One figure with a label and an optional note. `lead` makes it the largest figure on the page. */
+export function Stat({ label, value, sub, lead = false }: { label: ReactNode; value: ReactNode; sub?: ReactNode; lead?: boolean }) {
   return (
-    <div className="card kpi">
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value num">{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
+    <div className={`stat${lead ? ' stat-lead' : ''}`}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value num">{value}</div>
+      {sub && <div className="stat-sub">{sub}</div>}
+    </div>
+  );
+}
+
+/** The summary row under a page title: one card, a few figures, the first one leading. */
+export function StatStrip({ children }: { children: ReactNode }) {
+  return <section className="card stat-strip">{children}</section>;
+}
+
+/** Several stats side by side inside a card. */
+export function StatGrid({ children, columns = 3 }: { children: ReactNode; columns?: number }) {
+  return (
+    <div className="stat-grid" style={{ ['--cols' as string]: columns }}>
+      {children}
+    </div>
+  );
+}
+
+export type NoticeTone = 'info' | 'warn' | 'error' | 'ok';
+
+/** A message about the page or the data. Warn means the numbers depend on something you can still fix. */
+export function Notice({
+  tone = 'info',
+  actions,
+  children,
+  className = '',
+  role,
+}: {
+  tone?: NoticeTone;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  role?: 'status' | 'alert';
+}) {
+  return (
+    <div className={`notice notice-${tone}${actions ? ' notice-with-actions' : ''} ${className}`.trim()} role={role ?? (tone === 'error' ? 'alert' : undefined)}>
+      <span>{children}</span>
+      {actions && <span className="notice-actions">{actions}</span>}
+    </div>
+  );
+}
+
+export function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg className={`chevron${open ? ' open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+/** A text toggle that reveals an explanation. Closed by default. The one way to tuck "how is this worked out" away. */
+export function Disclosure({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div>
+      <button type="button" className="disclosure-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        <Chevron open={open} />
+        {label}
+      </button>
+      <div id={id} hidden={!open} className="disclosure-body">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Search, filters and toggles for a card. Put it in a card's `actions`, or as the first row of the card body. */
+export function Toolbar({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`toolbar ${className}`.trim()}>{children}</div>;
+}
+
+/** Rows of "name, detail, amount". Use a table instead only when the columns need sorting. */
+export function List({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={className}>{children}</div>;
+}
+
+export function ListRow({
+  lead,
+  title,
+  meta,
+  value,
+  total = false,
+}: {
+  lead?: ReactNode;
+  title: ReactNode;
+  meta?: ReactNode;
+  value?: ReactNode;
+  total?: boolean;
+}) {
+  return (
+    <div className={`list-row${total ? ' is-total' : ''}`}>
+      {lead !== undefined && <div className="list-lead num">{lead}</div>}
+      <div className="list-main">
+        <div>{title}</div>
+        {meta && <div className="list-meta">{meta}</div>}
+      </div>
+      {value !== undefined && <div className="list-value num">{value}</div>}
     </div>
   );
 }

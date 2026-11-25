@@ -5,6 +5,7 @@ import { commitImport } from '../lib/db';
 import { planImport, type ImportPlan } from '../lib/dedupe';
 import { formatEUR, sumCents } from '../lib/money';
 import { useLedger } from '../store';
+import { Notice, Stat, StatGrid } from './ui';
 
 interface Preview {
   fileName: string;
@@ -94,34 +95,19 @@ export function ImportPanel({ onImported, extraActions }: { onImported?: () => v
           </div>
         </div>
 
-        {parse.fatal && <div className="notice notice-error">{parse.fatal}</div>}
+        {parse.fatal && <Notice tone="error">{parse.fatal}</Notice>}
 
         {plan && (
-          <div className="stat-row">
-            <div>
-              <div className="small muted">Rows in file</div>
-              <div className="value num">{parse.rowsInFile}</div>
-            </div>
-            <div>
-              <div className="small muted">New, will be added</div>
-              <div className="value num">{plan.toAdd.length}</div>
-              <div className="small muted num">{formatEUR(sumCents(plan.toAdd))}</div>
-            </div>
-            <div>
-              <div className="small muted">Already stored</div>
-              <div className="value num">{plan.duplicates.length}</div>
-            </div>
-            <div>
-              <div className="small muted">Invalid rows</div>
-              <div className="value num" style={{ color: parse.errors.length ? 'var(--danger)' : undefined }}>
-                {parse.errors.length}
-              </div>
-            </div>
-          </div>
+          <StatGrid columns={4}>
+            <Stat label="Rows in file" value={parse.rowsInFile} />
+            <Stat label="New, will be added" value={plan.toAdd.length} sub={formatEUR(sumCents(plan.toAdd))} />
+            <Stat label="Already stored" value={plan.duplicates.length} />
+            <Stat label="Invalid rows" value={<span className={parse.errors.length ? 'text-danger' : undefined}>{parse.errors.length}</span>} />
+          </StatGrid>
         )}
 
         {parse.warnings.map((w) => (
-          <div key={w} className="notice notice-warn">{w}</div>
+          <Notice key={w} tone="warn">{w}</Notice>
         ))}
 
         {parse.errors.length > 0 && (

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BulkTag, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
-import { Card, ConfirmDialog, SearchInput, type SortDir } from '../components/ui';
+import { Card, ConfirmDialog, Notice, SearchInput, Stat, StatStrip, Toolbar, type SortDir } from '../components/ui';
 import { dateLabel, daysInMonth } from '../lib/dates';
 import { KIND_LABELS, type ChargeKind } from '../lib/overrides';
 import { centsToPlain, formatEUR, sumCents } from '../lib/money';
@@ -57,9 +57,24 @@ export function Transactions({ route }: { route: Route }) {
 
   return (
     <div className="stack">
-      <div className="card card-pad">
-        <div className="filters">
-          <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+      <StatStrip>
+        <Stat lead label="Shown" value={formatEUR(sumCents(filtered))} sub={`${filtered.length} of ${transactions.length} charges${provider ? ` · ${provider}` : ''}`} />
+        <Stat label="Average charge" value={filtered.length ? formatEUR(Math.round(sumCents(filtered) / filtered.length)) : '—'} sub="of the charges shown" />
+        <Stat label="Providers" value={new Set(filtered.map((t) => t.provider)).size} sub="in the charges shown" />
+      </StatStrip>
+
+      <Card
+        title="Charges"
+        subtitle="Search, filter and correct individual charges"
+        actions={
+          <Toolbar>
+            {provider && <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details →</a>}
+            <a className="btn btn-sm btn-ghost" href={href(['data'])}>Export a quarter →</a>
+          </Toolbar>
+        }
+        toolbar={
+        <Toolbar className="filters">
+          <div className="toolbar-grow">
             <SearchInput value={q} onChange={(v) => update({ q: v })} placeholder="Search merchant, provider, amount" />
           </div>
           <select className="select" aria-label="Provider" value={provider} onChange={(e) => update({ provider: e.target.value })}>
@@ -99,20 +114,10 @@ export function Transactions({ route }: { route: Route }) {
               Clear filters
             </button>
           )}
-        </div>
-        {from && to && from > to && <div className="notice notice-warn" style={{ marginTop: 10 }}>The start date is after the end date.</div>}
-      </div>
-
-      <Card
-        title={`${filtered.length} of ${transactions.length} transactions`}
-        subtitle={`${formatEUR(sumCents(filtered))} shown${provider ? ` · ${provider}` : ''}`}
-        actions={
-          <span className="row wrap">
-            {provider && <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details →</a>}
-            <a className="btn btn-sm btn-ghost" href={href(['data'])}>Export a quarter →</a>
-          </span>
+        </Toolbar>
         }
       >
+        {from && to && from > to && <Notice tone="warn" className="mb-3">The start date is after the end date.</Notice>}
         <TagSuggestions />
         {filtered.length > 0 && <BulkTag rows={filtered} />}
         <TransactionTable

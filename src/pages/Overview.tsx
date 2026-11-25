@@ -3,7 +3,7 @@ import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts
 import { BudgetCard } from '../components/BudgetCard';
 import { ForecastCard } from '../components/ForecastCard';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, EmptyState, Kpi, ProviderDot, Segmented } from '../components/ui';
+import { Card, Delta, EmptyState, ProviderDot, Notice, Segmented, Stat, StatStrip } from '../components/ui';
 import {
   filterPeriod,
   monthTotal,
@@ -79,7 +79,7 @@ export function Overview() {
         <ContributorsCard rows={periodRows} label={periodLabel(period)} />
       </div>
       {today < span.lastDate && (
-        <p className="small muted">Note: some transactions are dated after today ({dateLabel(today)}).</p>
+        <Notice tone="info">Some transactions are dated after today ({dateLabel(today)}).</Notice>
       )}
     </div>
   );
@@ -103,12 +103,10 @@ function KpiRow({ period }: { period: Period }) {
     const yearRows = filterPeriod(transactions, { kind: 'year', year: y });
     const yearMonths = span.months.filter((x) => yearOf(x) === y);
     const count = transactions.filter((t) => monthOf(t.date) === m).length;
-    const providers = new Set(transactions.filter((t) => monthOf(t.date) === m).map((t) => t.provider)).size;
-    const yearProviders = new Set(yearRows.map((t) => t.provider)).size;
     const isLatest = m === span.lastMonth;
     return (
-      <div className="grid kpis">
-        <Kpi
+      <StatStrip>
+        <Stat lead
           label={
             <>
               {monthLabelLong(m)}
@@ -122,8 +120,8 @@ function KpiRow({ period }: { period: Period }) {
           value={formatEUR(cur)}
           sub={`${count} charge${count === 1 ? '' : 's'}${inProgress ? ` · through ${dateLabel(today)}` : ''}`}
         />
-        <Kpi label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
-        <Kpi
+        <Stat label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
+        <Stat
           label={inProgress ? `vs same point in ${monthShort(prev)}` : 'Month over month'}
           value={
             inProgress ? (
@@ -146,13 +144,12 @@ function KpiRow({ period }: { period: Period }) {
             )
           }
         />
-        <Kpi
+        <Stat
           label={`${y} total`}
           value={formatEUR(sumCents(yearRows))}
           sub={`${monthShort(yearMonths[0])}–${monthShort(yearMonths[yearMonths.length - 1])} · avg ${formatEUR(Math.round(sumCents(yearRows) / yearMonths.length))}/mo`}
         />
-        <Kpi label="Providers with spending" value={providers} sub={`in ${monthShort(m)} · ${yearProviders} in ${y}`} />
-      </div>
+      </StatStrip>
     );
   }
 
@@ -170,17 +167,16 @@ function KpiRow({ period }: { period: Period }) {
     const partial = months.length < 12;
     const best = [...months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
     return (
-      <div className="grid kpis">
-        <Kpi label={`${y} total`} value={formatEUR(total)} sub={`${rows.length} charges · ${monthShort(months[0])}–${monthShort(months[months.length - 1])}`} />
-        <Kpi label={`${y - 1} total`} value={hasPrev ? formatEUR(sumCents(prevYearRows)) : '—'} sub={hasPrev ? `${prevYearRows.length} charges` : 'No recorded data'} />
-        <Kpi
+      <StatStrip>
+        <Stat lead label={`${y} total`} value={formatEUR(total)} sub={`${rows.length} charges · ${monthShort(months[0])}–${monthShort(months[months.length - 1])}`} />
+        <Stat label={`${y - 1} total`} value={hasPrev ? formatEUR(sumCents(prevYearRows)) : '—'} sub={hasPrev ? `${prevYearRows.length} charges` : 'No recorded data'} />
+        <Stat
           label={partial ? `vs same months of ${y - 1}` : `vs ${y - 1}`}
           value={hasPrev ? <Delta before={samePrev} after={total} showPct={false} /> : '—'}
           sub={hasPrev ? <>{monthShort(months[0])}–{monthShort(months[months.length - 1])} {y - 1}: {formatEUR(samePrev)} ({formatPct(pctChange(samePrev, total))})</> : 'Nothing to compare'}
         />
-        <Kpi label="Average per month" value={formatEUR(Math.round(total / months.length))} sub={`Highest: ${monthLabel(best)} (${formatEUR(byMonth.get(best) ?? 0)})`} />
-        <Kpi label="Providers with spending" value={new Set(rows.map((r) => r.provider)).size} sub={`in ${y}`} />
-      </div>
+        <Stat label="Average per month" value={formatEUR(Math.round(total / months.length))} sub={`Highest: ${monthLabel(best)} (${formatEUR(byMonth.get(best) ?? 0)})`} />
+      </StatStrip>
     );
   }
 
@@ -188,13 +184,12 @@ function KpiRow({ period }: { period: Period }) {
   const best = [...span.months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
   const latest = monthTotal(transactions, span.lastMonth);
   return (
-    <div className="grid kpis">
-      <Kpi label="All-time total" value={formatEUR(total)} sub={`${transactions.length} charges since ${monthLabel(span.firstMonth)}`} />
-      <Kpi label={`Latest month · ${monthLabel(span.lastMonth)}`} value={formatEUR(latest)} sub={span.lastMonth === monthOf(today) ? 'In progress' : `Last charge ${dateLabel(span.lastDate)}`} />
-      <Kpi label="Average per month" value={formatEUR(Math.round(total / span.months.length))} sub={`over ${span.months.length} months`} />
-      <Kpi label="Highest month" value={formatEUR(byMonth.get(best) ?? 0)} sub={monthLabel(best)} />
-      <Kpi label="Providers" value={new Set(transactions.map((t) => t.provider)).size} sub="with recorded spending" />
-    </div>
+    <StatStrip>
+      <Stat lead label="All-time total" value={formatEUR(total)} sub={`${transactions.length} charges since ${monthLabel(span.firstMonth)}`} />
+      <Stat label={`Latest month · ${monthLabel(span.lastMonth)}`} value={formatEUR(latest)} sub={span.lastMonth === monthOf(today) ? 'In progress' : `Last charge ${dateLabel(span.lastDate)}`} />
+      <Stat label="Average per month" value={formatEUR(Math.round(total / span.months.length))} sub={`over ${span.months.length} months`} />
+      <Stat label="Highest month" value={formatEUR(byMonth.get(best) ?? 0)} sub={monthLabel(best)} />
+    </StatStrip>
   );
 }
 
@@ -257,7 +252,7 @@ function ChargesCard({ period }: { period: Period }) {
           </a>
         }
       >
-        <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+        <div className="scroll-y">
           <TransactionTable rows={rows} emptyText="No charges recorded in this month." />
         </div>
       </Card>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Card, EmptyState, ProviderDot, SearchInput, SortHeader, type SortDir } from '../components/ui';
+import { Card, EmptyState, ProviderDot, SearchInput, SortHeader, Stat, StatStrip, Toolbar, type SortDir } from '../components/ui';
 import { filterPeriod, periodLabel, providerTotals } from '../lib/analytics';
 import { dateLabel } from '../lib/dates';
 import { formatEUR, sumCents } from '../lib/money';
@@ -44,13 +44,26 @@ export function Providers() {
   const activeInPeriod = providers.filter((p) => (periodTotals.get(p.provider) ?? 0) !== 0).length;
 
   return (
+    <div className="stack">
+      <StatStrip>
+        <Stat lead label={`Spending in ${label}`} value={formatEUR(sumCents(periodRows))} sub={`${activeInPeriod} of ${providers.length} providers charged`} />
+        <Stat label="All time" value={formatEUR(allTotal)} sub={`across ${providers.length} providers`} />
+        <Stat
+          label="Charge types to review"
+          value={toReviewTotal}
+          sub={toReviewTotal ? 'Open a provider to confirm them' : 'Everything is confirmed'}
+        />
+      </StatStrip>
+
     <Card
-      title={`${providers.length} providers`}
-      subtitle={`${activeInPeriod} with spending in ${label} · ${formatEUR(sumCents(periodRows))} in ${label} · ${formatEUR(allTotal)} all time${toReviewTotal ? ` · ${toReviewTotal} charge type${toReviewTotal === 1 ? '' : 's'} to review` : ''}`}
+      title="All providers"
+      subtitle="Select a provider to see its charges and confirm how they are read"
       actions={
-        <div style={{ width: 240, maxWidth: '100%' }}>
-          <SearchInput value={q} onChange={setQ} placeholder="Search providers" />
-        </div>
+        <Toolbar>
+          <div className="toolbar-search">
+            <SearchInput value={q} onChange={setQ} placeholder="Search providers" />
+          </div>
+        </Toolbar>
       }
     >
       {rows.length === 0 ? (
@@ -86,12 +99,12 @@ export function Providers() {
                         {p.periodCents ? formatEUR(p.periodCents) : <span className="muted">—</span>}
                       </td>
                       <td className="amount">{formatEUR(p.totalCents)}</td>
-                      <td className="hide-sm" style={{ width: 160 }}>
-                        <div className="row" style={{ gap: 8 }}>
-                          <div className="bar-track" style={{ flex: 1 }}>
+                      <td className="hide-sm share-cell">
+                        <div className="row">
+                          <div className="bar-track share-track">
                             <ShareFill provider={p.provider} share={share} />
                           </div>
-                          <span className="small muted num" style={{ width: 34, textAlign: 'right' }}>
+                          <span className="small muted num share-pct">
                             {(share * 100).toFixed(share < 0.1 ? 1 : 0)}%
                           </span>
                         </div>
@@ -119,8 +132,8 @@ export function Providers() {
                   <ProviderDot provider={p.provider} />
                   {p.provider}
                 </span>
-                <span className="num" style={{ fontWeight: 600 }}>{formatEUR(p.totalCents)}</span>
-                <span className="small muted" style={{ gridColumn: '1 / -1' }}>
+                <span className="num strong">{formatEUR(p.totalCents)}</span>
+                <span className="small muted m-card-wide">
                   {label}: {p.periodCents ? formatEUR(p.periodCents) : '—'} · {p.count} charges · {dateLabel(p.firstDate)} – {dateLabel(p.lastDate)}
                   {toReview.get(p.provider) ? ` · ${toReview.get(p.provider)} to review` : ''}
                 </span>
@@ -130,6 +143,7 @@ export function Providers() {
         </>
       )}
     </Card>
+    </div>
   );
 }
 

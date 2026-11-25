@@ -1,5 +1,5 @@
-import { useId, useState, type ReactNode } from 'react';
-import { Card, Delta, EmptyState, Kpi, ProviderDot, ProviderLink, StreamName, TypeNote } from '../components/ui';
+import { useId, useState } from 'react';
+import { Card, Chevron, Delta, Disclosure, EmptyState, List, ListRow, Notice, ProviderDot, ProviderLink, Stat, StatStrip, StreamName, TypeNote } from '../components/ui';
 import { CATEGORY_LABELS, CATEGORY_NOUNS } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal } from '../lib/dates';
 import { STALE_AFTER_DAYS } from '../lib/forecast';
@@ -23,40 +23,36 @@ export function Subscriptions() {
 
   return (
     <div className="stack">
-      <div className="grid kpis">
-        <Kpi label="Monthly run-rate" value={formatEUR(r.monthlyCents)} sub={`${r.active.length} recurring charge${r.active.length === 1 ? '' : 's'} still appearing`} />
-        <Kpi label="Per year" value={formatEUR(r.yearlyCents)} sub="if nothing changes" />
-        <Kpi
+      {toReview > 0 && (
+        <Notice
+          tone="warn"
+          role="status"
+          actions={<a className="btn btn-sm" href={href(['providers'])}>Review on the Providers page</a>}
+        >
+          <strong>{toReview} charge type{toReview === 1 ? '' : 's'} still to review.</strong> What is counted here follows the app's
+          suggestions until you confirm them.
+        </Notice>
+      )}
+
+      <StatStrip>
+        <Stat
+          lead
+          label="Monthly run-rate"
+          value={formatEUR(r.monthlyCents)}
+          sub={`${formatEUR(r.yearlyCents)} a year if nothing changes · ${r.active.length} recurring charge${r.active.length === 1 ? '' : 's'}`}
+        />
+        <Stat
           label={`Next ${UPCOMING_DAYS} days`}
           value={r.dataFresh ? formatEUR(r.upcomingCents) : '—'}
           sub={r.dataFresh ? `${r.upcoming.length} expected charge${r.upcoming.length === 1 ? '' : 's'}` : 'Import recent transactions'}
         />
-        <Kpi label="Price changes" value={recentChanges.length} sub="in the last 6 months" />
-        <Kpi
+        <Stat label="Price changes" value={recentChanges.length} sub="in the last 6 months" />
+        <Stat
           label="Stopped"
           value={r.stopped.length}
           sub={r.stopped.length ? `${cleanStops} with no charges since` : 'nothing stopped'}
         />
-      </div>
-
-      <Disclosure label="How are these found?">
-        <p className="small muted" style={{ margin: 0 }}>
-          Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
-          so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
-          be told from a one-off charge: set its charge type to "Subscription · yearly" on the provider's page. This page only shows
-          what your charge types say; change them on the provider pages.
-        </p>
-      </Disclosure>
-
-      {toReview > 0 && (
-        <div className="notice-bar" role="status">
-          <span>
-            <strong>{toReview} charge type{toReview === 1 ? '' : 's'} still to review.</strong> What is counted here follows the app's
-            suggestions until you confirm them.
-          </span>
-          <a className="btn btn-sm" href={href(['providers'])}>Review on the Providers page</a>
-        </div>
-      )}
+      </StatStrip>
 
       {r.active.length === 0 && r.stopped.length === 0 ? (
         <Card>
@@ -81,31 +77,14 @@ export function Subscriptions() {
         </>
       )}
 
-    </div>
-  );
-}
-
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg className={`chevron${open ? ' open' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  );
-}
-
-/** A text toggle that reveals its children. Closed by default. */
-function Disclosure({ label, children }: { label: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  return (
-    <div>
-      <button type="button" className="disclosure-btn" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-        <Chevron open={open} />
-        {label}
-      </button>
-      <div id={id} hidden={!open} className="disclosure-body">
-        {children}
-      </div>
+      <Disclosure label="How are these found?">
+        <p>
+          Monthly subscriptions are found from charge patterns (the same provider on a similar day and amount for 3+ months in a row),
+          so they are observations, not confirmed. A charge has no plan name, so plan changes are inferred. A yearly subscription can't
+          be told from a one-off charge: set its charge type to "Subscription · yearly" on the provider's page. This page only shows
+          what your charge types say; change them on the provider pages.
+        </p>
+      </Disclosure>
     </div>
   );
 }
@@ -232,40 +211,35 @@ function UpcomingCard({ upcoming, fresh, latest, asOf, total }: { upcoming: Upco
   return (
     <Card title={`Next ${UPCOMING_DAYS} days`} subtitle={`From ${dateLabel(asOf)}, on the day each recurring charge usually lands`}>
       {!fresh ? (
-        <div className="notice notice-warn">
+        <Notice tone="warn">
           No calendar: the latest recorded charge is from {dateLabel(latest)}, more than {STALE_AFTER_DAYS} days ago, so dates
           would be guesswork. Import recent transactions to enable it.
-        </div>
+        </Notice>
       ) : upcoming.length === 0 ? (
         <EmptyState>No recurring charges are expected in this window.</EmptyState>
       ) : (
-        <div className="stack" style={{ gap: 0 }}>
-          {upcoming.map((u) => (
-            <div key={u.date + u.provider + u.merchant} className="cal-row">
-              <span className="cal-date num">
-                <span className="muted">{weekday(u.date)}</span> {dateLabel(u.date).replace(/ \d{4}$/, '')}
-              </span>
-              <span>
-                <ProviderLink provider={u.provider} />
-                <StreamName provider={u.provider} merchant={u.merchant} labelOnly />
-                {u.cadence === 'yearly' && (
-                  <div className="small muted">
-                    {u.overdue ? 'Yearly renewal, not seen yet' : u.estimated ? 'Yearly renewal, date estimated' : 'Yearly renewal'}
-                  </div>
-                )}
-              </span>
-              <span className="num">{formatEUR(u.cents)}</span>
-            </div>
-          ))}
-          <div className="cal-row cal-total">
-            <span>{upcoming.length} expected</span>
-            <span />
-            <span className="num">{formatEUR(total)}</span>
-          </div>
-          <p className="small muted" style={{ marginTop: 8 }}>
+        <>
+          <List>
+            {upcoming.map((u) => (
+              <ListRow
+                key={u.date + u.provider + u.merchant}
+                lead={<><span className="muted">{weekday(u.date)}</span> {dateLabel(u.date).replace(/ \d{4}$/, '')}</>}
+                title={
+                  <>
+                    <ProviderLink provider={u.provider} />
+                    <StreamName provider={u.provider} merchant={u.merchant} labelOnly />
+                  </>
+                }
+                meta={u.cadence === 'yearly' ? (u.overdue ? 'Yearly renewal, not seen yet' : u.estimated ? 'Yearly renewal, date estimated' : 'Yearly renewal') : undefined}
+                value={formatEUR(u.cents)}
+              />
+            ))}
+            <ListRow total lead="" title={`${upcoming.length} expected`} value={formatEUR(total)} />
+          </List>
+          <p className="small muted mt-2">
             Estimates from past months. Amounts, dates and plans can change, and unusual charges are not predicted.
           </p>
-        </div>
+        </>
       )}
     </Card>
   );
@@ -277,21 +251,24 @@ function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
       {changes.length === 0 ? (
         <EmptyState>No price changes seen.</EmptyState>
       ) : (
-        <div className="stack" style={{ gap: 0 }}>
-          {changes.slice(0, 8).map((c) => (
-            <div key={c.date + c.provider + c.fromCents} className="change-line">
-              <div>
-                <ProviderLink provider={c.provider} />
-                <div className="small secondary num">
-                  went from {formatEUR(c.fromCents)} to {formatEUR(c.toCents)} in {monthShort(c.month)} {c.month.slice(0, 4)}
-                </div>
-                {c.kind === 'plan' && Math.abs(c.pct) >= 25 && <div className="small muted">likely a plan change</div>}
-              </div>
-              <Delta before={c.fromCents} after={c.toCents} />
-            </div>
-          ))}
-          {changes.length > 8 && <p className="small muted" style={{ marginTop: 8 }}>+ {changes.length - 8} older changes</p>}
-        </div>
+        <>
+          <List>
+            {changes.slice(0, 8).map((c) => (
+              <ListRow
+                key={c.date + c.provider + c.fromCents}
+                title={<ProviderLink provider={c.provider} />}
+                meta={
+                  <>
+                    went from {formatEUR(c.fromCents)} to {formatEUR(c.toCents)} in {monthShort(c.month)} {c.month.slice(0, 4)}
+                    {c.kind === 'plan' && Math.abs(c.pct) >= 25 && ', likely a plan change'}
+                  </>
+                }
+                value={<Delta before={c.fromCents} after={c.toCents} />}
+              />
+            ))}
+          </List>
+          {changes.length > 8 && <p className="small muted mt-2">+ {changes.length - 8} older changes</p>}
+        </>
       )}
     </Card>
   );
@@ -303,19 +280,18 @@ function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
       {groups.length === 0 ? (
         <EmptyState>No overlap: at most one recurring charge per kind of tool.</EmptyState>
       ) : (
-        <div className="stack" style={{ gap: 14 }}>
+        <div className="stack gap-4">
           {groups.map((g) => (
             <div key={g.category}>
-              <div style={{ fontWeight: 600 }}>{g.sentence.split(' · ')[0]}</div>
-              <div className="small secondary num" style={{ marginBottom: 4 }}>
-                {formatEUR(g.combinedMonthlyCents)}/month combined · {formatEUR(g.combinedMonthlyCents * 12)}/year
+              <div className="strong">{g.sentence.split(' · ')[0]}</div>
+              <div className="small secondary num">
+                {formatEUR(g.combinedMonthlyCents)}/month combined, {formatEUR(g.combinedMonthlyCents * 12)}/year
               </div>
-              {g.members.map((m) => (
-                <div key={m.provider} className="row-between small">
-                  <ProviderLink provider={m.provider} />
-                  <span className="num">{formatEUR(m.monthlyCents)}/month</span>
-                </div>
-              ))}
+              <List>
+                {g.members.map((m) => (
+                  <ListRow key={m.provider} title={<ProviderLink provider={m.provider} />} value={`${formatEUR(m.monthlyCents)}/month`} />
+                ))}
+              </List>
             </div>
           ))}
           <p className="small muted">Overlap is not waste: you may use each one for something different.</p>
@@ -388,22 +364,21 @@ function SavingsCard({ subs }: { subs: Subscription[] }) {
       {top.length === 0 ? (
         <EmptyState>No active recurring charges.</EmptyState>
       ) : (
-        <div className="stack" style={{ gap: 10 }}>
-          {top.map((s) => (
-            <div key={s.provider + s.pattern.firstDate} className="row-between" style={{ alignItems: 'flex-start' }}>
-              <div>
-                <span>Ending <ProviderLink provider={s.provider} /> would save</span>
-                {s.notes.map((n) => (
-                  <div key={n} className="small muted">{n}</div>
-                ))}
-              </div>
-              <span className="num" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>≈ {formatEUR(s.yearlyCents)} a year</span>
-            </div>
-          ))}
+        <>
+          <List>
+            {top.map((s) => (
+              <ListRow
+                key={s.provider + s.pattern.firstDate}
+                title={<>Ending <ProviderLink provider={s.provider} /> would save</>}
+                meta={s.notes.length ? s.notes.map((n) => <div key={n}>{n}</div>) : undefined}
+                value={`≈ ${formatEUR(s.yearlyCents)} a year`}
+              />
+            ))}
+          </List>
           {subs.length > top.length && (
-            <p className="small muted">The other {subs.length - top.length} cost {formatEUR(subs.slice(5).reduce((a, s) => a + s.yearlyCents, 0))} a year together.</p>
+            <p className="small muted mt-2">The other {subs.length - top.length} cost {formatEUR(subs.slice(5).reduce((a, s) => a + s.yearlyCents, 0))} a year together.</p>
           )}
-        </div>
+        </>
       )}
     </Card>
   );

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
-import { Card, Delta, EmptyState, ProviderDot, ProviderLink, Segmented, StreamName } from '../components/ui';
+import { Card, Delta, EmptyState, List, ListRow, ProviderLink, Segmented, Stat, StatGrid, StatStrip, StreamName } from '../components/ui';
 import {
   concentration,
   filterPeriod,
@@ -12,7 +12,6 @@ import {
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal, yearOf } from '../lib/dates';
 import { formatEUR, formatSignedEUR, sumCents } from '../lib/money';
 import { typeChange, typeSentence } from '../lib/insights';
-import { providerHref } from '../router';
 import { useLedger } from '../store';
 
 function rangeLabel(from: string, to: string) {
@@ -31,22 +30,25 @@ export function Trends() {
   const completeMonths = span.months.filter((m) => m <= L);
   const last3 = sumCents(rowsInMonths(transactions, addMonths(L, -2), L));
   const prev3 = sumCents(rowsInMonths(transactions, addMonths(L, -5), addMonths(L, -3)));
+  const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0];
 
   return (
     <div className="stack">
-      <div className="grid cols-2">
-        <Card title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
-          <MonthlyTrendChart rows={transactions} months={span.months} />
-        </Card>
-        <Card title="At a glance" subtitle="Complete months only, unless noted">
-          <div className="stack" style={{ gap: 14 }}>
-            <Stat label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`} value={formatEUR(last3)} sub={<>vs previous 3: <Delta before={prev3} after={last3} /></>} />
-            <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
-            <Stat label="Highest month" value={formatEUR(byMonth.get(sortedMonths[0]) ?? 0)} sub={monthLabel(sortedMonths[0])} />
-            <Stat label="Lowest complete month" value={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? formatEUR(byMonth.get(low) ?? 0) : '—'; })()} sub={(() => { const low = [...completeMonths].sort((a, b) => (byMonth.get(a) ?? 0) - (byMonth.get(b) ?? 0))[0]; return low ? monthLabel(low) : ''; })()} />
-          </div>
-        </Card>
-      </div>
+      <StatStrip>
+        <Stat
+          lead
+          label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`}
+          value={formatEUR(last3)}
+          sub={<>vs previous 3: <Delta before={prev3} after={last3} /></>}
+        />
+        <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
+        <Stat label="Highest month" value={formatEUR(byMonth.get(sortedMonths[0]) ?? 0)} sub={monthLabel(sortedMonths[0])} />
+        <Stat label="Lowest complete month" value={low ? formatEUR(byMonth.get(low) ?? 0) : '—'} sub={low ? monthLabel(low) : ''} />
+      </StatStrip>
+
+      <Card title="Monthly spending over time" subtitle={`${monthLabel(span.firstMonth)} – ${monthLabel(span.lastMonth)}${span.lastMonth > L ? ` (${monthShort(span.lastMonth)} in progress)` : ''}`}>
+        <MonthlyTrendChart rows={transactions} months={span.months} />
+      </Card>
 
       <SpendingTypes />
 
@@ -58,16 +60,6 @@ export function Trends() {
       </div>
 
       <RecurringCard />
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
-  return (
-    <div>
-      <div className="small secondary">{label}</div>
-      <div className="num" style={{ fontSize: 19, fontWeight: 650 }}>{value}</div>
-      {sub && <div className="small muted">{sub}</div>}
     </div>
   );
 }
@@ -89,7 +81,7 @@ function SpendingTypes() {
         <TypeChart rows={transactions} months={span.months} typeOf={analysis.typeOf} />
       </Card>
       <Card title="More tools or more usage?" subtitle={`${rangeLabel(c.afterFrom, c.afterTo)} vs ${rangeLabel(c.beforeFrom, c.beforeTo)}`}>
-        <div className="stack" style={{ gap: 14 }}>
+        <div className="stack gap-4">
           <Row label="Subscriptions" now={c.after.subscriptionCents} before={c.before.subscriptionCents} />
           <Row label="Usage" now={c.after.usageCents} before={c.before.usageCents} />
           <Row label="One-time / Other" now={c.after.otherCents} before={c.before.otherCents} />
@@ -216,13 +208,13 @@ function ChangesCard() {
       {result.changes.length === 0 ? (
         <EmptyState>No changes between these periods.</EmptyState>
       ) : (
-        <div className="stack" style={{ gap: 12 }}>
+        <div className="stack gap-3">
           <div>
-            <div className="small secondary" style={{ marginBottom: 4 }}>Increases (more spending)</div>
+            <div className="small secondary mb-1">Increases (more spending)</div>
             {ups.length ? ups.map((c) => <Row key={c.provider} c={c} />) : <div className="small muted">None</div>}
           </div>
           <div>
-            <div className="small secondary" style={{ marginBottom: 4 }}>Decreases (less spending)</div>
+            <div className="small secondary mb-1">Decreases (less spending)</div>
             {downs.length ? downs.map((c) => <Row key={c.provider} c={c} />) : <div className="small muted">None</div>}
           </div>
           <div className="small muted">
@@ -266,10 +258,12 @@ function ConcentrationCard() {
         />
       }
     >
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 14 }}>
-        <Stat label="Top provider" value={pct(c.top1Share)} sub={c.shares[0]?.provider} />
-        <Stat label="Top 3 providers" value={pct(c.top3Share)} sub="of spending" />
-        <Stat label="80% of spending" value={`${c.providersFor80} of ${c.shares.length}`} sub="providers" />
+      <div className="mb-3">
+        <StatGrid>
+          <Stat label="Top provider" value={pct(c.top1Share)} sub={c.shares[0]?.provider} />
+          <Stat label="Top 3 providers" value={pct(c.top3Share)} sub="of spending" />
+          <Stat label="80% of spending" value={`${c.providersFor80} of ${c.shares.length}`} sub="providers" />
+        </StatGrid>
       </div>
       <div className="segbar" role="img" aria-label="Share of spending by provider">
         {top.map((s) => (
@@ -277,20 +271,21 @@ function ConcentrationCard() {
         ))}
         {rest.length > 0 && <div style={{ flex: restShare, background: colors.otherColor }} title={`${rest.length} others: ${pct(restShare)}`} />}
       </div>
-      <div className="bar-list" style={{ marginTop: 14, gap: 6 }}>
+      <List className="mt-3">
         {top.map((s) => (
-          <a key={s.provider} className="row-between small" href={providerHref(s.provider)}>
-            <span className="bar-name"><ProviderDot provider={s.provider} /><span>{s.provider}</span></span>
-            <span className="num">{formatEUR(s.cents)} <span className="muted">· {pct(s.share)}</span></span>
-          </a>
+          <ListRow
+            key={s.provider}
+            title={<ProviderLink provider={s.provider} />}
+            value={<>{formatEUR(s.cents)} <span className="muted">{pct(s.share)}</span></>}
+          />
         ))}
         {rest.length > 0 && (
-          <div className="row-between small muted">
-            <span className="bar-name"><span className="dot" style={{ background: colors.otherColor }} /><span>{rest.length} other providers</span></span>
-            <span className="num">{formatEUR(rest.reduce((a, s) => a + s.cents, 0))} · {pct(restShare)}</span>
-          </div>
+          <ListRow
+            title={<span className="provider-cell muted"><span className="dot" style={{ background: colors.otherColor }} />{rest.length} other providers</span>}
+            value={<>{formatEUR(rest.reduce((a, s) => a + s.cents, 0))} <span className="muted">{pct(restShare)}</span></>}
+          />
         )}
-      </div>
+      </List>
     </Card>
   );
 }

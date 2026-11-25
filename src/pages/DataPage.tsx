@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AboutCard } from '../components/AboutCard';
 import { ImportPanel } from '../components/ImportPanel';
 import { QuarterExport } from '../components/QuarterExport';
-import { Card, ConfirmDialog } from '../components/ui';
+import { Card, ConfirmDialog, EmptyState, Stat, StatStrip } from '../components/ui';
 import { exportCsv } from '../lib/download';
 import { StatementImport } from '../components/StatementImport';
 import { dateLabel } from '../lib/dates';
@@ -32,6 +32,13 @@ export function DataPage() {
 
   return (
     <div className="stack">
+      <StatStrip>
+        <Stat lead label={demo ? 'Demo transactions' : 'Stored transactions'} value={transactions.length} sub={demo ? 'Invented, not saved' : 'Kept in this browser only'} />
+        <Stat label="Providers" value={providers.length} />
+        <Stat label="Total recorded" value={formatEUR(sumCents(transactions))} />
+        <Stat label="Date range" value={span ? dateLabel(span.firstDate) : '—'} sub={span ? `to ${dateLabel(span.lastDate)}` : undefined} />
+      </StatStrip>
+
       <Card
         title={demo ? 'Use your own data: extract AI charges from statements' : 'Extract AI charges from bank or card statements'}
         subtitle="Excel or CSV exports and Revolut PDFs. Read in your browser; review before anything is saved."
@@ -57,13 +64,7 @@ export function DataPage() {
               : 'Kept only in this browser (IndexedDB) on this device. Nothing is uploaded, and it is not synced to other devices.'
           }
         >
-          <div className="stat-row" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-            <div><div className="small muted">Transactions</div><div className="value num">{transactions.length}</div></div>
-            <div><div className="small muted">Providers</div><div className="value num">{providers.length}</div></div>
-            <div><div className="small muted">Total</div><div className="value num">{formatEUR(sumCents(transactions))}</div></div>
-          </div>
-          {span && <p className="small muted" style={{ marginTop: 8 }}>{dateLabel(span.firstDate)} – {dateLabel(span.lastDate)}</p>}
-          <div className="row wrap" style={{ marginTop: 14 }}>
+          <div className="row wrap">
             <button
               className="btn"
               onClick={() => exportCsv(transactions, demo ? 'ai-spending-example.csv' : undefined)}
@@ -81,7 +82,7 @@ export function DataPage() {
               </button>
             )}
           </div>
-          <p className="small muted" style={{ marginTop: 10 }}>
+          <p className="small muted mt-3">
             Exports use the import format (Merchant, Provider, Amount, Date, plus Type and Tag when used), so an export can be re-imported
             or loaded on another device. The file holds transactions only: budgets, corrections, labels, categories, tag rules and the import history are not in it.
           </p>
@@ -93,7 +94,7 @@ export function DataPage() {
       <div className="grid cols-2">
         <Card title="Import history">
           {imports.length === 0 ? (
-            <p className="muted">No imports yet.</p>
+            <EmptyState>No imports yet.</EmptyState>
           ) : (
             <div className="table-wrap">
               <table className="table">
@@ -119,7 +120,7 @@ export function DataPage() {
           )}
         </Card>
         <Card title="How duplicates are handled">
-          <div className="stack small secondary" style={{ gap: 8 }}>
+          <div className="stack small secondary gap-2">
             <p>
               The CSV has no transaction IDs, so a record is identified by all four values together:
               date, provider, merchant descriptor and amount (exact match).

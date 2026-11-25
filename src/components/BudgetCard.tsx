@@ -4,7 +4,7 @@ import { CATEGORIES, CATEGORY_LABELS, type Category } from '../lib/categories';
 import { monthLabelLong } from '../lib/dates';
 import { centsToPlain, formatEUR, parseAmountToCents } from '../lib/money';
 import { useLedger } from '../store';
-import { Card } from './ui';
+import { Card, Notice } from './ui';
 
 /** "120", "120.5", "1 200,00", "€120" -> cents. Empty -> null (no budget). Throws a readable message when invalid. */
 export function parseBudgetInput(raw: string): number | null {
@@ -80,11 +80,11 @@ export function BudgetCard() {
       subtitle="Spent so far, with the month-end estimate"
       actions={<button className="btn btn-sm" onClick={() => setEditing(true)}>Edit</button>}
     >
-      <div className="stack" style={{ gap: 16 }}>
+      <div className="stack gap-4">
         {report.lines.map((l) => (
           <div key={l.key}>
             <div className="row-between">
-              <span style={{ fontWeight: 600 }}>{l.label}</span>
+              <span className="strong">{l.label}</span>
               <span className={`chip ${STATUS_CLASS[l.status]}`}>{STATUS_LABEL[l.status]}</span>
             </div>
             <BudgetBar line={l} />
@@ -147,11 +147,11 @@ function BudgetForm({
   );
 
   return (
-    <div className="stack" style={{ gap: 10 }}>
+    <div className="stack gap-3">
       {field('total', 'All spending', total, setTotal)}
-      <div className="small secondary" style={{ marginTop: 4 }}>Per category</div>
+      <div className="small secondary">Per category</div>
       {categories.map((c) => field(c, CATEGORY_LABELS[c], cats[c] ?? '', (v) => setCats((prev) => ({ ...prev, [c]: v }))))}
-      {error && <div className="notice notice-error">{error}</div>}
+      {error && <Notice tone="error">{error}</Notice>}
       <div className="row wrap">
         <button className="btn btn-primary" onClick={() => void save()} disabled={busy}>Save budget</button>
         <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>

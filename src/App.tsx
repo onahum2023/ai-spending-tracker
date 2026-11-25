@@ -6,7 +6,7 @@ import { formatEUR, sumCents } from './lib/money';
 import { DataPage } from './pages/DataPage';
 import { exportCsv } from './lib/download';
 import { StatementImport } from './components/StatementImport';
-import { ProviderDot, Segmented } from './components/ui';
+import { Notice, ProviderDot, Segmented } from './components/ui';
 import { generateDemo } from './lib/demoData';
 import { Overview } from './pages/Overview';
 import { ProviderDetail } from './pages/ProviderDetail';
@@ -65,39 +65,53 @@ function Shell() {
   let page: ReactNode = <Overview />;
   let crumb: ReactNode = null;
   let showPeriod = true;
+  // Every page says what it is for, and what time it covers. A page without its own period says so.
+  let desc = 'What you spent on AI tools, where it went, and where this month is heading.';
+  let scope: ReactNode = null;
+  const through = span ? dateLabel(span.lastDate) : null;
   switch (section) {
     case 'providers':
       if (providerName) {
         title = (
-          <span className="row" style={{ gap: 10 }}>
+          <span className="row gap-3">
             <ProviderDot provider={providerName} />
             {providerName}
           </span>
         );
         crumb = <a href={href(['providers'])}>← Providers</a>;
+        desc = 'Charges, subscription patterns and how each charge type is read for this provider.';
         page = <ProviderDetail provider={providerName} />;
+        showPeriod = false;
       } else {
         title = 'Providers';
+        desc = 'Every provider you pay, ranked by spend. Open one to confirm how its charges are read.';
         page = <Providers />;
       }
       break;
     case 'subscriptions':
       title = 'Subscriptions';
+      desc = 'Recurring charges the app found in your data, and what they add up to.';
+      scope = through && `Based on charges through ${through}`;
       page = <Subscriptions />;
       showPeriod = false;
       break;
     case 'transactions':
       title = 'Transactions';
+      desc = 'Every recorded charge. Filter, tag or correct them here.';
+      scope = through && `All dates, through ${through}`;
       page = <Transactions route={route} />;
       showPeriod = false;
       break;
     case 'trends':
       title = 'Trends';
+      desc = 'How spending changes over time, and what drives the change.';
+      scope = through && `All months, through ${through}`;
       page = <Trends />;
       showPeriod = false;
       break;
     case 'data':
       title = 'Data';
+      desc = 'Import statements, export your data and manage what is stored.';
       page = <DataPage />;
       showPeriod = false;
       break;
@@ -122,7 +136,7 @@ function Shell() {
           <div><strong>{transactions.length}</strong> transactions</div>
           <div><strong>{formatEUR(sumCents(transactions))}</strong> recorded</div>
           {span && <div>Latest: {dateLabel(span.lastDate)}</div>}
-          <div style={{ marginTop: 6 }}>{mode === 'demo' ? 'Demo data, not stored' : 'Stored locally in this browser'}</div>
+          <div className="mt-2">{mode === 'demo' ? 'Demo data, not stored' : 'Stored locally in this browser'}</div>
         </div>
       </aside>
       <main className="main">
@@ -131,8 +145,9 @@ function Shell() {
           <div className="topbar-title">
             {crumb && <div className="crumb">{crumb}</div>}
             <h1>{title}</h1>
+            <p className="page-desc">{desc}</p>
           </div>
-          {showPeriod && <PeriodPicker />}
+          {showPeriod ? <PeriodPicker /> : scope && <span className="page-scope">{scope}</span>}
         </div>
         {page}
         <footer className="app-foot">
@@ -148,21 +163,25 @@ function Shell() {
 function DemoBanner({ onData }: { onData: boolean }) {
   const { exitDemo } = useLedger();
   return (
-    <div className="demo-banner" role="status">
-      <span>
-        <strong>Demo mode.</strong> Every transaction here is invented. Nothing is saved.
-      </span>
-      <span className="row wrap" style={{ gap: 6 }}>
-        {!onData && (
-          <a className="btn btn-sm btn-primary" href={href(['data'])}>
-            Use my own data
-          </a>
-        )}
-        <button className="btn btn-sm" onClick={exitDemo}>
-          Exit demo
-        </button>
-      </span>
-    </div>
+    <Notice
+      tone="info"
+      role="status"
+      className="notice-slot"
+      actions={
+        <>
+          {!onData && (
+            <a className="btn btn-sm btn-primary" href={href(['data'])}>
+              Use my own data
+            </a>
+          )}
+          <button className="btn btn-sm" onClick={exitDemo}>
+            Exit demo
+          </button>
+        </>
+      }
+    >
+      <strong>Demo mode.</strong> Every transaction here is invented. Nothing is saved.
+    </Notice>
   );
 }
 
@@ -171,14 +190,14 @@ function Welcome() {
   const [source, setSource] = useState<'statements' | 'ledger'>('statements');
   return (
     <div className="welcome">
-      <div className={`card card-pad welcome-card stack${source === 'statements' ? ' welcome-wide' : ''}`} style={{ gap: 16, padding: 28 }}>
-        <div className="row" style={{ gap: 12 }}>
+      <div className={`card card-pad welcome-card stack${source === 'statements' ? ' welcome-wide' : ''}`}>
+        <div className="row gap-3">
           <BrandMark />
           <h1>AI Spending Tracker</h1>
         </div>
         <p className="secondary">
           See what you spend on AI tools and services, which providers it goes to, and how it changes month to month.{' '}
-          {PRIVACY_SENTENCE} <a href={PRIVACY_PATH} style={{ textDecoration: 'underline' }}>Privacy statement</a>
+          {PRIVACY_SENTENCE} <a href={PRIVACY_PATH} className="link">Privacy statement</a>
         </p>
         <div className="welcome-demo">
           <div>
@@ -189,7 +208,7 @@ function Welcome() {
             Explore demo data
           </button>
         </div>
-        <div className="stack" style={{ gap: 10 }}>
+        <div className="stack gap-3">
           <div className="row-between wrap">
             <strong>Use your own data</strong>
             <Segmented<'statements' | 'ledger'>
@@ -233,7 +252,7 @@ function Root() {
   if (load.status === 'loading') {
     return (
       <div className="center-screen">
-        <div style={{ display: 'grid', placeItems: 'center', gap: 12 }}>
+        <div className="center-stack">
           <div className="spinner" />
           <span>Opening your local data…</span>
         </div>
@@ -243,13 +262,13 @@ function Root() {
   if (load.status === 'error') {
     return (
       <div className="center-screen">
-        <div className="card card-pad" style={{ maxWidth: 460 }}>
-          <h2 style={{ fontSize: 17, marginBottom: 8 }}>Can't open local storage</h2>
-          <p className="secondary" style={{ marginBottom: 12 }}>
+        <div className="card card-pad card-narrow">
+          <h2 className="title-lg">Can't open local storage</h2>
+          <p className="secondary mt-2 mb-3">
             This app keeps your data in the browser's IndexedDB, which isn't available right now. Private browsing
             windows and some privacy settings block it.
           </p>
-          <p className="small muted" style={{ marginBottom: 14 }}>Details: {load.message}</p>
+          <p className="small muted mb-3">Details: {load.message}</p>
           <div className="row wrap">
             <button className="btn btn-primary" onClick={() => void reload()}>Try again</button>
             <button className="btn" onClick={startDemo}>Explore demo data instead</button>
