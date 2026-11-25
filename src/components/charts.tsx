@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
@@ -7,6 +8,8 @@ import {
   ComposedChart,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -249,16 +252,31 @@ export function MonthlyTrendChart({ rows, months, height = 280 }: { rows: Ledger
     <div>
       <div className="legend" style={{ marginBottom: 10 }}>
         <span className="legend-item"><span className="dot" style={{ background: 'var(--accent)' }} />Monthly spending</span>
-        <span className="legend-item"><span className="legend-line" style={{ background: 'var(--ink-2)' }} />3-month average</span>
+        <span className="legend-item"><span className="legend-line legend-dashed" />3-month average</span>
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--grid)" />
           <XAxis dataKey="month" tickFormatter={monthTick(months)} tick={axisTick} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
           <YAxis tickFormatter={yTick} tick={axisTick} tickLine={false} axisLine={false} width={52} />
-          <Tooltip content={<Tip />} cursor={{ fill: 'var(--surface-hover)' }} isAnimationActive={false} />
-          <Bar dataKey="value" fill="var(--accent)" maxBarSize={24} radius={[3, 3, 0, 0]} isAnimationActive={false} />
-          <Line dataKey="avg" stroke="var(--ink-2)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+          <Tooltip content={<Tip />} cursor={{ stroke: 'var(--axis)' }} isAnimationActive={false} />
+          <defs>
+            <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.28} />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <Area
+            dataKey="value"
+            type="monotone"
+            stroke="var(--accent)"
+            strokeWidth={2}
+            fill="url(#trend-fill)"
+            dot={{ r: 3, fill: 'var(--surface)', stroke: 'var(--accent)', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: 'var(--accent)', stroke: 'var(--surface)', strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
+          <Line dataKey="avg" stroke="var(--ink-2)" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -484,6 +502,38 @@ export function TypeChart({
           ))}
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+
+// ---------- share donut ----------
+
+/** Share of spending as a ring with the biggest share in the middle. The legend is the list next to it. */
+export function ShareDonut({
+  slices,
+  centerValue,
+  centerLabel,
+  size = 168,
+}: {
+  slices: { key: string; value: number; color: string }[];
+  centerValue: string;
+  centerLabel: string;
+  size?: number;
+}) {
+  return (
+    <div className="donut" style={{ width: size, height: size }}>
+      <PieChart width={size} height={size}>
+        <Pie data={slices} dataKey="value" nameKey="key" innerRadius={size * 0.34} outerRadius={size * 0.48} paddingAngle={1} stroke="var(--surface)" strokeWidth={1} isAnimationActive={false}>
+          {slices.map((s) => (
+            <Cell key={s.key} fill={s.color} />
+          ))}
+        </Pie>
+      </PieChart>
+      <div className="donut-center">
+        <div className="donut-value num">{centerValue}</div>
+        <div className="donut-label">{centerLabel}</div>
+      </div>
     </div>
   );
 }

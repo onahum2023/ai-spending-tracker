@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { MonthlyTrendChart, TypeChart, YearCompareChart } from '../components/charts';
-import { Card, Delta, EmptyState, List, ListRow, ProviderLink, Segmented, Stat, StatGrid, StatStrip, StreamName } from '../components/ui';
+import { MonthlyTrendChart, ShareDonut, TypeChart, YearCompareChart } from '../components/charts';
+import { Card, Delta, DeltaChip, EmptyState, List, ListRow, ProviderLink, Segmented, Stat, StatGrid, StatStrip, StreamName } from '../components/ui';
 import {
   concentration,
   filterPeriod,
@@ -39,7 +39,8 @@ export function Trends() {
           lead
           label={`Last 3 months (${rangeLabel(addMonths(L, -2), L)})`}
           value={formatEUR(last3)}
-          sub={<>vs previous 3: <Delta before={prev3} after={last3} /></>}
+          delta={<DeltaChip before={prev3} after={last3} />}
+          sub={<>vs the previous 3 months: {formatEUR(prev3)}</>}
         />
         <Stat label="Average complete month" value={formatEUR(completeMonths.length ? Math.round(sumCents(rowsInMonths(transactions, span.firstMonth, L)) / completeMonths.length) : 0)} sub={`over ${completeMonths.length} months`} />
         <Stat label="Highest month" value={formatEUR(byMonth.get(sortedMonths[0]) ?? 0)} sub={monthLabel(sortedMonths[0])} />
@@ -265,13 +266,18 @@ function ConcentrationCard() {
           <Stat label="80% of spending" value={`${c.providersFor80} of ${c.shares.length}`} sub="providers" />
         </StatGrid>
       </div>
-      <div className="segbar" role="img" aria-label="Share of spending by provider">
-        {top.map((s) => (
-          <div key={s.provider} style={{ flex: s.share, background: colors.color(s.provider) }} title={`${s.provider}: ${pct(s.share)}`} />
-        ))}
-        {rest.length > 0 && <div style={{ flex: restShare, background: colors.otherColor }} title={`${rest.length} others: ${pct(restShare)}`} />}
+      <div className="donut-row">
+      <div role="img" aria-label="Share of spending by provider, listed beside the chart">
+        <ShareDonut
+          slices={[
+            ...top.map((s) => ({ key: s.provider, value: s.share, color: colors.color(s.provider) })),
+            ...(rest.length > 0 ? [{ key: 'Others', value: restShare, color: colors.otherColor }] : []),
+          ]}
+          centerValue={pct(c.top1Share)}
+          centerLabel={c.shares[0]?.provider ?? ''}
+        />
       </div>
-      <List className="mt-3">
+      <List className="list">
         {top.map((s) => (
           <ListRow
             key={s.provider}
@@ -286,6 +292,7 @@ function ConcentrationCard() {
           />
         )}
       </List>
+      </div>
     </Card>
   );
 }

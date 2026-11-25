@@ -101,10 +101,10 @@ export function renderLandingMeta(siteUrl: string): string {
 
 /** The body of the landing page: static HTML, no scripts. */
 export function renderLandingBody(footer: FooterInfo): string {
-  const shots = SHOTS.map(
-    (s, i) =>
-      `<figure><img src="/screenshots/${esc(s.file)}" alt="${esc(s.alt)}" width="${s.width}" height="${s.height}" ${i === 0 ? '' : 'loading="lazy" '}/><figcaption>${esc(s.caption)}</figcaption></figure>`,
-  ).join('\n');
+  const fig = (s: (typeof SHOTS)[number], eager: boolean) =>
+    `<figure${eager ? ' class="hero-shot"' : ''}><img src="/screenshots/${esc(s.file)}" alt="${esc(s.alt)}" width="${s.width}" height="${s.height}" ${eager ? '' : 'loading="lazy" '}/><figcaption>${esc(s.caption)}</figcaption></figure>`;
+  const heroShot = fig(SHOTS[0], true);
+  const shots = SHOTS.slice(1).map((s) => fig(s, false)).join('\n');
   const build = [`Version ${footer.version}`, footer.commit ? `build ${footer.commit}` : '', footer.license ? footer.license : ''].filter(Boolean).join(' · ');
   return `<header class="site-head wide">
   <a class="brand" href="/"><img src="/favicon.svg" alt="" width="24" height="24" />${esc(SITE_NAME)}</a>
@@ -112,13 +112,16 @@ export function renderLandingBody(footer: FooterInfo): string {
 </header>
 <main>
   <section class="hero">
-    <h1>${esc(HEADLINE)}</h1>
-    <p class="lead">${esc(SUBHEAD)}</p>
-    <p class="cta">
-      <a class="btn btn-primary" href="${esc(DEMO_PATH)}">Explore demo data</a>
-      <a class="btn" href="${esc(APP_PATH)}">Import your own data</a>
-    </p>
-    <p class="privacy-line"><strong>Private by design.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
+    <div class="hero-copy">
+      <h1>${esc(HEADLINE)}</h1>
+      <p class="lead">${esc(SUBHEAD)}</p>
+      <p class="cta">
+        <a class="btn btn-primary" href="${esc(DEMO_PATH)}">Explore demo data</a>
+        <a class="btn" href="${esc(APP_PATH)}">Import your own data</a>
+      </p>
+      <p class="privacy-line"><strong>Private by design.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
+    </div>
+    ${heroShot}
   </section>
   <section class="shots" aria-label="Screenshots">
 ${shots}

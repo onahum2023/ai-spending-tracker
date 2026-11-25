@@ -182,6 +182,11 @@ p { margin: 0; }
 
 .stat { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .stat-label { font-size: var(--fs-xs); color: var(--ink-2); font-weight: 500; display: flex; gap: 6px; align-items: center; }
+.stat-figure { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; min-width: 0; }
+.delta-chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 4px; font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; }
+.delta-chip.up { color: var(--up); background: var(--danger-wash); }
+.delta-chip.down { color: var(--down); background: var(--accent-wash); }
+.delta-chip.flat { color: var(--ink-2); background: var(--surface-2); }
 .stat-value { font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-lead .stat-value { font-size: var(--fs-2xl); font-weight: 500; letter-spacing: -0.04em; line-height: 1.1; }
 .stat-sub { font-size: var(--fs-xs); color: var(--ink-3); }
@@ -294,6 +299,13 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 a.legend-item:hover { color: var(--ink); text-decoration: underline; }
 .legend-line { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+.legend-dashed { background: repeating-linear-gradient(90deg, var(--ink-2) 0 5px, transparent 5px 8px); }
+.donut { position: relative; flex: none; }
+.donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+.donut-value { font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; }
+.donut-label { font-size: var(--fs-xs); color: var(--ink-3); }
+.donut-row { display: flex; align-items: center; gap: var(--sp-5); flex-wrap: wrap; }
+.donut-row > .list { flex: 1 1 220px; min-width: 0; }
 
 .segbar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; gap: 2px; background: var(--surface); }
 .segbar > div { height: 100%; min-width: 2px; }

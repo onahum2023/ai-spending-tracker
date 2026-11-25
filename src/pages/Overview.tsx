@@ -3,7 +3,7 @@ import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts
 import { BudgetCard } from '../components/BudgetCard';
 import { ForecastCard } from '../components/ForecastCard';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, EmptyState, ProviderDot, Notice, Segmented, Stat, StatStrip } from '../components/ui';
+import { Card, Delta, DeltaChip, EmptyState, ProviderDot, Notice, Segmented, Stat, StatStrip } from '../components/ui';
 import {
   filterPeriod,
   monthTotal,
@@ -107,6 +107,7 @@ function KpiRow({ period }: { period: Period }) {
     return (
       <StatStrip>
         <Stat lead
+          delta={<DeltaChip before={inProgress ? prevSameDays : before} after={cur} />}
           label={
             <>
               {monthLabelLong(m)}
@@ -168,7 +169,7 @@ function KpiRow({ period }: { period: Period }) {
     const best = [...months].sort((a, b) => (byMonth.get(b) ?? 0) - (byMonth.get(a) ?? 0))[0];
     return (
       <StatStrip>
-        <Stat lead label={`${y} total`} value={formatEUR(total)} sub={`${rows.length} charges · ${monthShort(months[0])}–${monthShort(months[months.length - 1])}`} />
+        <Stat lead delta={hasPrev ? <DeltaChip before={samePrev} after={total} /> : undefined} label={`${y} total`} value={formatEUR(total)} sub={`${rows.length} charges · ${monthShort(months[0])}–${monthShort(months[months.length - 1])}`} />
         <Stat label={`${y - 1} total`} value={hasPrev ? formatEUR(sumCents(prevYearRows)) : '—'} sub={hasPrev ? `${prevYearRows.length} charges` : 'No recorded data'} />
         <Stat
           label={partial ? `vs same months of ${y - 1}` : `vs ${y - 1}`}

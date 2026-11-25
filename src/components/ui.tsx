@@ -39,13 +39,31 @@ export function Card({
 }
 
 /** One figure with a label and an optional note. `lead` makes it the largest figure on the page. */
-export function Stat({ label, value, sub, lead = false }: { label: ReactNode; value: ReactNode; sub?: ReactNode; lead?: boolean }) {
+export function Stat({ label, value, sub, delta, lead = false }: { label: ReactNode; value: ReactNode; sub?: ReactNode; delta?: ReactNode; lead?: boolean }) {
   return (
     <div className={`stat${lead ? ' stat-lead' : ''}`}>
       <div className="stat-label">{label}</div>
-      <div className="stat-value num">{value}</div>
+      <div className="stat-figure">
+        <div className="stat-value num">{value}</div>
+        {delta}
+      </div>
       {sub && <div className="stat-sub">{sub}</div>}
     </div>
+  );
+}
+
+/** A small "is it up or down" marker to put beside a figure (`delta` on Stat). Percent only; the amount goes in the tooltip. */
+export function DeltaChip({ before, after }: { before: number; after: number }) {
+  const pct = pctChange(before, after);
+  if (pct === null) return null;
+  const d = after - before;
+  const tone = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  return (
+    <span className={`delta-chip ${tone} num`} title={`${formatSignedEUR(d)} (${formatEUR(before)} before)`}>
+      {d !== 0 && <span aria-hidden="true">{d > 0 ? '▲' : '▼'}</span>}
+      {formatPct(pct)}
+      <span className="sr-only">{d > 0 ? ' more spending' : d < 0 ? ' less spending' : ''}</span>
+    </span>
   );
 }
 
