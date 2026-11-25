@@ -1,19 +1,21 @@
 import { useMemo, useState } from 'react';
 import { MonthlyCategoryChart, MonthlyProviderChart } from '../components/charts';
 import { BudgetCard } from '../components/BudgetCard';
-import { ForecastCard } from '../components/ForecastCard';
+import { MonthHero } from '../components/ForecastCard';
 import { TransactionTable } from '../components/TransactionTable';
-import { Card, Delta, DeltaChip, EmptyState, ProviderDot, Notice, Segmented, Stat, StatStrip } from '../components/ui';
+import { Card, Delta, DeltaChip, EmptyState, Notice, PriceJump, ProviderDot, Segmented, Stat, StatStrip, VendorMark, VendorStack } from '../components/ui';
+import { CATEGORY_NOUNS } from '../lib/categories';
+import { labelMap, labelOf } from '../lib/labels';
+import { reviewCounts } from '../lib/providerChargeTypes';
 import {
   filterPeriod,
   monthTotal,
-  monthTotalThroughDay,
   periodLabel,
   rowsInMonths,
   summarizeProviders,
   totalsByMonth,
 } from '../lib/analytics';
-import { addMonths, dateLabel, dayOf, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
+import { addMonths, dateLabel, daysInMonth, monthLabel, monthLabelLong, monthOf, monthShort, yearOf } from '../lib/dates';
 import { formatEUR, formatPct, pctChange, sumCents } from '../lib/money';
 import type { Period } from '../lib/types';
 import { href, providerHref } from '../router';
@@ -33,7 +35,9 @@ export function Overview() {
 
   return (
     <div className="stack">
-      <KpiRow period={period} />
+      {period.kind === 'month' ? <MonthHero month={period.month} /> : <KpiRow period={period} />}
+
+      <AttentionCard />
 
       <div className="grid cols-2">
         <Card
@@ -69,15 +73,14 @@ export function Overview() {
           )}
         </Card>
         <div className="stack">
-          <ForecastCard />
-          <BudgetCard />
+          <ContributorsCard rows={periodRows} label={periodLabel(period)} />
+          <div id="budget">
+            <BudgetCard />
+          </div>
         </div>
       </div>
 
-      <div className="grid cols-2">
-        <ChargesCard period={period} />
-        <ContributorsCard rows={periodRows} label={periodLabel(period)} />
-      </div>
+      <ChargesCard period={period} />
       {today < span.lastDate && (
         <Notice tone="info">Some transactions are dated after today ({dateLabel(today)}).</Notice>
       )}
@@ -89,70 +92,6 @@ function KpiRow({ period }: { period: Period }) {
   const { transactions, span, today } = useLedger();
   if (!span) return null;
   const byMonth = totalsByMonth(transactions);
-  const currentMonth = monthOf(today);
-
-  if (period.kind === 'month') {
-    const m = period.month;
-    const prev = addMonths(m, -1);
-    const cur = byMonth.get(m) ?? 0;
-    const before = byMonth.get(prev) ?? 0;
-    const inProgress = m === currentMonth;
-    const day = dayOf(today);
-    const prevSameDays = monthTotalThroughDay(transactions, prev, day);
-    const y = yearOf(m);
-    const yearRows = filterPeriod(transactions, { kind: 'year', year: y });
-    const yearMonths = span.months.filter((x) => yearOf(x) === y);
-    const count = transactions.filter((t) => monthOf(t.date) === m).length;
-    const isLatest = m === span.lastMonth;
-    return (
-      <StatStrip>
-        <Stat lead
-          delta={<DeltaChip before={inProgress ? prevSameDays : before} after={cur} />}
-          label={
-            <>
-              {monthLabelLong(m)}
-              {inProgress ? (
-                <span className="chip chip-warn">In progress</span>
-              ) : (
-                isLatest && <span className="chip chip-accent">Latest</span>
-              )}
-            </>
-          }
-          value={formatEUR(cur)}
-          sub={`${count} charge${count === 1 ? '' : 's'}${inProgress ? ` · through ${dateLabel(today)}` : ''}`}
-        />
-        <Stat label={`Previous month · ${monthLabel(prev)}`} value={formatEUR(before)} sub={prev < span.firstMonth ? 'Before recorded history' : `${transactions.filter((t) => monthOf(t.date) === prev).length} charges`} />
-        <Stat
-          label={inProgress ? `vs same point in ${monthShort(prev)}` : 'Month over month'}
-          value={
-            inProgress ? (
-              <Delta before={prevSameDays} after={cur} showPct={false} />
-            ) : before === 0 && cur === 0 ? (
-              '—'
-            ) : (
-              <Delta before={before} after={cur} showPct={false} />
-            )
-          }
-          sub={
-            inProgress ? (
-              <>
-                {monthShort(prev)} 1–{day}: {formatEUR(prevSameDays)}. Full {monthShort(prev)} total was {formatEUR(before)}.
-              </>
-            ) : before > 0 ? (
-              `${formatPct(pctChange(before, cur))} vs ${monthLabel(prev)}`
-            ) : (
-              'No spending the month before'
-            )
-          }
-        />
-        <Stat
-          label={`${y} total`}
-          value={formatEUR(sumCents(yearRows))}
-          sub={`${monthShort(yearMonths[0])}–${monthShort(yearMonths[yearMonths.length - 1])} · avg ${formatEUR(Math.round(sumCents(yearRows) / yearMonths.length))}/mo`}
-        />
-      </StatStrip>
-    );
-  }
 
   if (period.kind === 'year') {
     const y = period.year;
@@ -194,6 +133,84 @@ function KpiRow({ period }: { period: Period }) {
   );
 }
 
+
+/** Price jumps, overlapping tools and guesses waiting for you, gathered in one place. */
+function AttentionCard() {
+  const { analysis, transactions, overrides, labels } = useLedger();
+  const r = analysis.report;
+  const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
+  const since = addMonths(monthOf(r.latestDate), -5);
+  const changes = r.priceChanges
+    .filter((c) => c.month >= since)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 3);
+  const lm = labelMap(labels);
+  const count = changes.length + r.overlaps.length + (toReview > 0 ? 1 : 0);
+
+  return (
+    <section className="card attention" aria-labelledby="attention-h">
+      <div className="attention-head">
+        <h2 id="attention-h">Needs your attention</h2>
+        <span className="muted">{count === 0 ? 'Nothing right now' : `${count} thing${count === 1 ? '' : 's'}`}</span>
+      </div>
+      {count === 0 ? (
+        <p className="attention-empty">No price changes in the last 6 months, no tools that overlap, and every charge type is confirmed.</p>
+      ) : (
+        <ul className="attention-list">
+          {changes.map((c) => (
+            <li key={c.provider + c.merchant + c.date} className={`att ${c.toCents > c.fromCents ? 'att-rise' : 'att-saving'}`}>
+              <span className="att-who">
+                <VendorMark provider={c.provider} />
+                <span>{labelOf(lm, c.provider, c.merchant) ?? c.provider}</span>
+              </span>
+              <span className="att-what">
+                <PriceJump from={c.fromCents} to={c.toCents} />
+                <span className="muted">a month since {monthLabelLong(c.month).replace(/ \d{4}$/, '')}</span>
+              </span>
+              <a className="att-go" href={href(['subscriptions'], { open: c.provider })}>Why</a>
+            </li>
+          ))}
+          {r.overlaps.map((g) => {
+            const names = g.members.map((m) => m.provider);
+            return (
+              <li key={g.category} className="att att-overlap">
+                <span className="att-who">
+                  <VendorStack providers={names} />
+                  <span>
+                    {g.members.length} {CATEGORY_NOUNS[g.category].many}
+                  </span>
+                </span>
+                <span className="att-what">
+                  <span className="chip chip-overlap"><span aria-hidden="true">◐</span> Overlap</span>
+                  <span className="muted num">
+                    {joinNames(names)}: <strong className="ink">{formatEUR(g.combinedMonthlyCents)}</strong> a month together
+                  </span>
+                </span>
+                <a className="att-go" href={href(['subscriptions'], { open: names[0] })}>Why</a>
+              </li>
+            );
+          })}
+          {toReview > 0 && (
+            <li className="att att-guess">
+              <span className="att-who">
+                <span className="vm vm-letter" aria-hidden="true">?</span>
+                <span>{toReview} charge type{toReview === 1 ? '' : 's'}</span>
+              </span>
+              <span className="att-what">
+                <span className="chip chip-guess">To confirm</span>
+                <span className="muted">Counted by the app's guess until you confirm {toReview === 1 ? 'it' : 'them'}</span>
+              </span>
+              <a className="att-go" href={href(['providers'])}>Review</a>
+            </li>
+          )}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const joinNames = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
+
 function ContributorsCard({ rows, label }: { rows: { provider: string; amountCents: number; date: string; merchant: string }[]; label: string }) {
   const summary = summarizeProviders(rows);
   const total = sumCents(rows);
@@ -203,7 +220,7 @@ function ContributorsCard({ rows, label }: { rows: { provider: string; amountCen
     <Card
       title="Largest contributors"
       subtitle={`${label} · ${formatEUR(total)} across ${summary.length} provider${summary.length === 1 ? '' : 's'}`}
-      actions={<a className="btn btn-sm btn-ghost" href={href(['providers'])}>All providers →</a>}
+      actions={<a className="btn btn-sm btn-ghost" href={href(['providers'])}>All providers</a>}
     >
       {summary.length === 0 ? (
         <EmptyState>No spending recorded in this period.</EmptyState>
@@ -249,7 +266,7 @@ function ChargesCard({ period }: { period: Period }) {
         subtitle={`${rows.length} transaction${rows.length === 1 ? '' : 's'}`}
         actions={
           <a className="btn btn-sm btn-ghost" href={href(['transactions'], { from: `${period.month}-01`, to: `${period.month}-${String(daysInMonth(period.month))}` })}>
-            Open in Transactions →
+            Open in Charges
           </a>
         }
       >

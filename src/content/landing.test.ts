@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APP_PATH, DEMO_PATH, FAQ, FEATURES, META_DESCRIPTION, renderLandingBody, renderLandingMeta, SHOTS, STEPS } from './landing';
+import { APP_PATH, DEMO_PATH, FAQ, FEATURES, HEADLINE, META_DESCRIPTION, renderLandingBody, renderLandingMeta, SHOTS, STEPS } from './landing';
 import { PRIVACY_PATH, PRIVACY_SENTENCE } from './privacy';
 import { PRODUCTION_URL } from './site';
 
@@ -11,7 +11,7 @@ const body = renderLandingBody({ version: '1.2.3', commit: 'abc1234', license: '
 
 describe('landing page', () => {
   it('explains the product, says the privacy sentence up front, and has a demo and an import button', () => {
-    expect(body).toContain('<h1>What do you spend on AI tools?</h1>');
+    expect(body).toContain(`<h1>${HEADLINE.replace(/&/g, '&amp;')}</h1>`);
     expect(body.indexOf(PRIVACY_SENTENCE.replace(/&/g, '&amp;'))).toBeGreaterThan(0);
     expect(body.indexOf('Private by design')).toBeLessThan(body.indexOf('What you get'));
     expect(body).toContain(`href="${DEMO_PATH}"`);

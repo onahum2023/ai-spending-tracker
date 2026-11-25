@@ -1,14 +1,15 @@
-import { useId, useState } from 'react';
-import { Card, Chevron, Delta, Disclosure, EmptyState, List, ListRow, Notice, ProviderDot, ProviderLink, Stat, StatStrip, StreamName, TypeNote } from '../components/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { TypeControl } from '../components/ChargeTypes';
+import { Card, Chevron, Disclosure, EmptyState, Figure, List, ListRow, Notice, PriceJump, ProviderLink, Stat, StatStrip, StreamName, TypeNote, VendorMark, VendorStack } from '../components/ui';
 import { CATEGORY_LABELS, CATEGORY_NOUNS } from '../lib/categories';
 import { addMonths, dateLabel, monthLabel, monthOf, monthShort, ordinal } from '../lib/dates';
 import { STALE_AFTER_DAYS } from '../lib/forecast';
 import { UPCOMING_DAYS, type OverlapGroup, type PriceChange, type StoppedSubscription, type Subscription, type SubscriptionReport, type UpcomingCharge } from '../lib/insights';
 import { labelMap, labelOf, tidyDescriptor } from '../lib/labels';
 import { formatEUR } from '../lib/money';
-import { overrideMap, overrideOf, typeLabel, WHY } from '../lib/overrides';
+import { overrideMap, overrideOf } from '../lib/overrides';
 import { reviewCounts } from '../lib/providerChargeTypes';
-import { href, providerHref } from '../router';
+import { href, providerHref, useRoute } from '../router';
 import { useLedger } from '../store';
 
 const weekday = (date: string) =>
@@ -27,10 +28,10 @@ export function Subscriptions() {
         <Notice
           tone="warn"
           role="status"
-          actions={<a className="btn btn-sm" href={href(['providers'])}>Review on the Providers page</a>}
+          actions={<a className="btn btn-sm" href={href(['providers'])}>Confirm them on Providers</a>}
         >
-          <strong>{toReview} charge type{toReview === 1 ? '' : 's'} still to review.</strong> What is counted here follows the app's
-          suggestions until you confirm them.
+          <strong>{toReview} charge type{toReview === 1 ? '' : 's'} to confirm.</strong> What is counted here follows the app's guesses
+          until you confirm them. Guesses have a dashed outline.
         </Notice>
       )}
 
@@ -39,7 +40,7 @@ export function Subscriptions() {
           lead
           label="Monthly run-rate"
           value={formatEUR(r.monthlyCents)}
-          sub={`${formatEUR(r.yearlyCents)} a year if nothing changes · ${r.active.length} recurring charge${r.active.length === 1 ? '' : 's'}`}
+          sub={`${formatEUR(r.yearlyCents)} a year if nothing changes, from ${r.active.length} recurring charge${r.active.length === 1 ? '' : 's'}`}
         />
         <Stat
           label={`Next ${UPCOMING_DAYS} days`}
@@ -62,18 +63,16 @@ export function Subscriptions() {
         </Card>
       ) : (
         <>
-          <div className="grid cols-2">
-            <ActiveCard subs={r.active} total={r.monthlyCents} report={r} />
+          <ActiveSubscriptions report={r} />
+          <div className="grid cols-2-even">
             <UpcomingCard upcoming={r.upcoming} fresh={r.dataFresh} latest={r.latestDate} asOf={r.asOf} total={r.upcomingCents} />
-          </div>
-          <div className="grid cols-2-even">
             <PriceChangesCard changes={r.priceChanges} />
-            <OverlapCard groups={r.overlaps} />
           </div>
           <div className="grid cols-2-even">
-            <StoppedCard stopped={r.stopped} />
+            <OverlapCard groups={r.overlaps} />
             <SavingsCard subs={r.active} />
           </div>
+          <StoppedCard stopped={r.stopped} />
         </>
       )}
 
@@ -91,119 +90,214 @@ export function Subscriptions() {
 
 const joinNames = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
 
-type Pill = { text: string; cls: string };
+const subKey = (s: Subscription) => `${s.provider}|${s.merchant}|${s.pattern.firstDate}`;
 
-/** One recurring charge: the answer when closed, the reasoning when open. */
-function SubscriptionRow({ s, report }: { s: Subscription; report: SubscriptionReport }) {
+/** The recurring charges as statement lines, with the selected one explained in a panel beside them. */
+function ActiveSubscriptions({ report }: { report: SubscriptionReport }) {
+  const route = useRoute();
+  const open = route.query.get('open');
+  const subs = report.active;
+  const pick = (provider: string | null) => (provider && subs.find((s) => s.provider === provider)) || subs[0];
+  const [selected, setSelected] = useState<string | null>(() => (pick(open) ? subKey(pick(open)!) : null));
+  useEffect(() => {
+    const s = pick(open);
+    if (open && s) {
+      setSelected(subKey(s));
+      document.getElementById('sub-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  const current = subs.find((s) => subKey(s) === selected) ?? subs[0];
+
+  if (subs.length === 0) {
+    return (
+      <Card title="Active recurring charges">
+        <EmptyState>Nothing is currently recurring.</EmptyState>
+      </Card>
+    );
+  }
+  return (
+    <div className="subs-layout">
+      <Card title="Active recurring charges" subtitle="Select one to see why the app counts it, what it costs a year and what kind of charge it is.">
+        <ul className="sub-list">
+          {subs.map((s) => (
+            <SubscriptionLine key={subKey(s)} s={s} report={report} selected={current === s} onSelect={() => setSelected(subKey(s))} />
+          ))}
+        </ul>
+        <div className="sub-total num">
+          <span>{subs.length} recurring charges</span>
+          <span>{formatEUR(report.monthlyCents)}/mo</span>
+        </div>
+      </Card>
+      {current && <SubscriptionPanel s={current} report={report} />}
+    </div>
+  );
+}
+
+function recentChange(s: Subscription, report: SubscriptionReport): PriceChange | undefined {
+  const since = addMonths(monthOf(report.latestDate), -5);
+  return report.priceChanges
+    .filter((c) => c.provider === s.provider && c.merchant === s.merchant && c.month >= since)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+}
+
+/** One recurring charge as a statement line: name, its signals, and what it costs a month. */
+function SubscriptionLine({ s, report, selected, onSelect }: { s: Subscription; report: SubscriptionReport; selected: boolean; onSelect: () => void }) {
   const { analysis, overrides, labels } = useLedger();
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-
   const label = labelOf(labelMap(labels), s.provider, s.merchant);
   const info = analysis.streamInfo(s.provider, s.merchant);
   const confirmed = overrideOf(overrideMap(overrides), { provider: s.provider, merchant: s.merchant }) !== undefined;
-
-  // Price moves of this stream in the last 6 months (the same window as the "Price changes" figure above), newest first.
-  const since = addMonths(monthOf(report.latestDate), -5);
-  const changes = report.priceChanges
-    .filter((c) => c.provider === s.provider && c.merchant === s.merchant && c.month >= since)
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
-  const latestChange = changes[0];
-
-  const group = report.overlaps.find((o) => o.category === s.category);
-  const others = group ? group.members.filter((m) => m.provider !== s.provider).map((m) => m.provider) : [];
-
-  const pills: Pill[] = [];
-  if (latestChange) {
-    const up = latestChange.toCents > latestChange.fromCents;
-    pills.push({ text: `Price ${up ? 'up' : 'down'} in ${monthShort(latestChange.month)}`, cls: up ? 'chip-over' : 'chip-accent' });
-  }
-  if (group && others.length) pills.push({ text: 'Overlap', cls: '' });
-  if (info && !confirmed) pills.push({ text: 'To review', cls: 'chip-warn' });
-
-  const yearOf = (month: string) => (month.slice(0, 4) === report.latestDate.slice(0, 4) ? '' : ` ${month.slice(0, 4)}`);
-
+  const change = recentChange(s, report);
+  const group = report.overlaps.find((o) => o.category === s.category && o.members.some((m) => m.provider === s.provider));
   return (
-    <li className="sub-item">
-      <button type="button" className="sub-row" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)}>
-        <ProviderDot provider={s.provider} />
+    <li>
+      <button type="button" className={`sub-row${selected ? ' is-selected' : ''}`} aria-pressed={selected} aria-controls="sub-panel" onClick={onSelect}>
+        <VendorMark provider={s.provider} />
         <span className="sub-main">
           <span className="sub-name">
             {label ?? s.provider}
-            {label && <span className="muted sub-provider"> · {s.provider}</span>}
+            {label && <span className="muted sub-provider"> {s.provider}</span>}
           </span>
-          {pills.length > 0 && (
-            <span className="sub-pills">
-              {pills.slice(0, 2).map((p) => (
-                <span key={p.text} className={`chip ${p.cls}`.trim()}>{p.text}</span>
-              ))}
-            </span>
-          )}
+          <span className="sub-pills">
+            {change && <PriceJump from={change.fromCents} to={change.toCents} showAmounts={false} />}
+            {group && (
+              <span className="chip chip-overlap" title={`Overlaps with ${joinNames(group.members.filter((m) => m.provider !== s.provider).map((m) => m.provider))}`}>
+                <span aria-hidden="true">◐</span> Overlap
+              </span>
+            )}
+            {info && !confirmed && <span className="chip chip-guess" title="The app's guess: confirm it in the panel">? Guess</span>}
+          </span>
         </span>
         <span className="sub-amount num">{formatEUR(s.monthlyCents)}/mo</span>
-        <Chevron open={open} />
+        <Chevron open={selected} />
       </button>
-      <div id={panelId} hidden={!open} className="sub-detail">
-        <p>
-          {s.cadence === 'yearly'
-            ? `Yearly since ${monthLabel(monthOf(s.pattern.firstDate))}. ${formatEUR(s.billedCents)} is billed once a year, shown here as a twelfth.`
-            : `Monthly since ${monthLabel(monthOf(s.pattern.firstDate))}, around the ${ordinal(s.pattern.typicalDay)}.`}
-          {s.renewal &&
-            (s.renewal.overdue
-              ? ` The renewal has not been seen yet (expected around ${dateLabel(s.renewal.expected)}).`
-              : ` The next renewal is expected around ${dateLabel(s.renewal.expected)}${s.renewal.confirmed ? '' : ' (estimated)'}.`)}
-        </p>
-        {changes.map((c) => (
-          <p key={c.date}>
-            Went from {formatEUR(c.fromCents)} to {formatEUR(c.toCents)} in {monthShort(c.month)}
-            {yearOf(c.month)}
-            {c.kind === 'plan' && Math.abs(c.pct) >= 25 ? ', likely a plan change.' : '.'}
-          </p>
-        ))}
-        {group && others.length > 0 && (
-          <p>
-            Overlaps with {joinNames(others)}: {group.members.length} {CATEGORY_NOUNS[group.category].many}, {formatEUR(group.combinedMonthlyCents)}/mo combined.
-          </p>
-        )}
-        {s.pattern.forced && <p>You marked this as a {s.cadence} subscription.</p>}
-        {s.pattern.provisional && (
-          <p>
-            A new price has been seen {s.pattern.charges.length === 1 ? 'once' : 'twice'}. It is counted as the same subscription until three charges confirm it.
-          </p>
-        )}
-        {info && (
-          <p title={WHY[info.source]}>
-            Counted as {typeLabel(info)}.{' '}
-            {confirmed ? 'You confirmed this type. ' : 'This type is the app’s suggestion. '}
-            <a href={providerHref(s.provider)} className="sub-link">{confirmed ? 'Change it on the provider page' : 'Confirm or change'}</a>
-          </p>
-        )}
-        <p>Category: {CATEGORY_LABELS[s.category]}.</p>
-        <p className="sub-descriptor">{tidyDescriptor(s.merchant)}</p>
-      </div>
     </li>
   );
 }
 
-function ActiveCard({ subs, total, report }: { subs: Subscription[]; total: number; report: SubscriptionReport }) {
+/** Why a charge counts as a subscription, what it costs, and what kind of charge it is. */
+function SubscriptionPanel({ s, report }: { s: Subscription; report: SubscriptionReport }) {
+  const { analysis, overrides, labels, transactions } = useLedger();
+  const label = labelOf(labelMap(labels), s.provider, s.merchant);
+  const info = analysis.streamInfo(s.provider, s.merchant);
+  const setting = overrideOf(overrideMap(overrides), { provider: s.provider, merchant: s.merchant }) ?? null;
+  const stream = useMemo(() => transactions.filter((t) => t.provider === s.provider && t.merchant === s.merchant), [transactions, s]);
+  const changes = report.priceChanges
+    .filter((c) => c.provider === s.provider && c.merchant === s.merchant)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const group = report.overlaps.find((o) => o.category === s.category && o.members.some((m) => m.provider === s.provider));
+  const others = group ? group.members.filter((m) => m.provider !== s.provider).map((m) => m.provider) : [];
+
   return (
-    <Card title="Active recurring charges" subtitle="Based on the latest charge, which is what you are committed to now. A yearly one counts as a twelfth per month.">
-      {subs.length === 0 ? (
-        <EmptyState>Nothing is currently recurring.</EmptyState>
-      ) : (
+    <aside className="card sub-panel" id="sub-panel" aria-label={`About ${label ?? s.provider}`}>
+      <div className="sub-panel-head">
+        <VendorMark provider={s.provider} size="lg" />
+        <div className="min-0">
+          <h2>{label ?? s.provider}</h2>
+          <div className="sub-descriptor">{tidyDescriptor(s.merchant)}</div>
+        </div>
+      </div>
+      <div className="sub-panel-figure">
+        <span className="sub-panel-value"><Figure cents={s.cadence === 'yearly' ? s.billedCents : s.monthlyCents} /></span>
+        <span className="muted">
+          {s.cadence === 'yearly' ? 'a year' : `a month, around the ${ordinal(s.pattern.typicalDay)}`}
+        </span>
+      </div>
+
+      <h3 className="panel-h">Why it counts as a subscription</h3>
+      <MonthStrip s={s} report={report} stream={stream} />
+      <p className="panel-text">
+        {s.pattern.forced
+          ? `You marked this as a ${s.cadence} subscription.`
+          : s.cadence === 'yearly'
+            ? `Charged once a year since ${monthLabel(monthOf(s.pattern.firstDate))}.`
+            : `Charged ${s.pattern.months} months in a row since ${monthLabel(monthOf(s.pattern.firstDate))}, around the ${ordinal(s.pattern.typicalDay)}, at a similar amount.`}
+        {s.pattern.provisional &&
+          ` A new price has been seen ${s.pattern.charges.length === 1 ? 'once' : 'twice'}; it is counted as the same subscription until three charges confirm it.`}
+        {s.renewal &&
+          (s.renewal.overdue
+            ? ` The renewal has not been seen yet (expected around ${dateLabel(s.renewal.expected)}).`
+            : ` The next renewal is expected around ${dateLabel(s.renewal.expected)}${s.renewal.confirmed ? '' : ' (estimated)'}.`)}
+      </p>
+
+      {changes.length > 0 && (
         <>
-          <ul className="sub-list">
-            {subs.map((s) => (
-              <SubscriptionRow key={`${s.provider}|${s.merchant}|${s.pattern.firstDate}`} s={s} report={report} />
+          <h3 className="panel-h">Price</h3>
+          <div className="stack gap-2">
+            {changes.slice(0, 3).map((c) => (
+              <div key={c.date} className="row wrap">
+                <PriceJump from={c.fromCents} to={c.toCents} />
+                <span className="muted small">
+                  in {monthShort(c.month)} {c.month.slice(0, 4)}
+                  {c.kind === 'plan' && Math.abs(c.pct) >= 25 ? ', likely a plan change' : ''}
+                </span>
+              </div>
             ))}
-          </ul>
-          <div className="sub-total">
-            <span>{subs.length} recurring charges</span>
-            <span className="num">{formatEUR(total)}/mo</span>
           </div>
         </>
       )}
-    </Card>
+
+      {group && others.length > 0 && (
+        <>
+          <h3 className="panel-h">Overlap</h3>
+          <div className="row wrap">
+            <VendorStack providers={group.members.map((m) => m.provider)} />
+            <span className="small">
+              One of {group.members.length} {CATEGORY_NOUNS[group.category].many} with {joinNames(others)}:{' '}
+              <strong className="num">{formatEUR(group.combinedMonthlyCents)}</strong> a month together.
+            </span>
+          </div>
+        </>
+      )}
+
+      <h3 className="panel-h">If you end it</h3>
+      <div className="save-box">
+        <span>You would save</span>
+        <span className="save-value num">
+          ≈ <Figure cents={s.yearlyCents} /> <span className="small">a year</span>
+        </span>
+      </div>
+
+      {info && (
+        <>
+          <h3 className="panel-h">What kind of charge is this?</h3>
+          <TypeControl provider={s.provider} merchant={s.merchant} name={label ?? s.provider} setting={setting} guess={info} count={stream.length} />
+        </>
+      )}
+      <p className="panel-foot small muted">
+        Category: {CATEGORY_LABELS[s.category]}. <a className="link" href={providerHref(s.provider)}>All {s.provider} charges</a>
+      </p>
+    </aside>
+  );
+}
+
+/** Twelve months, one dot per month with a charge, sized by the amount. Months after the latest price change take its colour. */
+function MonthStrip({ s, report, stream }: { s: Subscription; report: SubscriptionReport; stream: { date: string; amountCents: number }[] }) {
+  const end = monthOf(report.latestDate);
+  const months = Array.from({ length: 12 }, (_, i) => addMonths(end, i - 11));
+  const byMonth = new Map<string, number>();
+  for (const t of stream) byMonth.set(monthOf(t.date), (byMonth.get(monthOf(t.date)) ?? 0) + t.amountCents);
+  const max = Math.max(1, ...months.map((m) => byMonth.get(m) ?? 0));
+  const change = report.priceChanges
+    .filter((c) => c.provider === s.provider && c.merchant === s.merchant)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  const tone = change ? (change.toCents > change.fromCents ? 'rise' : 'saving') : null;
+  return (
+    <div className="month-strip" role="img" aria-label={`Charged in ${months.filter((m) => byMonth.has(m)).length} of the last 12 months`}>
+      {months.map((m) => {
+        const cents = byMonth.get(m);
+        const size = cents ? 7 + Math.round((cents / max) * 11) : 0;
+        const toned = tone && change && m >= change.month;
+        return (
+          <div key={m} className="ms-month" title={cents ? `${monthLabel(m)}: ${formatEUR(cents)}` : `${monthLabel(m)}: no charge`}>
+            <span className="ms-slot">
+              {cents ? <span className={`ms-dot${toned ? ` ms-${tone}` : ''}`} style={{ width: size, height: size }} /> : <span className="ms-empty" />}
+            </span>
+            <span className="ms-label">{monthShort(m).slice(0, 1)}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -259,11 +353,11 @@ function PriceChangesCard({ changes }: { changes: PriceChange[] }) {
                 title={<ProviderLink provider={c.provider} />}
                 meta={
                   <>
-                    went from {formatEUR(c.fromCents)} to {formatEUR(c.toCents)} in {monthShort(c.month)} {c.month.slice(0, 4)}
+                    in {monthShort(c.month)} {c.month.slice(0, 4)}
                     {c.kind === 'plan' && Math.abs(c.pct) >= 25 && ', likely a plan change'}
                   </>
                 }
-                value={<Delta before={c.fromCents} after={c.toCents} />}
+                value={<PriceJump from={c.fromCents} to={c.toCents} />}
               />
             ))}
           </List>
@@ -283,7 +377,10 @@ function OverlapCard({ groups }: { groups: OverlapGroup[] }) {
         <div className="stack gap-4">
           {groups.map((g) => (
             <div key={g.category}>
-              <div className="strong">{g.sentence.split(' · ')[0]}</div>
+              <div className="row">
+                <VendorStack providers={g.members.map((m) => m.provider)} />
+                <span className="strong">{g.sentence.split(' · ')[0]}</span>
+              </div>
               <div className="small secondary num">
                 {formatEUR(g.combinedMonthlyCents)}/month combined, {formatEUR(g.combinedMonthlyCents * 12)}/year
               </div>

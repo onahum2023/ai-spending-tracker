@@ -115,7 +115,10 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
   }
 
   return (
-    <div className="ask-claude stack" style={{ gap: 10 }}>
+    <div className="ask-claude outbound stack gap-3">
+      <span className="outbound-tag">
+        <span aria-hidden="true">↗</span> Leaves your browser
+      </span>
       <div className="row-between wrap">
         <strong>Ask Claude about {items.length} line{items.length === 1 ? '' : 's'}</strong>
         <button className="btn btn-sm btn-ghost" onClick={() => setOpen(false)} disabled={!!busy}>Close</button>
@@ -126,10 +129,9 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
         country and why the rules were unsure. No file names or other columns. Check the preview first and leave out any line
         you would rather not send. Claude's answers appear on each line; you can still change them. Usually costs a few cents.
       </p>
-      <div className="row wrap" style={{ gap: 8 }}>
+      <div className="row wrap gap-2">
         <input
-          className="input"
-          style={{ flex: '1 1 260px' }}
+          className="input key-input"
           type="password"
           autoComplete="off"
           placeholder="Anthropic API key (sk-ant-…)"
@@ -137,7 +139,7 @@ export function AskClaude({ items, onVerdicts }: { items: Classified[]; onVerdic
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
         />
-        <label className="row small secondary" style={{ gap: 6 }}>
+        <label className="row small secondary gap-2">
           <input
             type="checkbox"
             checked={remember}

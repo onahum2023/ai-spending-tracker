@@ -106,7 +106,7 @@ export function ProviderDetail({ provider }: { provider: string }) {
       <Card
         title="Transaction history"
         subtitle={`${rows.length} transactions · ${formatEUR(total)} · ${dateLabel(first)} to ${dateLabel(last)}`}
-        actions={<a className="btn btn-sm btn-ghost" href={href(['transactions'], { provider })}>Open in Transactions →</a>}
+        actions={<a className="btn btn-sm btn-ghost" href={href(['transactions'], { provider })}>Open in Charges</a>}
       >
         <TransactionTable rows={rows} showProvider={false} />
       </Card>

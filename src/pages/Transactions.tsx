@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BulkTag, TagSuggestions } from '../components/TagEditor';
+import { SelectionBar, TagSuggestions } from '../components/TagEditor';
 import { TransactionTable, type TxSortKey } from '../components/TransactionTable';
 import { Card, ConfirmDialog, Notice, SearchInput, Stat, StatStrip, Toolbar, type SortDir } from '../components/ui';
 import { dateLabel, daysInMonth } from '../lib/dates';
@@ -15,6 +15,7 @@ export function Transactions({ route }: { route: Route }) {
   const { transactions, providers, span, period, analysis, mode, deleteTransactions } = useLedger();
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const q = route.query.get('q') ?? '';
   const provider = route.query.get('provider') ?? '';
   const type = route.query.get('type') ?? '';
@@ -46,6 +47,7 @@ export function Transactions({ route }: { route: Route }) {
   }, [transactions, analysis, q, provider, type, tag, from, to]);
 
   const anyFilter = q || provider || type || tag || from || to;
+  const selectedRows = useMemo(() => filtered.filter((t) => selected.has(t.id)), [filtered, selected]);
   const tags = useMemo(() => tagsInUse(transactions), [transactions]);
   const types: ChargeKind[] = ['subscription', 'usage', 'other'];
 
@@ -68,8 +70,8 @@ export function Transactions({ route }: { route: Route }) {
         subtitle="Search, filter and correct individual charges"
         actions={
           <Toolbar>
-            {provider && <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details →</a>}
-            <a className="btn btn-sm btn-ghost" href={href(['data'])}>Export a quarter →</a>
+            {provider && <a className="btn btn-sm btn-ghost" href={`#/providers/${encodeURIComponent(provider)}`}>{provider} details</a>}
+            <a className="btn btn-sm btn-ghost" href={href(['data'])}>Export a quarter</a>
           </Toolbar>
         }
         toolbar={
@@ -119,10 +121,16 @@ export function Transactions({ route }: { route: Route }) {
       >
         {from && to && from > to && <Notice tone="warn" className="mb-3">The start date is after the end date.</Notice>}
         <TagSuggestions />
-        {filtered.length > 0 && <BulkTag rows={filtered} />}
+        {selectedRows.length > 0 ? (
+          <SelectionBar rows={selectedRows} onClear={() => setSelected(new Set())} />
+        ) : (
+          filtered.length > 0 && <p className="select-hint">Tick charges to tag several at once.</p>
+        )}
         <TransactionTable
           editableTags
           onDelete={setPendingDelete}
+          selected={selected}
+          onSelectedChange={setSelected}
           rows={filtered}
           sort={{ key: sortKey, dir: sortDir }}
           onSort={(s) => update({ sort: s.key, dir: s.dir })}

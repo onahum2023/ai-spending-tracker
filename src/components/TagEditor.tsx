@@ -23,29 +23,110 @@ export function TagSuggestions() {
   );
 }
 
-/** Edits one charge's tag in place. Saves when the field loses focus or Enter is pressed. */
+/**
+ * One charge's tag: Personal or Business in one click, or any other label after "…".
+ * Clicking the active tag clears it. A charge has at most one tag.
+ */
 export function TagInput({ tx }: { tx: Transaction }) {
   const { setTags } = useLedger();
-  const [draft, setDraft] = useState(tx.tag ?? '');
-  useEffect(() => setDraft(tx.tag ?? ''), [tx.tag]);
+  const cur = tx.tag ?? '';
+  const custom = cur !== '' && !SUGGESTED_TAGS.includes(cur);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(cur);
+  useEffect(() => setDraft(cur), [cur]);
   const commit = () => {
+    setEditing(false);
     const t = cleanTag(draft);
-    if (t === (tx.tag ?? '')) return setDraft(tx.tag ?? '');
-    void setTags([tx.id], t || null);
+    if (t !== cur) void setTags([tx.id], t || null);
   };
+  if (editing) {
+    return (
+      <input
+        className="input input-sm tag-input"
+        list={TAG_LIST_ID}
+        value={draft}
+        autoFocus
+        placeholder="e.g. Client: Acme"
+        maxLength={MAX_TAG_LENGTH}
+        aria-label={`Tag for ${tx.provider} charge on ${tx.date}`}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            setDraft(cur);
+            setEditing(false);
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
   return (
-    <input
-      className="input input-sm tag-input"
-      list={TAG_LIST_ID}
-      value={draft}
-      placeholder="Add tag"
-      maxLength={MAX_TAG_LENGTH}
-      aria-label={`Tag for ${tx.provider} charge on ${tx.date}`}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-      onClick={(e) => e.stopPropagation()}
-    />
+    <span className="tag-toggle" role="group" aria-label={`Tag for ${tx.provider} charge on ${tx.date}`} onClick={(e) => e.stopPropagation()}>
+      {SUGGESTED_TAGS.map((t) => (
+        <button key={t} type="button" className={cur === t ? 'is-on' : undefined} aria-pressed={cur === t} onClick={() => void setTags([tx.id], cur === t ? null : t)}>
+          {t}
+        </button>
+      ))}
+      <button
+        type="button"
+        className={custom ? 'is-on' : undefined}
+        aria-pressed={custom}
+        title={custom ? `Tagged “${cur}”. Click to change it.` : 'Another tag, e.g. a client or project'}
+        onClick={() => {
+          setDraft(custom ? cur : '');
+          setEditing(true);
+        }}
+      >
+        {custom ? cur : '…'}
+      </button>
+    </span>
+  );
+}
+
+/** Shown when charges are selected: tag them all at once, or clear their tags. */
+export function SelectionBar({ rows, onClear }: { rows: Transaction[]; onClear: () => void }) {
+  const { setTags } = useLedger();
+  const [draft, setDraft] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const apply = async (t: string | null) => {
+    await setTags(rows.map((r) => r.id), t);
+    setMessage(t ? `Tagged ${rows.length} charge${rows.length === 1 ? '' : 's'} as “${t}”.` : `Cleared the tag of ${rows.length} charge${rows.length === 1 ? '' : 's'}.`);
+    setDraft('');
+  };
+  const tag = cleanTag(draft);
+  return (
+    <div className="selection-bar" role="region" aria-label="Selected charges">
+      <span className="strong">{rows.length} selected</span>
+      {SUGGESTED_TAGS.map((t) => (
+        <button key={t} type="button" className="btn btn-sm sel-btn" onClick={() => void apply(t)}>
+          Tag as {t}
+        </button>
+      ))}
+      <input
+        className="input input-sm sel-input"
+        list={TAG_LIST_ID}
+        value={draft}
+        maxLength={MAX_TAG_LENGTH}
+        placeholder="Other tag"
+        aria-label="Another tag for the selected charges"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && tag && void apply(tag)}
+      />
+      {tag && (
+        <button type="button" className="btn btn-sm sel-btn" onClick={() => void apply(tag)}>
+          Apply
+        </button>
+      )}
+      <button type="button" className="btn btn-sm btn-ghost sel-ghost" onClick={() => void apply(null)}>
+        Clear tags
+      </button>
+      <span className="sel-msg" role="status">{message}</span>
+      <button type="button" className="btn btn-sm btn-ghost sel-ghost" onClick={onClear}>
+        Clear selection
+      </button>
+    </div>
   );
 }
 
@@ -80,8 +161,7 @@ export function BulkTag({ rows }: { rows: Transaction[] }) {
             setDraft(e.target.value);
             setMessage(null);
           }}
-          style={{ width: 220 }}
-        />
+                  />
         <button
           className="btn btn-sm"
           disabled={!tag || rows.length === 0}
@@ -95,7 +175,7 @@ export function BulkTag({ rows }: { rows: Transaction[] }) {
           </button>
         )}
       </div>
-      {message && <div className="small secondary" role="status" style={{ marginTop: 6 }}>{message}</div>}
+      {message && <div className="small secondary mt-2" role="status">{message}</div>}
       {confirm && (
         <ConfirmDialog
           title="Replace existing tags?"

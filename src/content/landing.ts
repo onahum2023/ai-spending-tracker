@@ -7,6 +7,7 @@
  * The app itself is at /app (app.html), and keeps working with the same #/ links.
  */
 import { PRIVACY_SENTENCE } from './privacy.ts';
+import { landingMarks } from './marks.ts';
 import { BRAND, BRAND_URL, CONTACT_EMAIL, COPYRIGHT, OWNER, OWNER_URL, OWNERSHIP_LINE } from './site.ts';
 
 /** Where the tracker lives. A plain file path works in the dev server, the build and on Vercel (cleanUrls turns it into /app). */
@@ -15,16 +16,16 @@ export const APP_PATH = '/app.html';
 export const DEMO_PATH = `${APP_PATH}?demo=1`;
 
 export const SITE_NAME = 'AI Spending Tracker';
-export const HEADLINE = 'What do you spend on AI tools?';
-export const SUBHEAD = 'See which providers you pay, which charges are subscriptions, and what is about to renew. Everything stays in your browser.';
+export const HEADLINE = 'Do you know what you’re still paying for?';
+export const SUBHEAD = 'Drop in your card statements. See every AI subscription, every price jump and every tool you pay for twice. Nothing leaves your browser.';
 export const META_DESCRIPTION =
   'See what you spend on AI tools, which charges are subscriptions, price changes and what renews next. Runs in your browser: your data is never uploaded.';
 
 export const FEATURES: { title: string; text: string }[] = [
-  { title: 'Subscriptions and run-rate', text: 'Your monthly commitment, a 30-day calendar of expected charges, and what ending each subscription would save.' },
+  { title: 'Subscriptions, found for you', text: 'Recurring AI charges are found from your statements. One click shows why each one counts, and what ending it would save.' },
   { title: 'Price changes and overlap', text: 'Spot a plan that went from €22 to €109, and several chat assistants you pay for at once.' },
-  { title: 'Charge types you can correct', text: 'Every charge is a subscription, usage or one-time. The app guesses and you correct it, for a whole service or a single charge.' },
-  { title: 'Budgets, tags and quarterly export', text: 'Set a monthly budget, tag charges Personal or Business, and export a quarter for expense claims.' },
+  { title: 'Guesses you can correct in one click', text: 'Every charge is a subscription, usage or one-time. The app’s guess is outlined until you confirm it or pick another.' },
+  { title: 'Budgets, tags and quarterly export', text: 'Set a monthly budget, tag charges Personal or Business in one click, and export a quarter for expense claims.' },
 ];
 
 export const STEPS: string[] = [
@@ -35,9 +36,9 @@ export const STEPS: string[] = [
 
 /** Screenshots served from /screenshots. Every image has alt text. */
 export const SHOTS: { file: string; alt: string; caption: string; width: number; height: number }[] = [
-  { file: 'overview.jpg', alt: 'The overview page: monthly spending by provider as a stacked bar chart, with this month’s estimate.', caption: 'Overview: spending by provider and a month-end estimate', width: 1280, height: 888 },
-  { file: 'subscriptions.jpg', alt: 'The subscriptions page: monthly run-rate, active recurring charges and a calendar of the next 30 days.', caption: 'Subscriptions: run-rate and the next 30 days', width: 1280, height: 888 },
-  { file: 'insights.jpg', alt: 'Price changes, overlapping tools and stopped subscriptions.', caption: 'Price changes, overlap and stopped subscriptions', width: 1280, height: 888 },
+  { file: 'overview.jpg', alt: 'The overview page: this month’s spending with a month-end estimate, and the price jumps and overlapping tools that need attention.', caption: 'Overview: this month, and what needs your attention', width: 1280, height: 888 },
+  { file: 'subscriptions.jpg', alt: 'The subscriptions page: the monthly run-rate, the active recurring charges, and one of them explained in a side panel.', caption: 'Subscriptions: why each one counts, and what ending it saves', width: 1280, height: 888 },
+  { file: 'insights.jpg', alt: 'The next 30 days of expected charges, and price changes shown with the old price struck through.', caption: 'The next 30 days, and price changes', width: 1280, height: 888 },
 ];
 
 export const FAQ: { q: string; a: string }[] = [
@@ -99,16 +100,29 @@ export function renderLandingMeta(siteUrl: string): string {
   return tags.join('\n    ');
 }
 
+/** One line of the statement example in the hero: as the bank prints it, then what the app makes of it. */
+const STATEMENT: { date: string; mark: 'openai' | 'cursor' | 'github' | 'supabase'; text: string; amount: string; note: string }[] = [
+  { date: '15 NOV', mark: 'openai', text: 'OPENAI *CHATGPT SUBSCR', amount: '110.13', note: '<span class="badge b-rise">▲ ×4.8</span> was <s class="was">€22.80</s> until June' },
+  { date: '09 NOV', mark: 'cursor', text: 'CURSOR AI POWERED IDE', amount: '18.73', note: '<span class="badge b-overlap">◐ Overlap</span> one of 3 coding tools, €53.35 a month together' },
+  { date: '05 NOV', mark: 'github', text: 'GITHUB INC COPILOT', amount: '9.62', note: '<span class="badge b-overlap">◐ Overlap</span> with Cursor and Lovable' },
+  { date: '12 NOV', mark: 'supabase', text: 'SUPABASE SINGAPORE', amount: '22.80', note: '<span class="badge b-guess">? Guess</span> monthly since April, around the 12th' },
+];
+
 /** The body of the landing page: static HTML, no scripts. */
 export function renderLandingBody(footer: FooterInfo): string {
-  const fig = (s: (typeof SHOTS)[number], eager: boolean) =>
-    `<figure${eager ? ' class="hero-shot"' : ''}><img src="/screenshots/${esc(s.file)}" alt="${esc(s.alt)}" width="${s.width}" height="${s.height}" ${eager ? '' : 'loading="lazy" '}/><figcaption>${esc(s.caption)}</figcaption></figure>`;
-  const heroShot = fig(SHOTS[0], true);
-  const shots = SHOTS.slice(1).map((s) => fig(s, false)).join('\n');
+  const marks = landingMarks();
+  const shots = SHOTS.map(
+    (s) =>
+      `<figure><img src="/screenshots/${esc(s.file)}" alt="${esc(s.alt)}" width="${s.width}" height="${s.height}" loading="lazy" /><figcaption>${esc(s.caption)}</figcaption></figure>`,
+  ).join('\n');
+  const statement = STATEMENT.map(
+    (l) =>
+      `      <li><div class="st-row"><span class="st-date">${l.date}</span><span class="st-text"><span class="vm" aria-hidden="true">${marks[l.mark]}</span>${esc(l.text)}</span><span class="st-amt">${l.amount}</span></div><div class="st-note">${l.note}</div></li>`,
+  ).join('\n');
   const build = [`Version ${footer.version}`, footer.commit ? `build ${footer.commit}` : '', footer.license ? footer.license : ''].filter(Boolean).join(' · ');
   return `<header class="site-head wide">
-  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="24" height="24" />${esc(SITE_NAME)}</a>
-  <nav aria-label="Main"><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="/privacy.html">Privacy</a></nav>
+  <a class="brand" href="/"><img src="/favicon.svg" alt="" width="26" height="26" />${esc(SITE_NAME)}</a>
+  <nav aria-label="Main"><a href="#how">How it works</a><a href="#faq">Questions</a><a href="/privacy.html">Privacy</a></nav>
 </header>
 <main>
   <section class="hero">
@@ -117,20 +131,37 @@ export function renderLandingBody(footer: FooterInfo): string {
       <p class="lead">${esc(SUBHEAD)}</p>
       <p class="cta">
         <a class="btn btn-primary" href="${esc(DEMO_PATH)}">Explore demo data</a>
-        <a class="btn" href="${esc(APP_PATH)}">Import your own data</a>
+        <a class="btn" href="${esc(APP_PATH)}">Use my own statements</a>
       </p>
-      <p class="privacy-line"><strong>Private by design.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
     </div>
-    ${heroShot}
+    <figure class="statement" aria-label="An example card statement, annotated the way the app reads it">
+      <figcaption><span>Card statement, November</span><span>Invented example</span></figcaption>
+      <ol>
+${statement}
+      </ol>
+    </figure>
   </section>
-  <section class="shots" aria-label="Screenshots">
-${shots}
+  <section class="privacy" aria-labelledby="privacy-h">
+    <h2 id="privacy-h">Your statements stay with you</h2>
+    <p class="privacy-line"><strong>Private by design.</strong> ${esc(PRIVACY_SENTENCE)} <a href="/privacy.html">Privacy statement</a></p>
+    <ol class="flow">
+      <li><strong>Your statement</strong><span>A CSV, Excel or PDF from your bank</span></li>
+      <li><strong>Read in your browser</strong><span>On your device, by this page</span></li>
+      <li><strong>Stored in this browser</strong><span>Clear it whenever you like</span></li>
+      <li class="flow-none"><strong>Our servers</strong><span>There are none</span></li>
+    </ol>
   </section>
   <section aria-labelledby="what">
     <h2 id="what">What you get</h2>
     <ul class="features">
 ${FEATURES.map((f) => `      <li><h3>${esc(f.title)}</h3><p>${esc(f.text)}</p></li>`).join('\n')}
     </ul>
+  </section>
+  <section class="shots-section" aria-labelledby="inside">
+    <h2 id="inside">Inside the app</h2>
+    <div class="shots">
+${shots}
+    </div>
   </section>
   <section aria-labelledby="how">
     <h2 id="how">How it works</h2>

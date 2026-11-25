@@ -37,6 +37,8 @@ export function TransactionTable({
   initialSort = { key: 'date', dir: 'desc' },
   editableTags = false,
   onDelete,
+  selected,
+  onSelectedChange,
 }: {
   rows: Transaction[];
   showProvider?: boolean;
@@ -49,6 +51,9 @@ export function TransactionTable({
   editableTags?: boolean;
   /** Adds a delete button to each charge. The caller asks for confirmation and does the deleting. */
   onDelete?: (t: Transaction) => void;
+  /** Row checkboxes, for acting on several charges at once. */
+  selected?: Set<number>;
+  onSelectedChange?: (next: Set<number>) => void;
 }) {
   const [localSort, setLocalSort] = useState<{ key: TxSortKey; dir: SortDir }>(initialSort);
   const sort = controlledSort ?? localSort;
@@ -64,6 +69,22 @@ export function TransactionTable({
   if (rows.length === 0) return <EmptyState>{emptyText}</EmptyState>;
 
   const openProvider = (t: Transaction) => navigate(['providers', t.provider]);
+  const selectable = !!selected && !!onSelectedChange;
+  const allVisible = selectable && visible.every((t) => selected!.has(t.id));
+  const toggle = (id: number) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectedChange!(next);
+  };
+  const toggleAll = () => {
+    const next = new Set(selected);
+    for (const t of visible) {
+      if (allVisible) next.delete(t.id);
+      else next.add(t.id);
+    }
+    onSelectedChange!(next);
+  };
 
   return (
     <>
@@ -71,8 +92,13 @@ export function TransactionTable({
         <table className="table">
           <thead>
             <tr>
+              {selectable && (
+                <th className="check-cell">
+                  <input type="checkbox" checked={allVisible} onChange={toggleAll} aria-label={allVisible ? 'Unselect the charges shown' : 'Select the charges shown'} />
+                </th>
+              )}
               <SortHeader label="Date" k="date" sort={sort} onSort={setSort} />
-              <SortHeader label="Merchant descriptor" k="merchant" sort={sort} onSort={setSort} defaultDir="asc" />
+              <SortHeader label="Statement line" k="merchant" sort={sort} onSort={setSort} defaultDir="asc" />
               {showProvider && <SortHeader label="Provider" k="provider" sort={sort} onSort={setSort} defaultDir="asc" />}
               <SortHeader label="Type" k="type" sort={sort} onSort={setSort} defaultDir="asc" className="hide-sm" />
               {showTag && <SortHeader label="Tag" k="tag" sort={sort} onSort={setSort} defaultDir="asc" />}
@@ -84,10 +110,20 @@ export function TransactionTable({
             {visible.map((t) => (
               <tr
                 key={t.id}
-                className={showProvider ? 'clickable' : undefined}
+                className={[showProvider ? 'clickable' : '', selectable && selected!.has(t.id) ? 'is-selected' : ''].join(' ').trim() || undefined}
                 onClick={showProvider ? () => openProvider(t) : undefined}
                 title={showProvider ? `Open ${t.provider}` : undefined}
               >
+                {selectable && (
+                  <td className="check-cell" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected!.has(t.id)}
+                      onChange={() => toggle(t.id)}
+                      aria-label={`Select the ${t.provider} charge of ${formatEUR(t.amountCents)} on ${dateLabel(t.date)}`}
+                    />
+                  </td>
+                )}
                 <td className="date">{dateLabel(t.date)}</td>
                 <td className="merchant">{t.merchant}</td>
                 {showProvider && (
@@ -96,8 +132,12 @@ export function TransactionTable({
                   </td>
                 )}
                 <td className="hide-sm" onClick={(e) => e.stopPropagation()}>
-                  <a className="chip" href={providerHref(t.provider)} title={`${WHY[analysis.typeOf(t).source]}. Change it on the provider page.`}>
-                    {typeText(t)}
+                  <a
+                    className={`chip ${analysis.typeOf(t).source === 'you' ? 'chip-ok' : 'chip-guess'}`}
+                    href={providerHref(t.provider)}
+                    title={`${WHY[analysis.typeOf(t).source]}. ${analysis.typeOf(t).source === 'you' ? 'Change' : 'Confirm or change'} it on the provider page.`}
+                  >
+                    <span aria-hidden="true">{analysis.typeOf(t).source === 'you' ? '✓' : '?'}</span> {typeText(t)}
                   </a>
                 </td>
                 {showTag && (
@@ -126,8 +166,8 @@ export function TransactionTable({
           {showTotal && (
             <tfoot>
               <tr>
-                <td colSpan={(showProvider ? 3 : 2) + 1 + (showTag ? 1 : 0)}>
-                  {rows.length} transaction{rows.length === 1 ? '' : 's'}
+                <td colSpan={(showProvider ? 3 : 2) + 1 + (showTag ? 1 : 0) + (selectable ? 1 : 0)}>
+                  {rows.length} charge{rows.length === 1 ? '' : 's'}
                 </td>
                 <td className="amount">{formatEUR(total)}</td>
               </tr>

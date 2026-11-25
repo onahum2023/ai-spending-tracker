@@ -4,6 +4,7 @@ import { formatEUR, formatPct, formatSignedEUR, pctChange } from '../lib/money';
 import { typeLabel, overrideMap, overrideOf, WHY } from '../lib/overrides';
 import { providerHref } from '../router';
 import { useLedger } from '../store';
+import { vendorLetter, vendorMark } from '../lib/vendorIcons';
 
 export function Card({
   title,
@@ -44,7 +45,7 @@ export function Stat({ label, value, sub, delta, lead = false }: { label: ReactN
     <div className={`stat${lead ? ' stat-lead' : ''}`}>
       <div className="stat-label">{label}</div>
       <div className="stat-figure">
-        <div className="stat-value num">{value}</div>
+        <div className="stat-value num">{lead && typeof value === 'string' ? <FigureText text={value} /> : value}</div>
         {delta}
       </div>
       {sub && <div className="stat-sub">{sub}</div>}
@@ -180,15 +181,76 @@ export function Delta({ before, after, showPct = true }: { before: number; after
   );
 }
 
-export function ProviderDot({ provider }: { provider: string }) {
-  const { colors } = useLedger();
-  return <span className="dot" style={{ background: colors.color(provider) }} aria-hidden="true" />;
+/** A euro amount set for reading at size: "€" and cents smaller than the whole euros. Other text is left as it is. */
+export function FigureText({ text }: { text: string }) {
+  const m = text.match(/^([^€\d]*)€([\d,]+)(\.\d+)?(.*)$/);
+  if (!m) return <>{text}</>;
+  return (
+    <>
+      {m[1]}
+      <span className="fig-cur">€</span>
+      {m[2]}
+      {m[3] && <span className="fig-cents">{m[3]}</span>}
+      {m[4]}
+    </>
+  );
+}
+
+export function Figure({ cents }: { cents: number }) {
+  return <span className="num"><FigureText text={formatEUR(cents)} /></span>;
+}
+
+/** The provider's mark on a small tile, or its first letter when there is no mark. Decorative: the name is always written next to it. */
+export function VendorMark({ provider, size = 'md' }: { provider: string; size?: 'sm' | 'md' | 'lg' }) {
+  const svg = vendorMark(provider);
+  return svg ? (
+    <span className={`vm vm-${size}`} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />
+  ) : (
+    <span className={`vm vm-${size} vm-letter`} aria-hidden="true">{vendorLetter(provider)}</span>
+  );
+}
+
+/** Kept for existing call sites: a provider is shown by its mark. */
+export function ProviderDot({ provider, size }: { provider: string; size?: 'sm' | 'md' | 'lg' }) {
+  return <VendorMark provider={provider} size={size} />;
+}
+
+/** Overlapping tools: their marks overlap. */
+export function VendorStack({ providers }: { providers: string[] }) {
+  return (
+    <span className="vm-stack" aria-hidden="true">
+      {providers.slice(0, 4).map((p) => (
+        <VendorMark key={p} provider={p} />
+      ))}
+    </span>
+  );
+}
+
+/** A price change read like a correction on a statement: the old price struck through, then the new one and how much it moved. */
+export function PriceJump({ from, to, showAmounts = true }: { from: number; to: number; showAmounts?: boolean }) {
+  const up = to > from;
+  const ratio = from > 0 ? to / from : null;
+  const pct = pctChange(from, to);
+  const label = up ? (ratio !== null && ratio >= 2 ? `×${ratio.toFixed(1)}` : formatPct(pct)) : formatPct(pct);
+  return (
+    <span className="price-jump num">
+      {showAmounts && (
+        <>
+          <s className={`was ${up ? 'was-up' : 'was-down'}`}>{formatEUR(from)}</s> <strong>{formatEUR(to)}</strong>{' '}
+        </>
+      )}
+      <span className={`chip ${up ? 'chip-over' : 'chip-down'}`} title={`${formatEUR(from)} to ${formatEUR(to)}`}>
+        <span aria-hidden="true">{up ? '▲' : '▼'}</span> {label}
+        <span className="sr-only">{up ? ' price up' : ' price down'}</span>
+      </span>
+    </span>
+  );
 }
 
 export function ProviderLink({ provider }: { provider: string }) {
   return (
     <a className="provider-cell" href={providerHref(provider)} onClick={(e) => e.stopPropagation()}>
-      <ProviderDot provider={provider} />
+      <VendorMark provider={provider} />
       <span>{provider}</span>
     </a>
   );

@@ -14,7 +14,8 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Licenses that allow use in a closed or open product as long as the notice is kept. */
-export const ALLOWED = new Set(['MIT', 'ISC', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', '0BSD', 'Unlicense', 'CC0-1.0', 'BlueOak-1.0.0']);
+// OFL-1.1 is the SIL Open Font License: it covers the bundled IBM Plex fonts, which ship as files and are never modified.
+export const ALLOWED = new Set(['MIT', 'ISC', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', '0BSD', 'Unlicense', 'CC0-1.0', 'BlueOak-1.0.0', 'OFL-1.1']);
 
 export interface Dependency {
   name: string;

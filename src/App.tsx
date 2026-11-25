@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ImportPanel } from './components/ImportPanel';
 import { PeriodPicker } from './components/PeriodPicker';
 import { dateLabel } from './lib/dates';
@@ -18,6 +18,7 @@ import { PRIVACY_PATH, PRIVACY_SENTENCE } from './content/privacy';
 import { COPYRIGHT } from './content/site';
 import { href, useRoute } from './router';
 import { LedgerProvider, useLedger } from './store';
+import { reviewCounts } from './lib/providerChargeTypes';
 
 const icons: Record<string, ReactNode> = {
   overview: <path d="M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-18v6h8V3z" />,
@@ -32,7 +33,7 @@ const NAV = [
   { key: 'overview', label: 'Overview', path: [] as string[] },
   { key: 'subscriptions', label: 'Subscriptions', path: ['subscriptions'] },
   { key: 'providers', label: 'Providers', path: ['providers'] },
-  { key: 'transactions', label: 'Transactions', path: ['transactions'] },
+  { key: 'transactions', label: 'Charges', path: ['transactions'] },
   { key: 'trends', label: 'Trends', path: ['trends'] },
   { key: 'data', label: 'Data', path: ['data'] },
 ];
@@ -57,7 +58,8 @@ function BrandMark() {
 
 function Shell() {
   const route = useRoute();
-  const { transactions, span, mode } = useLedger();
+  const { transactions, span, mode, overrides } = useLedger();
+  const toReview = useMemo(() => [...reviewCounts(transactions, overrides).values()].reduce((a, b) => a + b, 0), [transactions, overrides]);
   const section = route.path[0] ?? 'overview';
   const providerName = section === 'providers' ? route.path[1] : undefined;
 
@@ -96,8 +98,8 @@ function Shell() {
       showPeriod = false;
       break;
     case 'transactions':
-      title = 'Transactions';
-      desc = 'Every recorded charge. Filter, tag or correct them here.';
+      title = 'Charges';
+      desc = 'Every recorded charge. Filter, tag Personal or Business, or correct them here.';
       scope = through && `All dates, through ${through}`;
       page = <Transactions route={route} />;
       showPeriod = false;
@@ -129,14 +131,25 @@ function Shell() {
             <a key={n.key} href={href(n.path)} className={section === n.key ? 'active' : ''} aria-current={section === n.key ? 'page' : undefined}>
               <Icon name={n.key} />
               <span>{n.label}</span>
+              {n.key === 'providers' && toReview > 0 && (
+                <span className="nav-count" title={`${toReview} charge types to confirm`}>{toReview}</span>
+              )}
             </a>
           ))}
         </nav>
         <div className="sidebar-foot">
-          <div><strong>{transactions.length}</strong> transactions</div>
-          <div><strong>{formatEUR(sumCents(transactions))}</strong> recorded</div>
-          {span && <div>Latest: {dateLabel(span.lastDate)}</div>}
-          <div className="mt-2">{mode === 'demo' ? 'Demo data, not stored' : 'Stored locally in this browser'}</div>
+          <div className="device-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="4" y="11" width="16" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+            {mode === 'demo' ? 'Demo, not stored' : 'On this device'}
+          </div>
+          <div>
+            <strong>{transactions.length}</strong> charges, <strong>{formatEUR(sumCents(transactions))}</strong>
+          </div>
+          {span && <div>Latest {dateLabel(span.lastDate)}</div>}
+          <div className="mt-2">{mode === 'demo' ? 'Invented data. Nothing is saved.' : 'Stored in this browser only. Nothing is uploaded.'}</div>
         </div>
       </aside>
       <main className="main">
